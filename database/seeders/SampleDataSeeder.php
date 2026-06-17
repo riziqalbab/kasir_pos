@@ -7,8 +7,6 @@ use App\Models\CashierShift;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerCredit;
-use App\Models\CustomerVoucher;
-use App\Models\LoyaltyPointHistory;
 use App\Models\Payable;
 use App\Models\PayablePayment;
 use App\Models\Product;
@@ -39,8 +37,6 @@ class SampleDataSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
 
         Cart::truncate();
-        LoyaltyPointHistory::truncate();
-        CustomerVoucher::truncate();
         CustomerCredit::truncate();
         SalesReturnItem::truncate();
         SalesReturn::truncate();
@@ -82,9 +78,6 @@ class SampleDataSeeder extends Seeder
         $this->command->info('Seeding receivables...');
         $this->seedReceivables($customers);
 
-        $this->command->info('Seeding loyalty vouchers...');
-        $this->seedCustomerVouchers($customers);
-
         $this->command->info('Seeding payables...');
         $this->seedPayables($suppliers);
 
@@ -125,11 +118,11 @@ class SampleDataSeeder extends Seeder
     private function seedCustomers(): Collection
     {
         $customers = collect([
-            ['name' => 'Andi Nugraha', 'no_telp' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung', 'is_loyalty_member' => true, 'member_code' => 'MEM-ANDI001', 'loyalty_tier' => 'gold', 'loyalty_points' => 180, 'loyalty_total_spent' => 1800000, 'loyalty_transaction_count' => 12, 'loyalty_member_since' => now()->subMonths(8)],
-            ['name' => 'Bunga Maharani', 'no_telp' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta', 'is_loyalty_member' => true, 'member_code' => 'MEM-BUNGA01', 'loyalty_tier' => 'silver', 'loyalty_points' => 60, 'loyalty_total_spent' => 780000, 'loyalty_transaction_count' => 6, 'loyalty_member_since' => now()->subMonths(4)],
+            ['name' => 'Andi Nugraha', 'no_telp' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung'],
+            ['name' => 'Bunga Maharani', 'no_telp' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta'],
             ['name' => 'Cici Amelia', 'no_telp' => '6281512340000', 'address' => 'Jl. Anggrek No. 17, Surabaya'],
             ['name' => 'Davin Pradipta', 'no_telp' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta'],
-            ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang', 'is_loyalty_member' => true, 'member_code' => 'MEM-EKO0001', 'loyalty_tier' => 'platinum', 'loyalty_points' => 420, 'loyalty_total_spent' => 3600000, 'loyalty_transaction_count' => 21, 'loyalty_member_since' => now()->subYear()],
+            ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang'],
             ['name' => 'Fitri Lestari', 'no_telp' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan'],
             ['name' => 'Gina Putri', 'no_telp' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang'],
             ['name' => 'Hendra Wijaya', 'no_telp' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar'],
@@ -138,56 +131,6 @@ class SampleDataSeeder extends Seeder
         return $customers
             ->map(fn ($customer) => Customer::create($customer))
             ->keyBy('name');
-    }
-
-    private function seedCustomerVouchers(Collection $customers): void
-    {
-        $blueprints = [
-            [
-                'customer' => 'Andi Nugraha',
-                'code' => 'VCR-ANDI10',
-                'name' => 'Voucher Loyal Gold',
-                'discount_type' => 'fixed_amount',
-                'discount_value' => 10000,
-                'minimum_order' => 75000,
-            ],
-            [
-                'customer' => 'Bunga Maharani',
-                'code' => 'VCR-BUNGA5',
-                'name' => 'Voucher Repeat Order',
-                'discount_type' => 'percentage',
-                'discount_value' => 5,
-                'minimum_order' => 50000,
-            ],
-            [
-                'customer' => 'Eko Saputra',
-                'code' => 'VCR-EKO25',
-                'name' => 'Voucher Platinum',
-                'discount_type' => 'fixed_amount',
-                'discount_value' => 25000,
-                'minimum_order' => 150000,
-            ],
-        ];
-
-        foreach ($blueprints as $blueprint) {
-            $customer = $customers->get($blueprint['customer']);
-
-            if (! $customer) {
-                continue;
-            }
-
-            CustomerVoucher::create([
-                'customer_id' => $customer->id,
-                'code' => $blueprint['code'],
-                'name' => $blueprint['name'],
-                'discount_type' => $blueprint['discount_type'],
-                'discount_value' => $blueprint['discount_value'],
-                'minimum_order' => $blueprint['minimum_order'],
-                'is_active' => true,
-                'starts_at' => now()->subDays(7),
-                'expires_at' => now()->addDays(30),
-            ]);
-        }
     }
 
     /**

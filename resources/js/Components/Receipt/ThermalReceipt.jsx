@@ -37,19 +37,11 @@ export default function ThermalReceipt({
         (sum, item) => sum + Number(item.discount_total || 0),
         0
     );
-    const loyaltyDiscount = Number(transaction?.loyalty_discount_total || 0);
-    const voucherDiscount = Number(
-        transaction?.customer_voucher_discount || 0
-    );
-
-    // Calculate totals
     const subtotal =
         (transaction?.grand_total || 0) +
         (transaction?.discount || 0) -
         (transaction?.shipping_cost || 0) +
-        promoDiscount +
-        loyaltyDiscount +
-        voucherDiscount;
+        promoDiscount;
     const discount = transaction?.discount || 0;
     const total = transaction?.grand_total || 0;
     const shipping = transaction?.shipping_cost || 0;
@@ -183,18 +175,7 @@ export default function ThermalReceipt({
                         <span>-{formatPrice(discount)}</span>
                     </div>
                 )}
-                {voucherDiscount > 0 && (
-                    <div className="flex justify-between">
-                        <span>Voucher</span>
-                        <span>-{formatPrice(voucherDiscount)}</span>
-                    </div>
-                )}
-                {loyaltyDiscount > 0 && (
-                    <div className="flex justify-between">
-                        <span>Redeem Poin</span>
-                        <span>-{formatPrice(loyaltyDiscount)}</span>
-                    </div>
-                )}
+
                 {shipping > 0 && (
                     <div className="flex justify-between">
                         <span>Ongkir</span>
@@ -281,10 +262,7 @@ export function ThermalReceipt58mm({
         (sum, item) => sum + Number(item.discount_total || 0),
         0
     );
-    const loyaltyDiscount = Number(transaction?.loyalty_discount_total || 0);
-    const voucherDiscount = Number(
-        transaction?.customer_voucher_discount || 0
-    );
+
     const line = "-".repeat(24);
 
     const SimpleBarcode = ({ value }) => {
@@ -359,9 +337,7 @@ export function ThermalReceipt58mm({
                         (transaction?.grand_total || 0) +
                             (transaction?.discount || 0) -
                             (transaction?.shipping_cost || 0) +
-                            promoDiscount +
-                            loyaltyDiscount +
-                            voucherDiscount
+                            promoDiscount
                     )}
                 </span>
             </div>
@@ -377,18 +353,7 @@ export function ThermalReceipt58mm({
                     <span>-{formatPrice(transaction?.discount)}</span>
                 </div>
             )}
-            {voucherDiscount > 0 && (
-                <div className="flex justify-between">
-                    <span>Voucher</span>
-                    <span>-{formatPrice(voucherDiscount)}</span>
-                </div>
-            )}
-            {loyaltyDiscount > 0 && (
-                <div className="flex justify-between">
-                    <span>Poin</span>
-                    <span>-{formatPrice(loyaltyDiscount)}</span>
-                </div>
-            )}
+
             {Number(transaction?.shipping_cost || 0) > 0 && (
                 <div className="flex justify-between">
                     <span>Ongkir</span>

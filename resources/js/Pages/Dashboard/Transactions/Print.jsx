@@ -50,19 +50,11 @@ export default function Print({ transaction }) {
             ),
         [items]
     );
-    const loyaltyDiscountTotal = Number(
-        transaction?.loyalty_discount_total || 0
-    );
-    const voucherDiscountTotal = Number(
-        transaction?.customer_voucher_discount || 0
-    );
     const baseSubtotal =
         (transaction?.grand_total || 0) +
         (transaction?.discount || 0) -
         (transaction?.shipping_cost || 0) +
-        promoDiscountTotal +
-        loyaltyDiscountTotal +
-        voucherDiscountTotal;
+        promoDiscountTotal;
 
     const store = useMemo(
         () => ({

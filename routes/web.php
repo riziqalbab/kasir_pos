@@ -3,15 +3,8 @@
 use App\Http\Controllers\Apps\AuditLogController;
 use App\Http\Controllers\Apps\CashierShiftController;
 use App\Http\Controllers\Apps\CategoryController;
-use App\Http\Controllers\Apps\CrmCampaignController;
-use App\Http\Controllers\Apps\CrmReminderController;
 use App\Http\Controllers\Apps\CustomerController;
-use App\Http\Controllers\Apps\CustomerSegmentController;
-use App\Http\Controllers\Apps\CustomerVoucherController;
 use App\Http\Controllers\Apps\GoodsReceivingController;
-use App\Http\Controllers\Apps\MemberController;
-use App\Http\Controllers\Apps\PaymentSettingController;
-use App\Http\Controllers\Apps\PricingRuleController;
 use App\Http\Controllers\Apps\ProductController;
 use App\Http\Controllers\Apps\PurchaseOrderController;
 use App\Http\Controllers\Apps\SalesReturnController;
@@ -43,14 +36,14 @@ Route::get('/', function () {
 
 Route::get('/dashboard/access', function () {
     return Inertia::render('Dashboard/Access');
-})->middleware(['auth', 'verified'])->name('dashboard.access');
+})->middleware(['auth'])->name('dashboard.access');
 
 // Public share routes (no login)
 Route::get('/share/transactions/{invoice}', [\App\Http\Controllers\DocumentController::class, 'publicInvoice'])
     ->name('transactions.public');
 
-Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], function () {
-    Route::get('/', [DashboardController::class, 'index'])->middleware(['auth', 'verified', 'permission:dashboard-access'])->name('dashboard');
+Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
+    Route::get('/', [DashboardController::class, 'index'])->middleware(['auth', 'permission:dashboard-access'])->name('dashboard');
     Route::get('/permissions', [PermissionController::class, 'index'])->middleware('permission:permissions-access')->name('permissions.index');
     // roles route
     Route::resource('/roles', RoleController::class)
@@ -84,15 +77,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], fu
         ->middlewareFor(['create', 'store'], 'permission:products-create')
         ->middlewareFor(['edit', 'update'], 'permission:products-edit')
         ->middlewareFor('destroy', 'permission:products-delete');
-    Route::resource('pricing-rules', PricingRuleController::class)
-        ->except(['show'])
-        ->middlewareFor('index', 'permission:pricing-rules-access')
-        ->middlewareFor(['create', 'store'], 'permission:pricing-rules-create')
-        ->middlewareFor(['edit', 'update'], 'permission:pricing-rules-update')
-        ->middlewareFor('destroy', 'permission:pricing-rules-delete');
-    Route::post('pricing-rules/preview', [PricingRuleController::class, 'preview'])
-        ->middleware('permission:pricing-rules-access')
-        ->name('pricing-rules.preview');
     Route::get('stock-opnames', [StockOpnameController::class, 'index'])->middleware('permission:stock-opnames-access')->name('stock-opnames.index');
     Route::get('stock-opnames/create', [StockOpnameController::class, 'create'])->middleware('permission:stock-opnames-create')->name('stock-opnames.create');
     Route::post('stock-opnames', [StockOpnameController::class, 'store'])->middleware('permission:stock-opnames-create')->name('stock-opnames.store');
@@ -113,53 +97,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], fu
         ->middlewareFor(['create', 'store'], 'permission:customers-create')
         ->middlewareFor(['edit', 'update'], 'permission:customers-edit')
         ->middlewareFor('destroy', 'permission:customers-delete');
-    Route::resource('members', MemberController::class)
-        ->parameters(['members' => 'member'])
-        ->except(['destroy'])
-        ->middlewareFor(['index', 'show'], 'permission:customers-access')
-        ->middlewareFor(['create', 'store'], 'permission:customers-create')
-        ->middlewareFor(['edit', 'update'], 'permission:customers-edit');
-    Route::resource('customer-vouchers', CustomerVoucherController::class)
-        ->except(['show'])
-        ->middlewareFor('index', 'permission:customer-vouchers-access')
-        ->middlewareFor(['create', 'store'], 'permission:customer-vouchers-create')
-        ->middlewareFor(['edit', 'update'], 'permission:customer-vouchers-update')
-        ->middlewareFor('destroy', 'permission:customer-vouchers-delete');
-    Route::resource('customer-segments', CustomerSegmentController::class)
-        ->middlewareFor(['index', 'show'], 'permission:customer-segments-access')
-        ->middlewareFor(['create', 'store'], 'permission:customer-segments-create')
-        ->middlewareFor(['edit', 'update'], 'permission:customer-segments-update')
-        ->middlewareFor('destroy', 'permission:customer-segments-delete');
-    Route::post('customer-segments/{customerSegment}/members', [CustomerSegmentController::class, 'storeMember'])
-        ->middleware('permission:customer-segments-update')
-        ->name('customer-segments.members.store');
-    Route::delete('customer-segments/{customerSegment}/members/{customer}', [CustomerSegmentController::class, 'destroyMember'])
-        ->middleware('permission:customer-segments-update')
-        ->name('customer-segments.members.destroy');
-    Route::resource('crm-campaigns', CrmCampaignController::class)
-        ->middlewareFor(['index', 'show'], 'permission:crm-campaigns-access')
-        ->middlewareFor(['create', 'store'], 'permission:crm-campaigns-create')
-        ->middlewareFor(['edit', 'update'], 'permission:crm-campaigns-update')
-        ->middlewareFor('destroy', 'permission:crm-campaigns-delete');
-    Route::post('crm-campaigns/{crmCampaign}/process', [CrmCampaignController::class, 'process'])
-        ->middleware('permission:crm-campaigns-update')
-        ->name('crm-campaigns.process');
-    Route::post('crm-campaigns/{crmCampaign}/cancel', [CrmCampaignController::class, 'cancel'])
-        ->middleware('permission:crm-campaigns-update')
-        ->name('crm-campaigns.cancel');
-    Route::post('crm-campaign-logs/{log}/mark-sent', [CrmCampaignController::class, 'markLogSent'])
-        ->middleware('permission:crm-campaigns-update')
-        ->name('crm-campaign-logs.mark-sent');
-    Route::post('crm-campaign-logs/{log}/skip', [CrmCampaignController::class, 'markLogSkipped'])
-        ->middleware('permission:crm-campaigns-update')
-        ->name('crm-campaign-logs.skip');
-    Route::get('crm-reminders', [CrmReminderController::class, 'index'])
-        ->middleware('permission:crm-reminders-access')
-        ->name('crm-reminders.index');
-
     // route customer history
     Route::get('/customers/{customer}/history', [CustomerController::class, 'getHistory'])->middleware('permission:transactions-access')->name('customers.history');
-    Route::put('/customers/{customer}/segments', [CustomerController::class, 'syncSegments'])->middleware('permission:customers-edit')->name('customers.segments.sync');
     Route::match(['post', 'put'], '/customers/{customer}/upgrade-member', [CustomerController::class, 'upgradeToMember'])
         ->middleware('permission:customers-edit')
         ->name('customers.upgrade-member');
@@ -193,7 +132,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], fu
     Route::post('/transactions/store', [TransactionController::class, 'store'])->middleware(['permission:transactions-access', 'active_shift'])->name('transactions.store');
     Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->middleware('permission:transactions-access')->name('transactions.print');
     Route::get('/transactions/history', [TransactionController::class, 'history'])->middleware('permission:transactions-access')->name('transactions.history');
-    Route::post('/transactions/{transaction}/share-campaign', [CrmCampaignController::class, 'shareTransaction'])->middleware('permission:crm-campaigns-create')->name('transactions.share-campaign');
     Route::get('/transactions/history/{transaction}/sales-return/create', [SalesReturnController::class, 'create'])->middleware('permission:sales-returns-create')->name('sales-returns.create');
     Route::post('/transactions/history/{transaction}/sales-return', [SalesReturnController::class, 'store'])->middleware('permission:sales-returns-create')->name('sales-returns.store');
     Route::get('/sales-returns', [SalesReturnController::class, 'index'])->middleware('permission:sales-returns-access')->name('sales-returns.index');
@@ -229,7 +167,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], fu
     Route::get('/receivables/{receivable}', [\App\Http\Controllers\Apps\ReceivableController::class, 'show'])->middleware('permission:receivables-access')->name('receivables.show');
     Route::patch('/receivables/{receivable}/collection-notes', [\App\Http\Controllers\Apps\ReceivableController::class, 'updateCollectionNotes'])->middleware('permission:receivables-access')->name('receivables.collection-notes');
     Route::post('/receivables/{receivable}/pay', [\App\Http\Controllers\Apps\ReceivableController::class, 'pay'])->middleware('permission:receivables-pay')->name('receivables.pay');
-    Route::post('/receivables/{receivable}/share-campaign', [CrmCampaignController::class, 'shareReceivable'])->middleware('permission:crm-campaigns-create')->name('receivables.share-campaign');
     // suppliers & payables
     Route::get('/suppliers', [\App\Http\Controllers\Apps\SupplierController::class, 'index'])->middleware('permission:suppliers-access')->name('suppliers.index');
     Route::post('/suppliers', [\App\Http\Controllers\Apps\SupplierController::class, 'store'])->middleware('permission:suppliers-access')->name('suppliers.store');
@@ -248,16 +185,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'verified']], fu
     Route::get('/documents/receivables/{receivable}/pdf', [\App\Http\Controllers\DocumentController::class, 'receivable'])->middleware('permission:receivables-access')->name('pdf.receivables.show');
     Route::get('/documents/payables/{payable}/pdf', [\App\Http\Controllers\DocumentController::class, 'payable'])->middleware('permission:payables-access')->name('pdf.payables.show');
 
-    Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->middleware('permission:payment-settings-access')->name('settings.payments.edit');
-    Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->middleware(['permission:payment-settings-update', 'step_up'])->name('settings.payments.update');
-
     // settings target penjualan
     Route::get('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'target'])->middleware('permission:dashboard-access')->name('settings.target');
     Route::post('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'updateTarget'])->middleware('permission:dashboard-access')->name('settings.target.update');
     Route::get('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'storeProfile'])->middleware('permission:dashboard-access')->name('settings.store');
     Route::post('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'updateStoreProfile'])->middleware('permission:dashboard-access')->name('settings.store.update');
-    Route::get('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'loyalty'])->middleware('permission:dashboard-access')->name('settings.loyalty');
-    Route::post('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'updateLoyalty'])->middleware('permission:dashboard-access')->name('settings.loyalty.update');
 
     // settings bank accounts
     Route::get('/settings/bank-accounts', [\App\Http\Controllers\Apps\BankAccountController::class, 'index'])->middleware('permission:payment-settings-access')->name('settings.bank-accounts.index');

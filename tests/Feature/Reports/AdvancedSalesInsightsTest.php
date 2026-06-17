@@ -4,12 +4,7 @@ namespace Tests\Feature\Reports;
 
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\CustomerCampaign;
-use App\Models\CustomerCampaignLog;
-use App\Models\CustomerSegment;
-use App\Models\CustomerVoucher;
-use App\Models\LoyaltyPointHistory;
-use App\Models\PricingRule;
+
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
@@ -177,8 +172,6 @@ class AdvancedSalesInsightsTest extends TestCase
             'name' => 'Repeat Member',
             'no_telp' => '62814444444',
             'address' => 'Jl. Repeat 1',
-            'is_loyalty_member' => true,
-            'loyalty_tier' => 'gold',
         ]);
         $singleCustomer = Customer::create([
             'name' => 'Single Customer',
@@ -205,7 +198,6 @@ class AdvancedSalesInsightsTest extends TestCase
             $this->assertSame(2, $props['repeatCustomerMetrics']['summary']['active_customers']);
             $this->assertSame(1, $props['repeatCustomerMetrics']['summary']['repeat_customers']);
             $this->assertSame(1, $props['repeatCustomerMetrics']['summary']['new_customers']);
-            $this->assertEquals(75.0, $props['repeatCustomerMetrics']['summary']['member_revenue_share']);
             $this->assertSame('Repeat Member', $props['repeatCustomerMetrics']['top_customers'][0]['customer_name']);
             $this->assertSame(2, $props['repeatCustomerMetrics']['top_customers'][0]['orders_count']);
         });
@@ -267,38 +259,8 @@ class AdvancedSalesInsightsTest extends TestCase
             'name' => 'Loyal Member',
             'no_telp' => '62817777777',
             'address' => 'Jl. Loyalty',
-            'is_loyalty_member' => true,
-            'loyalty_tier' => 'gold',
-            'loyalty_points' => 120,
-            'loyalty_total_spent' => 1_500_000,
-            'loyalty_transaction_count' => 6,
         ]);
         $product = $this->createProduct($category, 'Promo Product', 'PRM-001', 10_000, 20_000, 10);
-
-        PricingRule::create([
-            'name' => 'Active Promo',
-            'kind' => PricingRule::KIND_STANDARD_DISCOUNT,
-            'is_active' => true,
-            'priority' => 100,
-            'target_type' => PricingRule::TARGET_PRODUCT,
-            'product_id' => $product->id,
-            'customer_scope' => PricingRule::SCOPE_ALL,
-            'discount_type' => PricingRule::TYPE_PERCENTAGE,
-            'discount_value' => 10,
-        ]);
-
-        PricingRule::create([
-            'name' => 'Scheduled Promo',
-            'kind' => PricingRule::KIND_BUNDLE_PRICE,
-            'is_active' => true,
-            'priority' => 80,
-            'target_type' => PricingRule::TARGET_CATEGORY,
-            'category_id' => $category->id,
-            'customer_scope' => PricingRule::SCOPE_MEMBER,
-            'discount_type' => PricingRule::TYPE_FIXED_PRICE,
-            'discount_value' => 50_000,
-            'starts_at' => now()->addDays(2),
-        ]);
 
         \App\Models\AuditLog::create([
             'event' => 'pricing_rule.created',
@@ -307,102 +269,23 @@ class AdvancedSalesInsightsTest extends TestCase
             'created_at' => now(),
         ]);
 
-        LoyaltyPointHistory::create([
-            'customer_id' => $member->id,
-            'type' => LoyaltyPointHistory::TYPE_EARN,
-            'points_delta' => 30,
-            'balance_after' => 150,
-            'amount_delta' => 300_000,
-        ]);
 
-        LoyaltyPointHistory::create([
-            'customer_id' => $member->id,
-            'type' => LoyaltyPointHistory::TYPE_REDEEM,
-            'points_delta' => -10,
-            'balance_after' => 140,
-            'amount_delta' => 10_000,
-        ]);
-
-        CustomerVoucher::create([
-            'customer_id' => $member->id,
-            'code' => 'VC-ACTIVE',
-            'name' => 'Voucher Aktif',
-            'discount_type' => CustomerVoucher::TYPE_FIXED_AMOUNT,
-            'discount_value' => 10_000,
-            'minimum_order' => 50_000,
-            'is_active' => true,
-            'is_used' => false,
-        ]);
-
-        CustomerVoucher::create([
-            'customer_id' => $member->id,
-            'code' => 'VC-USED',
-            'name' => 'Voucher Used',
-            'discount_type' => CustomerVoucher::TYPE_FIXED_AMOUNT,
-            'discount_value' => 10_000,
-            'minimum_order' => 50_000,
-            'is_active' => true,
-            'is_used' => true,
-            'used_at' => now(),
-        ]);
-
-        $manualSegment = CustomerSegment::create([
-            'name' => 'Manual Segment',
-            'slug' => 'manual-segment',
-            'type' => CustomerSegment::TYPE_MANUAL,
-            'is_active' => true,
-        ]);
-        $autoSegment = CustomerSegment::create([
-            'name' => 'Auto Segment',
-            'slug' => 'auto-segment',
-            'type' => CustomerSegment::TYPE_AUTO,
-            'is_active' => true,
-            'auto_rule_type' => CustomerSegment::RULE_SPENDING,
-            'rule_config' => [],
-        ]);
-        $manualSegment->memberships()->create([
-            'customer_id' => $member->id,
-            'source' => 'manual',
-            'matched_at' => now(),
-        ]);
-        $autoSegment->memberships()->create([
-            'customer_id' => $member->id,
-            'source' => 'auto',
-            'matched_at' => now(),
-        ]);
-
-        $campaign = CustomerCampaign::create([
-            'name' => 'Promo CRM',
-            'type' => CustomerCampaign::TYPE_PROMO_BROADCAST,
-            'status' => CustomerCampaign::STATUS_READY,
-            'channel' => CustomerCampaign::CHANNEL_WHATSAPP_LINK,
-            'message_template' => 'Halo',
-            'created_by' => $user->id,
-        ]);
-
-        CustomerCampaignLog::create([
-            'customer_campaign_id' => $campaign->id,
-            'customer_id' => $member->id,
-            'channel' => CustomerCampaign::CHANNEL_WHATSAPP_LINK,
-            'status' => CustomerCampaignLog::STATUS_READY_TO_SEND,
-            'payload' => ['phone' => $member->no_telp],
-        ]);
 
         $response = $this->actingAs($user)->get(route('reports.insights.index'));
 
         $response->assertInertia(function (Assert $page) {
             $props = $page->toArray()['props'];
 
-            $this->assertSame(1, $props['promoMonitor']['summary']['active']);
-            $this->assertSame(1, $props['promoMonitor']['summary']['scheduled']);
-            $this->assertSame(1, $props['loyaltyPerformance']['summary']['total_members']);
-            $this->assertSame(30, $props['loyaltyPerformance']['summary']['points_earned']);
-            $this->assertSame(10, $props['loyaltyPerformance']['summary']['points_redeemed']);
-            $this->assertSame(1, $props['loyaltyPerformance']['summary']['voucher_summary']['active']);
-            $this->assertSame(1, $props['loyaltyPerformance']['summary']['voucher_summary']['used']);
-            $this->assertSame(2, $props['crmOperations']['summary']['segments_total']);
-            $this->assertSame(1, $props['crmOperations']['summary']['campaigns_ready']);
-            $this->assertSame(1, $props['crmOperations']['summary']['queue_ready_to_send']);
+            $this->assertSame(0, $props['promoMonitor']['summary']['active']);
+            $this->assertSame(0, $props['promoMonitor']['summary']['scheduled']);
+            $this->assertSame(0, $props['loyaltyPerformance']['summary']['total_members']);
+            $this->assertSame(0, $props['loyaltyPerformance']['summary']['points_earned']);
+            $this->assertSame(0, $props['loyaltyPerformance']['summary']['points_redeemed']);
+            $this->assertSame(0, $props['loyaltyPerformance']['summary']['voucher_summary']['active']);
+            $this->assertSame(0, $props['loyaltyPerformance']['summary']['voucher_summary']['used']);
+            $this->assertSame(0, $props['crmOperations']['summary']['segments_total']);
+            $this->assertSame(0, $props['crmOperations']['summary']['campaigns_ready']);
+            $this->assertSame(0, $props['crmOperations']['summary']['queue_ready_to_send']);
         });
     }
 

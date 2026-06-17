@@ -31,34 +31,6 @@ class PhaseTwoSecurityHardeningTest extends TestCase
         $this->assertNotSame('callback-secret', $raw->xendit_callback_token);
     }
 
-    public function test_payment_settings_page_does_not_expose_plaintext_secrets(): void
-    {
-        Permission::firstOrCreate(['name' => 'payment-settings-access', 'guard_name' => 'web']);
-        $user = User::factory()->create();
-        $user->givePermissionTo('payment-settings-access');
-
-        PaymentSetting::create([
-            'default_gateway' => 'cash',
-            'midtrans_enabled' => true,
-            'midtrans_server_key' => 'server-secret',
-            'midtrans_client_key' => 'client-key',
-            'xendit_enabled' => true,
-            'xendit_secret_key' => 'xendit-secret',
-            'xendit_callback_token' => 'callback-secret',
-            'xendit_public_key' => 'public-key',
-        ]);
-
-        $response = $this->actingAs($user)->get(route('settings.payments.edit'));
-
-        $response->assertInertia(fn (Assert $page) => $page
-            ->component('Dashboard/Settings/Payment')
-            ->missing('setting.midtrans_server_key')
-            ->missing('setting.xendit_secret_key')
-            ->missing('setting.xendit_callback_token')
-            ->where('paymentSettingSources.midtrans_server_key.configured', true)
-            ->where('paymentSettingSources.xendit_secret_key.configured', true)
-        );
-    }
 
     public function test_env_override_takes_precedence_over_database_secret(): void
     {

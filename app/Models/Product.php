@@ -60,11 +60,6 @@ class Product extends Model
         return $this->hasMany(SalesReturnItem::class);
     }
 
-    public function pricingRules()
-    {
-        return $this->hasMany(PricingRule::class);
-    }
-
     /**
      * image
      */

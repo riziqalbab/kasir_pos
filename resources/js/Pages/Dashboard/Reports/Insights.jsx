@@ -182,8 +182,6 @@ export default function Insights({
     repeatCustomerMetrics,
     stockCoverage,
     promoMonitor,
-    loyaltyPerformance,
-    crmOperations,
 }) {
     const [showFilters, setShowFilters] = useState(false);
     const [marginView, setMarginView] = useState("product");
@@ -338,10 +336,7 @@ export default function Insights({
     const promoActiveRules = promoMonitor?.active_rules || [];
     const promoScheduledRules = promoMonitor?.scheduled_rules || [];
     const promoRecentAudits = promoMonitor?.recent_audits || [];
-    const loyaltySummary = loyaltyPerformance?.summary || {};
-    const loyaltyTopMembers = loyaltyPerformance?.top_members || [];
-    const crmSummary = crmOperations?.summary || {};
-    const crmRecentCampaigns = crmOperations?.recent_campaigns || [];
+
 
     return (
         <>
@@ -507,7 +502,7 @@ export default function Insights({
                     />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <SummaryCard
                         title="Customer Aktif"
                         value={(repeatSummary.active_customers ?? 0).toLocaleString("id-ID")}
@@ -523,23 +518,11 @@ export default function Insights({
                         gradient="from-violet-500 to-violet-700"
                     />
                     <SummaryCard
-                        title="Member Revenue Share"
-                        value={`${formatPercentage(repeatSummary.member_revenue_share ?? 0)}%`}
-                        description={formatCurrency(
-                            repeatSummary.member_revenue_total ?? 0
-                        )}
-                        icon={IconCoin}
-                        gradient="from-teal-500 to-teal-700"
-                    />
-                    <SummaryCard
                         title="Stok Perlu Perhatian"
-                        value={(
-                            (stockCoverageSummary.critical ?? 0) +
-                            (stockCoverageSummary.low ?? 0)
-                        ).toLocaleString("id-ID")}
-                        description={`${stockCoverageSummary.window_days ?? 0} hari jendela analisa`}
-                        icon={IconClock}
-                        gradient="from-rose-500 to-rose-700"
+                        value={(stockCoverageSummary.critical_products_count ?? 0).toLocaleString("id-ID")}
+                        description="Stok di bawah batas aman"
+                        icon={IconAlertTriangle}
+                        gradient="from-amber-500 to-amber-700"
                     />
                 </div>
 
@@ -710,34 +693,14 @@ export default function Insights({
                 </Table.Card>
 
                 <Table.Card title="Repeat Customer Metrics">
-                    <div className="mb-4 grid gap-3 md:grid-cols-3">
+                    <div className="mb-4 grid gap-3 md:grid-cols-1">
                         <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Repeat Revenue
+                                Repeat Customer Revenue
                             </p>
                             <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
                                 {formatCurrency(
                                     repeatSummary.repeat_revenue_total ?? 0
-                                )}
-                            </p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Revenue Member
-                            </p>
-                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {formatCurrency(
-                                    repeatSummary.member_revenue_total ?? 0
-                                )}
-                            </p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Revenue Non-Member
-                            </p>
-                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {formatCurrency(
-                                    repeatSummary.non_member_revenue_total ?? 0
                                 )}
                             </p>
                         </div>
@@ -746,7 +709,6 @@ export default function Insights({
                         <Table.Thead>
                             <tr>
                                 <Table.Th>Pelanggan</Table.Th>
-                                <Table.Th>Status</Table.Th>
                                 <Table.Th className="text-right">Transaksi</Table.Th>
                                 <Table.Th className="text-right">Omzet</Table.Th>
                                 <Table.Th className="text-right">Avg Basket</Table.Th>
@@ -758,31 +720,9 @@ export default function Insights({
                                 topRepeatCustomers.map((item) => (
                                     <tr key={item.customer_id}>
                                         <Table.Td>
-                                            <div>
-                                                <p className="font-semibold text-slate-900 dark:text-slate-100">
-                                                    {item.customer_name}
-                                                </p>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {item.loyalty_tier
-                                                        ? item.loyalty_tier
-                                                              .replace("_", " ")
-                                                              .toUpperCase()
-                                                        : "Non-member"}
-                                                </p>
-                                            </div>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <span
-                                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                                    item.is_loyalty_member
-                                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                                        : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                                }`}
-                                            >
-                                                {item.is_loyalty_member
-                                                    ? "Member"
-                                                    : "Non-member"}
-                                            </span>
+                                            <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                                {item.customer_name}
+                                            </p>
                                         </Table.Td>
                                         <Table.Td className="text-right">
                                             {item.orders_count}
@@ -919,372 +859,136 @@ export default function Insights({
                     </Table>
                 </Table.Card>
 
-                <div className="grid gap-6 xl:grid-cols-2">
-                    <Table.Card title="Promo Active Monitor">
-                        <div className="mb-4 grid gap-3 md:grid-cols-2">
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Promo Aktif
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(promoSummary.active ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Promo Terjadwal
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(promoSummary.scheduled ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mb-4 flex flex-wrap gap-2">
-                            {Object.entries(promoSummary.by_kind || {}).map(
-                                ([key, count]) => (
-                                    <span
-                                        key={key}
-                                        className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                    >
-                                        {promoKindLabel[key] || key}:{" "}
-                                        {Number(count).toLocaleString("id-ID")}
-                                    </span>
-                                )
-                            )}
-                        </div>
-                        <Table>
-                            <Table.Thead>
-                                <tr>
-                                    <Table.Th>Rule</Table.Th>
-                                    <Table.Th>Tipe</Table.Th>
-                                    <Table.Th>Status</Table.Th>
-                                    <Table.Th>Periode</Table.Th>
-                                </tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {[...promoActiveRules, ...promoScheduledRules]
-                                    .slice(0, 8)
-                                    .length > 0 ? (
-                                    [...promoActiveRules, ...promoScheduledRules]
-                                        .slice(0, 8)
-                                        .map((item) => {
-                                            const status =
-                                                promoStatusConfig[
-                                                    item.status_label
-                                                ] ||
-                                                promoStatusConfig.inactive;
-
-                                            return (
-                                                <tr key={`${item.status_label}-${item.id}`}>
-                                                    <Table.Td>
-                                                        <div>
-                                                            <p className="font-semibold text-slate-900 dark:text-slate-100">
-                                                                {item.name}
-                                                            </p>
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                {item.product_title ||
-                                                                    item.category_name ||
-                                                                    item.target_type}
-                                                            </p>
-                                                        </div>
-                                                    </Table.Td>
-                                                    <Table.Td>
-                                                        {promoKindLabel[
-                                                            item.kind
-                                                        ] || item.kind}
-                                                    </Table.Td>
-                                                    <Table.Td>
-                                                        <span
-                                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}
-                                                        >
-                                                            {status.label}
-                                                        </span>
-                                                    </Table.Td>
-                                                    <Table.Td>
-                                                        <div className="text-sm text-slate-600 dark:text-slate-300">
-                                                            <div>
-                                                                {formatDateTime(
-                                                                    item.starts_at
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                {formatDateTime(
-                                                                    item.ends_at
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </Table.Td>
-                                                </tr>
-                                            );
-                                        })
-                                ) : (
-                                    <Table.Empty
-                                        colSpan={4}
-                                        message="Belum ada promo aktif atau terjadwal."
-                                    />
-                                )}
-                            </Table.Tbody>
-                        </Table>
-                        <div className="mt-4 space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                                Audit Promo Terbaru
-                            </h3>
-                            {promoRecentAudits.length > 0 ? (
-                                promoRecentAudits.map((audit) => (
-                                    <div
-                                        key={audit.id}
-                                        className="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60"
-                                    >
-                                        <p className="font-medium text-slate-800 dark:text-slate-100">
-                                            {audit.description}
-                                        </p>
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {audit.event} •{" "}
-                                            {formatDateTime(audit.created_at)}
-                                        </p>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Belum ada audit promo terbaru.
-                                </p>
-                            )}
-                        </div>
-                    </Table.Card>
-
-                    <Table.Card title="Loyalty Performance Summary">
-                        <div className="mb-4 grid gap-3 md:grid-cols-2">
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Total Member
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(loyaltySummary.total_members ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Saldo Poin
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(loyaltySummary.points_balance_total ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Poin Earned
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(loyaltySummary.points_earned ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Poin Redeemed
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(loyaltySummary.points_redeemed ?? 0).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mb-4 flex flex-wrap gap-2">
-                            {Object.entries(
-                                loyaltySummary.tier_distribution || {}
-                            ).map(([tier, count]) => (
-                                <span
-                                    key={tier}
-                                    className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                >
-                                    {tier.toUpperCase()}:{" "}
-                                    {Number(count).toLocaleString("id-ID")}
-                                </span>
-                            ))}
-                        </div>
-                        <div className="mb-4 grid gap-3 md:grid-cols-3">
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Voucher Aktif
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(
-                                        loyaltySummary.voucher_summary
-                                            ?.active ?? 0
-                                    ).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Voucher Digunakan
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {(
-                                        loyaltySummary.voucher_summary?.used ??
-                                        0
-                                    ).toLocaleString("id-ID")}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Nominal Voucher
-                                </p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                    {formatCurrency(
-                                        loyaltySummary.voucher_discount_total ??
-                                            0
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-                        <Table>
-                            <Table.Thead>
-                                <tr>
-                                    <Table.Th>Member</Table.Th>
-                                    <Table.Th>Tier</Table.Th>
-                                    <Table.Th className="text-right">Poin</Table.Th>
-                                    <Table.Th className="text-right">Total Belanja</Table.Th>
-                                </tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {loyaltyTopMembers.length > 0 ? (
-                                    loyaltyTopMembers.map((member) => (
-                                        <tr key={member.id}>
-                                            <Table.Td>{member.name}</Table.Td>
-                                            <Table.Td>
-                                                {(member.loyalty_tier || "-")
-                                                    .replace("_", " ")
-                                                    .toUpperCase()}
-                                            </Table.Td>
-                                            <Table.Td className="text-right">
-                                                {member.loyalty_points.toLocaleString(
-                                                    "id-ID"
-                                                )}
-                                            </Table.Td>
-                                            <Table.Td className="text-right">
-                                                {formatCurrency(
-                                                    member.loyalty_total_spent
-                                                )}
-                                            </Table.Td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <Table.Empty
-                                        colSpan={4}
-                                        message="Belum ada member loyalty."
-                                    />
-                                )}
-                            </Table.Tbody>
-                        </Table>
-                    </Table.Card>
-                </div>
-
-                <Table.Card title="CRM Operational Snapshot">
-                    <div className="mb-4 grid gap-3 md:grid-cols-4">
+                <Table.Card title="Promo Active Monitor">
+                    <div className="mb-4 grid gap-3 md:grid-cols-2">
                         <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Segment Aktif
+                                Promo Aktif
                             </p>
                             <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {(crmSummary.segments_active ?? 0).toLocaleString("id-ID")}
+                                {(promoSummary.active ?? 0).toLocaleString("id-ID")}
                             </p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Campaign Draft/Ready
+                                Promo Terjadwal
                             </p>
                             <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {(
-                                    (crmSummary.campaigns_draft ?? 0) +
-                                    (crmSummary.campaigns_ready ?? 0)
-                                ).toLocaleString("id-ID")}
-                            </p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Queue Ready
-                            </p>
-                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {(
-                                    crmSummary.queue_ready_to_send ?? 0
-                                ).toLocaleString("id-ID")}
-                            </p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Queue Sent
-                            </p>
-                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                                {(crmSummary.queue_sent ?? 0).toLocaleString(
-                                    "id-ID"
-                                )}
+                                {(promoSummary.scheduled ?? 0).toLocaleString("id-ID")}
                             </p>
                         </div>
                     </div>
                     <div className="mb-4 flex flex-wrap gap-2">
-                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            Manual Segment:{" "}
-                            {Number(
-                                crmSummary.segments_manual ?? 0
-                            ).toLocaleString("id-ID")}
-                        </span>
-                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            Auto Segment:{" "}
-                            {Number(
-                                crmSummary.segments_auto ?? 0
-                            ).toLocaleString("id-ID")}
-                        </span>
-                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            Memberships:{" "}
-                            {Number(
-                                crmSummary.memberships_total ?? 0
-                            ).toLocaleString("id-ID")}
-                        </span>
-                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            Campaign Processed:{" "}
-                            {Number(
-                                crmSummary.campaigns_processed ?? 0
-                            ).toLocaleString("id-ID")}
-                        </span>
+                        {Object.entries(promoSummary.by_kind || {}).map(
+                            ([key, count]) => (
+                                <span
+                                    key={key}
+                                    className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                    {promoKindLabel[key] || key}:{" "}
+                                    {Number(count).toLocaleString("id-ID")}
+                                </span>
+                            )
+                        )}
                     </div>
                     <Table>
                         <Table.Thead>
                             <tr>
-                                <Table.Th>Campaign</Table.Th>
+                                <Table.Th>Rule</Table.Th>
                                 <Table.Th>Tipe</Table.Th>
                                 <Table.Th>Status</Table.Th>
-                                <Table.Th className="text-right">Target</Table.Th>
-                                <Table.Th>Diproses</Table.Th>
+                                <Table.Th>Periode</Table.Th>
                             </tr>
                         </Table.Thead>
                         <Table.Tbody>
-                            {crmRecentCampaigns.length > 0 ? (
-                                crmRecentCampaigns.map((campaign) => (
-                                    <tr key={campaign.id}>
-                                        <Table.Td>{campaign.name}</Table.Td>
-                                        <Table.Td>
-                                            {crmCampaignTypeLabel[
-                                                campaign.type
-                                            ] || campaign.type}
-                                        </Table.Td>
-                                        <Table.Td>{campaign.status}</Table.Td>
-                                        <Table.Td className="text-right">
-                                            {campaign.logs_count}
-                                        </Table.Td>
-                                        <Table.Td>
-                                            {formatDateTime(
-                                                campaign.processed_at ||
-                                                    campaign.created_at
-                                            )}
-                                        </Table.Td>
-                                    </tr>
-                                ))
+                            {[...promoActiveRules, ...promoScheduledRules]
+                                .slice(0, 8)
+                                .length > 0 ? (
+                                [...promoActiveRules, ...promoScheduledRules]
+                                    .slice(0, 8)
+                                    .map((item) => {
+                                        const status =
+                                            promoStatusConfig[
+                                                item.status_label
+                                            ] ||
+                                            promoStatusConfig.inactive;
+
+                                        return (
+                                            <tr key={`${item.status_label}-${item.id}`}>
+                                                <Table.Td>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                                            {item.name}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            {item.product_title ||
+                                                                item.category_name ||
+                                                                item.target_type}
+                                                        </p>
+                                                    </div>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    {promoKindLabel[
+                                                        item.kind
+                                                    ] || item.kind}
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}
+                                                    >
+                                                        {status.label}
+                                                    </span>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <div className="text-sm text-slate-600 dark:text-slate-300">
+                                                        <div>
+                                                            {formatDateTime(
+                                                                item.starts_at
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            {formatDateTime(
+                                                                item.ends_at
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </Table.Td>
+                                            </tr>
+                                        );
+                                    })
                             ) : (
                                 <Table.Empty
-                                    colSpan={5}
-                                    message="Belum ada campaign CRM terbaru."
+                                    colSpan={4}
+                                    message="Belum ada promo aktif atau terjadwal."
                                 />
                             )}
                         </Table.Tbody>
                     </Table>
+                    <div className="mt-4 space-y-2">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                            Audit Promo Terbaru
+                        </h3>
+                        {promoRecentAudits.length > 0 ? (
+                            promoRecentAudits.map((audit) => (
+                                <div
+                                    key={audit.id}
+                                    className="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60"
+                                >
+                                    <p className="font-medium text-slate-800 dark:text-slate-100">
+                                        {audit.description}
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        {audit.event} •{" "}
+                                        {formatDateTime(audit.created_at)}
+                                    </p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Belum ada audit promo terbaru.
+                            </p>
+                        )}
+                    </div>
                 </Table.Card>
             </div>
         </>

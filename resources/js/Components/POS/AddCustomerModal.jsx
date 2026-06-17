@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
 import {
-    IconCrown,
     IconUserPlus,
     IconX,
     IconLoader2,
@@ -18,13 +17,10 @@ export default function AddCustomerModal({
     onSuccess,
     tierOptions = [],
 }) {
-    const defaultTier = tierOptions[0]?.value || "regular";
     const [form, setForm] = useState({
         name: "",
         no_telp: "",
         address: "",
-        is_loyalty_member: false,
-        loyalty_tier: defaultTier,
     });
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,8 +62,6 @@ export default function AddCustomerModal({
                     name: "",
                     no_telp: "",
                     address: "",
-                    is_loyalty_member: false,
-                    loyalty_tier: defaultTier,
                 });
                 setIsSubmitting(false);
                 onSuccess?.(response.data.customer);
@@ -96,8 +90,6 @@ export default function AddCustomerModal({
             name: "",
             no_telp: "",
             address: "",
-            is_loyalty_member: false,
-            loyalty_tier: defaultTier,
         });
         setErrors({});
         onClose();
@@ -208,65 +200,7 @@ export default function AddCustomerModal({
                         )}
                     </div>
 
-                    <div className="rounded-2xl border border-primary-100 bg-primary-50/70 p-4 dark:border-primary-900/40 dark:bg-primary-950/20">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                                <div className="mt-0.5 rounded-xl bg-white/80 p-2 text-primary-600 dark:bg-slate-900/70 dark:text-primary-300">
-                                    <IconCrown size={18} />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                        Registrasi Member
-                                    </p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Aktifkan jika pelanggan perlu langsung menerima benefit harga dan poin member.
-                                    </p>
-                                </div>
-                            </div>
-                            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                <input
-                                    type="checkbox"
-                                    checked={form.is_loyalty_member}
-                                    onChange={(event) =>
-                                        setForm((prev) => ({
-                                            ...prev,
-                                            is_loyalty_member:
-                                                event.target.checked,
-                                        }))
-                                    }
-                                    className="h-4 w-4 rounded border-slate-300 text-primary-500"
-                                />
-                                Member
-                            </label>
-                        </div>
 
-                        {form.is_loyalty_member ? (
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                                    Tier Awal
-                                </label>
-                                <select
-                                    value={form.loyalty_tier}
-                                    onChange={(event) =>
-                                        setForm((prev) => ({
-                                            ...prev,
-                                            loyalty_tier: event.target.value,
-                                        }))
-                                    }
-                                    className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-                                >
-                                    {tierOptions.map((tier) => (
-                                        <option
-                                            key={tier.value}
-                                            value={tier.value}
-                                        >
-                                            {tier.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        ) : null}
-                    </div>
 
                     {/* Actions */}
                     <div className="flex gap-3 pt-2">

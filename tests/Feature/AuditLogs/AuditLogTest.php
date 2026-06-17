@@ -6,7 +6,6 @@ use App\Models\AuditLog;
 use App\Models\CashierShift;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\PaymentSetting;
 use App\Models\Product;
 use App\Models\SalesReturn;
 use App\Models\StockOpname;
@@ -148,40 +147,6 @@ class AuditLogTest extends TestCase
         ]);
     }
 
-    public function test_payment_setting_update_masks_secrets_in_audit_log(): void
-    {
-        $user = $this->createUserWithPermissions(['payment-settings-access', 'payment-settings-update']);
-
-        PaymentSetting::create([
-            'default_gateway' => 'cash',
-            'midtrans_server_key' => 'old-server-key',
-            'midtrans_client_key' => 'old-client-key',
-        ]);
-
-        $this->withSession($this->recentlyConfirmedSession())->actingAs($user)->put(route('settings.payments.update'), [
-            'default_gateway' => 'cash',
-            'bank_transfer_enabled' => true,
-            'midtrans_enabled' => true,
-            'midtrans_server_key' => 'new-server-key',
-            'midtrans_client_key' => 'new-client-key',
-            'midtrans_production' => false,
-            'xendit_enabled' => false,
-            'xendit_secret_key' => null,
-            'xendit_public_key' => null,
-            'xendit_callback_token' => null,
-            'xendit_production' => false,
-        ])->assertRedirect(route('settings.payments.edit'));
-
-        $auditLog = AuditLog::query()
-            ->where('event', 'payment.setting.updated')
-            ->latest('id')
-            ->first();
-
-        $this->assertNotNull($auditLog);
-        $this->assertSame('configured', $auditLog->before['midtrans_server_key']);
-        $this->assertSame('updated', $auditLog->after['midtrans_server_key']);
-        $this->assertNotEquals('new-server-key', $auditLog->after['midtrans_server_key']);
-    }
 
     public function test_bank_account_and_cashier_shift_actions_are_audited(): void
     {

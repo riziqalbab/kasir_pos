@@ -8,7 +8,6 @@ import {
     IconLoader2,
     IconReceipt,
     IconGift,
-    IconCrown,
 } from "@tabler/icons-react";
 
 const formatPrice = (value = 0) =>
@@ -96,8 +95,6 @@ export default function CustomerHistoryPanel({
         stats,
         recent_transactions,
         frequent_products,
-        loyalty,
-        loyalty_history,
         eligible_vouchers,
     } = data;
 
@@ -129,7 +126,7 @@ export default function CustomerHistoryPanel({
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-800 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-800 sm:grid-cols-3">
                 <div className="bg-white dark:bg-slate-900 p-3 text-center">
                     <div className="flex items-center justify-center mb-1">
                         <IconReceipt size={16} className="text-primary-500" />
@@ -156,24 +153,6 @@ export default function CustomerHistoryPanel({
                         {stats.last_visit || "-"}
                     </p>
                     <p className="text-xs text-slate-500">Kunjungan Terakhir</p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-3 text-center">
-                    <div className="flex items-center justify-center mb-1">
-                        <IconCrown size={16} className="text-warning-500" />
-                    </div>
-                    <p className="text-sm font-medium uppercase text-slate-700 dark:text-slate-300">
-                        {loyalty?.is_member ? loyalty.tier : "non-member"}
-                    </p>
-                    <p className="text-xs text-slate-500">Tier</p>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-3 text-center">
-                    <div className="flex items-center justify-center mb-1">
-                        <IconGift size={16} className="text-primary-500" />
-                    </div>
-                    <p className="text-sm font-bold text-primary-600 dark:text-primary-300">
-                        {loyalty?.points || 0}
-                    </p>
-                    <p className="text-xs text-slate-500">Poin</p>
                 </div>
             </div>
 
@@ -253,40 +232,7 @@ export default function CustomerHistoryPanel({
                 </div>
             )}
 
-            {loyalty_history && loyalty_history.length > 0 && (
-                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                        Aktivitas Loyalty
-                    </p>
-                    <div className="space-y-2 max-h-[150px] overflow-y-auto">
-                        {loyalty_history.map((entry) => (
-                            <div
-                                key={entry.id}
-                                className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-800/70 px-3 py-2"
-                            >
-                                <div>
-                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                                        {entry.reference || entry.type}
-                                    </p>
-                                    <p className="text-[11px] text-slate-400">
-                                        {entry.created_at}
-                                    </p>
-                                </div>
-                                <p
-                                    className={`text-xs font-bold ${
-                                        entry.points_delta >= 0
-                                            ? "text-success-600 dark:text-success-400"
-                                            : "text-danger-500"
-                                    }`}
-                                >
-                                    {entry.points_delta >= 0 ? "+" : ""}
-                                    {entry.points_delta} poin
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+
 
             {/* Empty State */}
             {stats.total_transactions === 0 && (

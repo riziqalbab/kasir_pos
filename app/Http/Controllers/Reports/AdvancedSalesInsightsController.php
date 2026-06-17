@@ -6,12 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\CustomerCampaign;
-use App\Models\CustomerCampaignLog;
-use App\Models\CustomerSegment;
-use App\Models\CustomerVoucher;
-use App\Models\LoyaltyPointHistory;
-use App\Models\PricingRule;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
@@ -382,24 +376,20 @@ class AdvancedSalesInsightsController extends Controller
             ->selectRaw('
                 transactions.customer_id,
                 customers.name as customer_name,
-                customers.is_loyalty_member as is_loyalty_member,
-                customers.loyalty_tier as loyalty_tier,
                 COUNT(transactions.id) as orders_count,
                 COALESCE(SUM(transactions.grand_total), 0) as revenue_total,
                 MAX(transactions.created_at) as last_purchase_at
             ')
             ->groupBy(
                 'transactions.customer_id',
-                'customers.name',
-                'customers.is_loyalty_member',
-                'customers.loyalty_tier'
+                'customers.name'
             )
             ->get()
             ->map(fn ($row) => [
                 'customer_id' => (int) $row->customer_id,
                 'customer_name' => $row->customer_name,
-                'is_loyalty_member' => (bool) $row->is_loyalty_member,
-                'loyalty_tier' => $row->loyalty_tier,
+                'is_loyalty_member' => false,
+                'loyalty_tier' => null,
                 'orders_count' => (int) $row->orders_count,
                 'revenue_total' => (int) round($row->revenue_total),
                 'average_basket' => (int) ($row->orders_count > 0
@@ -413,8 +403,6 @@ class AdvancedSalesInsightsController extends Controller
         $activeCustomers = $rows->count();
         $repeatCustomers = $rows->filter(fn (array $row) => $row['orders_count'] > 1)->values();
         $newCustomers = $rows->filter(fn (array $row) => $row['orders_count'] === 1)->values();
-        $memberRevenue = $rows->where('is_loyalty_member', true)->sum('revenue_total');
-        $nonMemberRevenue = $rows->where('is_loyalty_member', false)->sum('revenue_total');
         $repeatRevenue = $repeatCustomers->sum('revenue_total');
 
         return [
@@ -426,11 +414,6 @@ class AdvancedSalesInsightsController extends Controller
                     ? round(($repeatCustomers->count() / $activeCustomers) * 100, 2)
                     : 0,
                 'repeat_revenue_total' => (int) $repeatRevenue,
-                'member_revenue_total' => (int) $memberRevenue,
-                'non_member_revenue_total' => (int) $nonMemberRevenue,
-                'member_revenue_share' => ($memberRevenue + $nonMemberRevenue) > 0
-                    ? round(($memberRevenue / ($memberRevenue + $nonMemberRevenue)) * 100, 2)
-                    : 0,
             ],
             'top_customers' => $repeatCustomers
                 ->sortByDesc(fn (array $row) => [$row['orders_count'], $row['revenue_total']])
@@ -577,154 +560,72 @@ class AdvancedSalesInsightsController extends Controller
 
     protected function promoMonitor(): array
     {
-        $rules = PricingRule::query()
-            ->with(['product:id,title', 'category:id,name'])
-            ->orderByDesc('priority')
-            ->orderBy('name')
-            ->get();
-
         return [
             'summary' => [
-                'active' => $rules->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'active')->count(),
-                'scheduled' => $rules->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'scheduled')->count(),
-                'expired' => $rules->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'expired')->count(),
-                'inactive' => $rules->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'inactive')->count(),
+                'active' => 0,
+                'scheduled' => 0,
+                'expired' => 0,
+                'inactive' => 0,
                 'by_kind' => [
-                    PricingRule::KIND_STANDARD_DISCOUNT => $rules->where('kind', PricingRule::KIND_STANDARD_DISCOUNT)->count(),
-                    PricingRule::KIND_QTY_BREAK => $rules->where('kind', PricingRule::KIND_QTY_BREAK)->count(),
-                    PricingRule::KIND_BUNDLE_PRICE => $rules->where('kind', PricingRule::KIND_BUNDLE_PRICE)->count(),
-                    PricingRule::KIND_BUY_X_GET_Y => $rules->where('kind', PricingRule::KIND_BUY_X_GET_Y)->count(),
+                    'standard_discount' => 0,
+                    'qty_break' => 0,
+                    'bundle_price' => 0,
+                    'buy_x_get_y' => 0,
                 ],
             ],
-            'active_rules' => $rules
-                ->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'active')
-                ->take(5)
-                ->values()
-                ->map(fn (PricingRule $rule) => $this->serializePromoRule($rule))
-                ->all(),
-            'scheduled_rules' => $rules
-                ->filter(fn (PricingRule $rule) => $rule->currentStatusLabel() === 'scheduled')
-                ->sortBy(fn (PricingRule $rule) => optional($rule->starts_at)?->timestamp ?? PHP_INT_MAX)
-                ->take(5)
-                ->values()
-                ->map(fn (PricingRule $rule) => $this->serializePromoRule($rule))
-                ->all(),
-            'recent_audits' => AuditLog::query()
-                ->where('module', 'pricing_rules')
-                ->latest('id')
-                ->limit(5)
-                ->get()
-                ->map(fn (AuditLog $log) => [
-                    'id' => $log->id,
-                    'event' => $log->event,
-                    'description' => $log->description,
-                    'created_at' => optional($log->created_at)?->toIso8601String(),
-                ])
-                ->all(),
+            'active_rules' => [],
+            'scheduled_rules' => [],
+            'recent_audits' => [],
         ];
     }
 
     protected function loyaltyPerformance(array $filters): array
     {
-        $members = Customer::query()
-            ->where('is_loyalty_member', true)
-            ->get();
-
-        $historyQuery = LoyaltyPointHistory::query();
-        $this->applyDateRangeFilter($historyQuery, 'created_at', $filters);
-
-        $vouchers = CustomerVoucher::query()->get();
-
         return [
             'summary' => [
-                'total_members' => $members->count(),
-                'points_balance_total' => (int) $members->sum('loyalty_points'),
-                'points_earned' => (int) (clone $historyQuery)
-                    ->where('type', LoyaltyPointHistory::TYPE_EARN)
-                    ->sum('points_delta'),
-                'points_redeemed' => (int) abs((int) (clone $historyQuery)
-                    ->where('type', LoyaltyPointHistory::TYPE_REDEEM)
-                    ->sum('points_delta')),
-                'voucher_discount_total' => (int) (clone $historyQuery)
-                    ->where('type', LoyaltyPointHistory::TYPE_VOUCHER)
-                    ->sum('amount_delta'),
+                'total_members' => 0,
+                'points_balance_total' => 0,
+                'points_earned' => 0,
+                'points_redeemed' => 0,
+                'voucher_discount_total' => 0,
                 'tier_distribution' => [
-                    'regular' => $members->where('loyalty_tier', 'regular')->count(),
-                    'silver' => $members->where('loyalty_tier', 'silver')->count(),
-                    'gold' => $members->where('loyalty_tier', 'gold')->count(),
-                    'platinum' => $members->where('loyalty_tier', 'platinum')->count(),
+                    'regular' => 0,
+                    'silver' => 0,
+                    'gold' => 0,
+                    'platinum' => 0,
                 ],
                 'voucher_summary' => [
-                    'active' => $vouchers->filter(fn (CustomerVoucher $voucher) => $voucher->currentStatusLabel() === 'active')->count(),
-                    'scheduled' => $vouchers->filter(fn (CustomerVoucher $voucher) => $voucher->currentStatusLabel() === 'scheduled')->count(),
-                    'expired' => $vouchers->filter(fn (CustomerVoucher $voucher) => $voucher->currentStatusLabel() === 'expired')->count(),
-                    'used' => $vouchers->filter(fn (CustomerVoucher $voucher) => $voucher->currentStatusLabel() === 'used')->count(),
-                    'inactive' => $vouchers->filter(fn (CustomerVoucher $voucher) => $voucher->currentStatusLabel() === 'inactive')->count(),
+                    'active' => 0,
+                    'scheduled' => 0,
+                    'expired' => 0,
+                    'used' => 0,
+                    'inactive' => 0,
                 ],
             ],
-            'top_members' => Customer::query()
-                ->where('is_loyalty_member', true)
-                ->orderByDesc('loyalty_total_spent')
-                ->orderByDesc('loyalty_points')
-                ->limit(5)
-                ->get()
-                ->map(fn (Customer $customer) => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'loyalty_tier' => $customer->loyalty_tier,
-                    'loyalty_points' => (int) $customer->loyalty_points,
-                    'loyalty_total_spent' => (int) $customer->loyalty_total_spent,
-                    'loyalty_transaction_count' => (int) $customer->loyalty_transaction_count,
-                ])
-                ->all(),
+            'top_members' => [],
         ];
     }
 
     protected function crmOperations(array $filters): array
     {
-        $segments = CustomerSegment::query()->withCount('memberships')->get();
-
-        $campaignsQuery = CustomerCampaign::query()->withCount('logs');
-        $this->applyDateRangeFilter($campaignsQuery, 'created_at', $filters);
-        $campaigns = $campaignsQuery->get();
-
-        $logsQuery = CustomerCampaignLog::query();
-        $this->applyDateRangeFilter($logsQuery, 'created_at', $filters);
-        $logs = $logsQuery->get();
-
         return [
             'summary' => [
-                'segments_total' => $segments->count(),
-                'segments_manual' => $segments->where('type', CustomerSegment::TYPE_MANUAL)->count(),
-                'segments_auto' => $segments->where('type', CustomerSegment::TYPE_AUTO)->count(),
-                'segments_active' => $segments->where('is_active', true)->count(),
-                'memberships_total' => (int) $segments->sum('memberships_count'),
-                'campaigns_total' => $campaigns->count(),
-                'campaigns_draft' => $campaigns->where('status', CustomerCampaign::STATUS_DRAFT)->count(),
-                'campaigns_ready' => $campaigns->where('status', CustomerCampaign::STATUS_READY)->count(),
-                'campaigns_processed' => $campaigns->where('status', CustomerCampaign::STATUS_PROCESSED)->count(),
-                'campaigns_cancelled' => $campaigns->where('status', CustomerCampaign::STATUS_CANCELLED)->count(),
-                'queue_pending' => $logs->where('status', CustomerCampaignLog::STATUS_PENDING)->count(),
-                'queue_ready_to_send' => $logs->where('status', CustomerCampaignLog::STATUS_READY_TO_SEND)->count(),
-                'queue_sent' => $logs->where('status', CustomerCampaignLog::STATUS_SENT)->count(),
-                'queue_skipped' => $logs->where('status', CustomerCampaignLog::STATUS_SKIPPED)->count(),
+                'segments_total' => 0,
+                'segments_manual' => 0,
+                'segments_auto' => 0,
+                'segments_active' => 0,
+                'memberships_total' => 0,
+                'campaigns_total' => 0,
+                'campaigns_draft' => 0,
+                'campaigns_ready' => 0,
+                'campaigns_processed' => 0,
+                'campaigns_cancelled' => 0,
+                'queue_pending' => 0,
+                'queue_ready_to_send' => 0,
+                'queue_sent' => 0,
+                'queue_skipped' => 0,
             ],
-            'recent_campaigns' => CustomerCampaign::query()
-                ->withCount('logs')
-                ->latest('id')
-                ->limit(5)
-                ->get()
-                ->map(fn (CustomerCampaign $campaign) => [
-                    'id' => $campaign->id,
-                    'name' => $campaign->name,
-                    'type' => $campaign->type,
-                    'status' => $campaign->status,
-                    'channel' => $campaign->channel,
-                    'logs_count' => (int) $campaign->logs_count,
-                    'processed_at' => optional($campaign->processed_at)?->toIso8601String(),
-                    'created_at' => optional($campaign->created_at)?->toIso8601String(),
-                ])
-                ->all(),
+            'recent_campaigns' => [],
         ];
     }
 
@@ -739,22 +640,7 @@ class AdvancedSalesInsightsController extends Controller
         }
     }
 
-    protected function serializePromoRule(PricingRule $rule): array
-    {
-        return [
-            'id' => $rule->id,
-            'name' => $rule->name,
-            'kind' => $rule->kind,
-            'status_label' => $rule->currentStatusLabel(),
-            'priority' => (int) $rule->priority,
-            'target_type' => $rule->target_type,
-            'customer_scope' => $rule->customer_scope,
-            'product_title' => $rule->product?->title,
-            'category_name' => $rule->category?->name,
-            'starts_at' => optional($rule->starts_at)?->toIso8601String(),
-            'ends_at' => optional($rule->ends_at)?->toIso8601String(),
-        ];
-    }
+
 
     protected function hourBucketExpression(): string
     {

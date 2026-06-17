@@ -5,7 +5,6 @@ namespace Tests\Feature\Transactions;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\PaymentSetting;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
@@ -185,63 +184,6 @@ class TransactionFlowTest extends TestCase
             });
     }
 
-    public function test_cashier_can_request_midtrans_payment_link(): void
-    {
-        $cashier = $this->createCashier();
-        $shift = $this->openShiftFor($cashier);
-        $customer = Customer::create([
-            'name' => 'Tony Midtrans',
-            'no_telp' => 62899000,
-            'address' => 'Jl. Gateway No. 9',
-        ]);
-        $product = $this->createProduct();
-
-        PaymentSetting::create([
-            'default_gateway' => 'midtrans',
-            'midtrans_enabled' => true,
-            'midtrans_server_key' => 'server-key',
-            'midtrans_client_key' => 'client-key',
-        ]);
-
-        Http::fake([
-            'https://app.sandbox.midtrans.com/*' => Http::response([
-                'order_id' => 'TRX-MIDTRANS',
-                'redirect_url' => 'https://pay.midtrans.test/invoice',
-                'token' => 'snap-token',
-            ], 200),
-        ]);
-
-        $cart = Cart::create([
-            'cashier_id' => $cashier->id,
-            'product_id' => $product->id,
-            'qty' => 1,
-            'price' => $product->sell_price,
-        ]);
-
-        $response = $this
-            ->actingAs($cashier)
-            ->post(route('transactions.store'), [
-                'customer_id' => $customer->id,
-                'discount' => 0,
-                'grand_total' => $cart->price,
-                'cash' => 0,
-                'change' => 0,
-                'payment_gateway' => 'midtrans',
-            ]);
-
-        $transaction = Transaction::latest('id')->first();
-
-        $this->assertNotNull($transaction);
-        $response->assertRedirect(route('transactions.print', $transaction->invoice));
-        $this->assertSame($shift->id, $transaction->cashier_shift_id);
-        $this->assertSame('midtrans', $transaction->payment_method);
-        $this->assertSame('pending', $transaction->payment_status);
-        $this->assertSame('https://pay.midtrans.test/invoice', $transaction->payment_url);
-        $this->assertSame('TRX-MIDTRANS', $transaction->payment_reference);
-
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'midtrans.com')
-            && $request['transaction_details']['order_id'] === $transaction->invoice);
-    }
 
     protected function createCashier(): User
     {

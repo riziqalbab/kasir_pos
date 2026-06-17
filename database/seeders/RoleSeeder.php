@@ -25,12 +25,7 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('permissions-access', '%permissions%');
         $this->createRoleWithPermissions('categories-access', '%categories%');
         $this->createRoleWithPermissions('products-access', '%products%');
-        $this->createRoleWithPermissions('pricing-rules-access', '%pricing-rules%');
         $this->createRoleWithPermissions('customers-access', '%customers%');
-        $this->createRoleWithPermissions('customer-vouchers-access', '%customer-vouchers%');
-        $this->createRoleWithPermissions('customer-segments-access', '%customer-segments%');
-        $this->createRoleWithPermissions('crm-campaigns-access', '%crm-campaigns%');
-        $this->createRoleWithPermissions('crm-reminders-access', '%crm-reminders%');
         $this->createRoleWithPermissions('transactions-access', '%transactions%');
         $this->createRoleWithPermissions('transactions-confirm-payment', 'transactions-confirm-payment');
         $this->createRoleWithPermissions('receivables-access', '%receivables%');
@@ -38,8 +33,6 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('suppliers-access', '%suppliers%');
         $this->createRoleWithPermissions('reports-access', '%reports%');
         $this->createRoleWithPermissions('profits-access', '%profits%');
-        $this->createRoleWithPermissions('payment-settings-access', '%payment-settings%');
-        $this->createRoleWithPermissions('payment-settings-update', 'payment-settings-update');
         $this->createRoleWithPermissions('stock-opnames-access', '%stock-opnames%');
         $this->createRoleWithPermissions('stock-mutations-access', '%stock-mutations%');
         $this->createRoleWithPermissions('sales-returns-access', '%sales-returns%');

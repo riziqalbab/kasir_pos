@@ -12,14 +12,12 @@ import {
 import axios from "axios";
 
 export default function Create() {
-    const { errors, provinces = [], tierOptions = [] } = usePage().props;
+    const { errors, provinces = [] } = usePage().props;
 
     const { data, setData, post, processing } = useForm({
         name: "",
         no_telp: "",
         address: "",
-        is_loyalty_member: false,
-        loyalty_tier: "regular",
         province_id: "",
         regency_id: "",
         district_id: "",
@@ -135,59 +133,7 @@ export default function Create() {
                             />
                         </div>
 
-                        <div className="rounded-2xl border border-primary-100 bg-primary-50/70 p-4 dark:border-primary-900/40 dark:bg-primary-950/20">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                        Aktivasi Loyalty Member
-                                    </p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Member mendapat poin, voucher, dan harga khusus.
-                                    </p>
-                                </div>
-                                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    <input
-                                        type="checkbox"
-                                        checked={data.is_loyalty_member}
-                                        onChange={(e) =>
-                                            setData(
-                                                "is_loyalty_member",
-                                                e.target.checked
-                                            )
-                                        }
-                                        className="h-4 w-4 rounded border-slate-300 text-primary-500"
-                                    />
-                                    Member
-                                </label>
-                            </div>
 
-                            {data.is_loyalty_member && (
-                                <div className="mt-4">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                        Tier Awal
-                                    </label>
-                                    <select
-                                        value={data.loyalty_tier}
-                                        onChange={(e) =>
-                                            setData(
-                                                "loyalty_tier",
-                                                e.target.value
-                                            )
-                                        }
-                                        className="mt-2 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm"
-                                    >
-                                        {tierOptions.map((tier) => (
-                                            <option
-                                                key={tier.value}
-                                                value={tier.value}
-                                            >
-                                                {tier.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>

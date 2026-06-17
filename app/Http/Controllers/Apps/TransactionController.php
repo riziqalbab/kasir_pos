@@ -2,19 +2,14 @@
 
 namespace App\Http\Controllers\Apps;
 
-use App\Exceptions\PaymentGatewayException;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Customer;
-use App\Models\CustomerVoucher;
-use App\Models\PaymentSetting;
 use App\Models\Product;
 use App\Models\Receivable;
 use App\Models\Transaction;
 use App\Services\AuditLogService;
 use App\Services\CashierShiftService;
-use App\Services\LoyaltyService;
-use App\Services\Payments\PaymentGatewayManager;
 use App\Services\PricingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -29,8 +24,7 @@ class TransactionController extends Controller
     public function __construct(
         private readonly CashierShiftService $cashierShiftService,
         private readonly AuditLogService $auditLogService,
-        private readonly PricingService $pricingService,
-        private readonly LoyaltyService $loyaltyService
+        private readonly PricingService $pricingService
     ) {}
 
     /**
@@ -50,7 +44,7 @@ class TransactionController extends Controller
             ->latest()
             ->get();
 
-        $initialPricingPreview = $this->loyaltyService->previewCheckout(
+        $initialPricingPreview = $this->previewCheckout(
             $this->pricingService->previewCart($carts, null)
         );
 
@@ -104,20 +98,21 @@ class TransactionController extends Controller
             ->orderBy('name')
             ->get();
 
-        $paymentSetting = PaymentSetting::first();
-
         $carts_total = 0;
         foreach ($carts as $cart) {
             $carts_total += $cart->price;
         }
 
-        $defaultGateway = $paymentSetting?->default_gateway ?? 'cash';
-        if (
-            $defaultGateway !== 'cash'
-            && (! $paymentSetting || ! $paymentSetting->isGatewayReady($defaultGateway))
-        ) {
-            $defaultGateway = 'cash';
+        $paymentGateways = [];
+        if (\App\Models\BankAccount::active()->exists()) {
+            $paymentGateways[] = [
+                'value' => 'bank_transfer',
+                'label' => 'Transfer Bank',
+                'description' => 'Pembayaran manual via transfer bank.',
+            ];
         }
+
+        $defaultGateway = 'cash';
 
         // Get active bank accounts for bank transfer
         $bankAccounts = \App\Models\BankAccount::active()->ordered()->get();
@@ -130,11 +125,10 @@ class TransactionController extends Controller
             'products' => $products,
             'categories' => $categories,
             'initialPricingPreview' => $initialPricingPreview,
-            'paymentGateways' => $paymentSetting?->enabledGateways() ?? [],
+            'paymentGateways' => $paymentGateways,
             'defaultPaymentGateway' => $defaultGateway,
             'bankAccounts' => $bankAccounts,
             'shiftSummary' => $this->cashierShiftService->summarizeForDisplay($activeShift),
-            'loyaltyTierOptions' => $this->loyaltyService->tierOptions(),
         ]);
     }
 
@@ -189,11 +183,9 @@ class TransactionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->loyaltyService->previewCheckout($pricingPreview, $customer, [
+            'data' => $this->previewCheckout($pricingPreview, $customer, [
                 'manual_discount' => (int) ($validated['discount'] ?? 0),
                 'shipping_cost' => (int) ($validated['shipping_cost'] ?? 0),
-                'redeem_points' => (int) ($validated['redeem_points'] ?? 0),
-                'voucher' => $voucher,
             ]),
         ]);
     }
@@ -472,14 +464,13 @@ class TransactionController extends Controller
      * @param  mixed  $request
      * @return void
      */
-    public function store(Request $request, PaymentGatewayManager $paymentGatewayManager)
+    public function store(Request $request)
     {
         $isPayLater = $request->boolean('pay_later');
         $paymentGateway = $isPayLater ? null : $request->input('payment_gateway');
         if ($paymentGateway) {
             $paymentGateway = strtolower($paymentGateway);
         }
-        $paymentSetting = null;
 
         if ($isPayLater && ! $request->filled('due_date')) {
             return redirect()
@@ -487,14 +478,16 @@ class TransactionController extends Controller
                 ->with('error', 'Tanggal jatuh tempo wajib diisi untuk nota barang.');
         }
 
-        if ($paymentGateway) {
-            $paymentSetting = PaymentSetting::first();
+        if ($paymentGateway && $paymentGateway !== 'bank_transfer') {
+            return redirect()
+                ->route('transactions.index')
+                ->with('error', 'Gateway pembayaran tidak valid.');
+        }
 
-            if (! $paymentSetting || ! $paymentSetting->isGatewayReady($paymentGateway)) {
-                return redirect()
-                    ->route('transactions.index')
-                    ->with('error', 'Gateway pembayaran belum dikonfigurasi.');
-            }
+        if ($paymentGateway === 'bank_transfer' && ! \App\Models\BankAccount::active()->exists()) {
+            return redirect()
+                ->route('transactions.index')
+                ->with('error', 'Gateway pembayaran bank transfer belum aktif.');
         }
 
         $length = 10;
@@ -512,9 +505,7 @@ class TransactionController extends Controller
         $customer = $request->filled('customer_id')
             ? Customer::find($request->integer('customer_id'))
             : null;
-        $voucher = $request->filled('customer_voucher_id')
-            ? CustomerVoucher::find($request->integer('customer_voucher_id'))
-            : null;
+        $voucher = null;
 
         $transaction = DB::transaction(function () use (
             $request,
@@ -544,16 +535,12 @@ class TransactionController extends Controller
             }
 
             $pricingPreview = $this->pricingService->previewCart($carts, $customer);
-            $checkoutPreview = $this->loyaltyService->previewCheckout($pricingPreview, $customer, [
+            $checkoutPreview = $this->previewCheckout($pricingPreview, $customer, [
                 'manual_discount' => $manualDiscount,
                 'shipping_cost' => $shippingCost,
-                'redeem_points' => $requestedRedeemPoints,
-                'voucher' => $voucher,
             ]);
             $pricingItems = collect($pricingPreview['items']);
             $subtotalAfterPromo = (int) data_get($pricingPreview, 'summary.subtotal_after_promo', 0);
-            $voucherDiscount = (int) data_get($checkoutPreview, 'summary.voucher_discount_total', 0);
-            $loyaltyDiscount = (int) data_get($checkoutPreview, 'summary.loyalty_discount_total', 0);
             $appliedManualDiscount = (int) data_get($checkoutPreview, 'summary.manual_discount_total', 0);
             $grandTotal = (int) data_get($checkoutPreview, 'summary.grand_total', 0);
             $changeAmount = $isCashPayment ? max(0, $cashAmount - $grandTotal) : 0;
@@ -566,11 +553,6 @@ class TransactionController extends Controller
                 'cash' => $cashAmount,
                 'change' => $changeAmount,
                 'discount' => $appliedManualDiscount,
-                'loyalty_points_redeemed' => (int) data_get($checkoutPreview, 'summary.applied_redeem_points', 0),
-                'loyalty_discount_total' => $loyaltyDiscount,
-                'customer_voucher_discount' => $voucherDiscount,
-                'customer_voucher_code' => data_get($checkoutPreview, 'voucher.code'),
-                'customer_voucher_name' => data_get($checkoutPreview, 'voucher.name'),
                 'shipping_cost' => $shippingCost,
                 'grand_total' => $grandTotal,
                 'payment_method' => $isPayLater ? 'pay_later' : ($paymentGateway ?: 'cash'),
@@ -618,8 +600,6 @@ class TransactionController extends Controller
 
             Cart::where('cashier_id', auth()->user()->id)->active()->delete();
 
-            $this->loyaltyService->finalizeTransaction($transaction, $customer, $checkoutPreview);
-
             if ($isPayLater) {
                 Receivable::create([
                     'customer_id' => $request->customer_id,
@@ -635,28 +615,13 @@ class TransactionController extends Controller
             return $transaction->fresh(['customer']);
         });
 
-        if ($paymentGateway) {
-            try {
-                $paymentResponse = $paymentGatewayManager->createPayment($transaction, $paymentGateway, $paymentSetting);
-
-                $transaction->update([
-                    'payment_reference' => $paymentResponse['reference'] ?? null,
-                    'payment_url' => $paymentResponse['payment_url'] ?? null,
-                ]);
-            } catch (PaymentGatewayException $exception) {
-                return redirect()
-                    ->route('transactions.print', $transaction->invoice)
-                    ->with('error', $exception->getMessage());
-            }
-        }
-
         return to_route('transactions.print', $transaction->invoice);
     }
 
     public function print($invoice)
     {
         // get transaction
-        $transaction = Transaction::with('details.product', 'details.pricingRule', 'cashier', 'customer', 'receivable', 'bankAccount')
+        $transaction = Transaction::with('details.product', 'cashier', 'customer', 'receivable', 'bankAccount')
             ->where('invoice', $invoice)
             ->firstOrFail();
 
@@ -784,5 +749,52 @@ class TransactionController extends Controller
         return redirect()
             ->back()
             ->with('success', "Pembayaran untuk invoice {$transaction->invoice} berhasil dikonfirmasi.");
+    }
+
+    private function previewCheckout(array $pricingPreview, ?Customer $customer = null, array $options = []): array
+    {
+        $subtotalAfterPromo = max(0, (int) data_get($pricingPreview, 'summary.subtotal_after_promo', 0));
+        $manualDiscountRequested = max(0, (int) ($options['manual_discount'] ?? 0));
+        $shippingCost = max(0, (int) ($options['shipping_cost'] ?? 0));
+
+        $manualDiscountApplied = min($manualDiscountRequested, $subtotalAfterPromo);
+        $grandTotal = max(0, $subtotalAfterPromo - $manualDiscountApplied + $shippingCost);
+
+        return [
+            'items' => data_get($pricingPreview, 'items', []),
+            'applied_groups' => data_get($pricingPreview, 'applied_groups', []),
+            'consumed_quantities' => data_get($pricingPreview, 'consumed_quantities', []),
+            'unmatched_items' => data_get($pricingPreview, 'unmatched_items', []),
+            'summary' => [
+                'base_subtotal' => (int) data_get($pricingPreview, 'summary.base_subtotal', 0),
+                'promo_discount_total' => (int) data_get($pricingPreview, 'summary.promo_discount_total', 0),
+                'subtotal_after_promo' => $subtotalAfterPromo,
+                'voucher_discount_total' => 0,
+                'loyalty_discount_total' => 0,
+                'manual_discount_total' => $manualDiscountApplied,
+                'shipping_cost' => $shippingCost,
+                'grand_total' => $grandTotal,
+                'available_loyalty_points' => 0,
+                'requested_redeem_points' => 0,
+                'applied_redeem_points' => 0,
+                'points_value' => 0,
+                'points_earned_preview' => 0,
+            ],
+            'customer' => $customer ? [
+                'id' => $customer->id,
+                'is_loyalty_member' => false,
+                'member_code' => null,
+                'loyalty_tier' => 'regular',
+                'loyalty_points' => 0,
+            ] : null,
+            'voucher' => null,
+            'eligible_vouchers' => [],
+            'settings' => [
+                'enable_earn' => false,
+                'enable_redeem' => false,
+                'redeem_point_value' => 0,
+                'minimum_points_to_redeem' => 0,
+            ],
+        ];
     }
 }

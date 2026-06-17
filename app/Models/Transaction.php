@@ -18,10 +18,6 @@ class Transaction extends Model
         'cash' => 'integer',
         'change' => 'integer',
         'discount' => 'integer',
-        'loyalty_points_earned' => 'integer',
-        'loyalty_points_redeemed' => 'integer',
-        'loyalty_discount_total' => 'integer',
-        'customer_voucher_discount' => 'integer',
         'shipping_cost' => 'integer',
         'grand_total' => 'integer',
         'bank_account_id' => 'integer',
@@ -40,12 +36,6 @@ class Transaction extends Model
         'cash',
         'change',
         'discount',
-        'loyalty_points_earned',
-        'loyalty_points_redeemed',
-        'loyalty_discount_total',
-        'customer_voucher_discount',
-        'customer_voucher_code',
-        'customer_voucher_name',
         'shipping_cost',
         'grand_total',
         'payment_method',
@@ -120,15 +110,6 @@ class Transaction extends Model
         return $this->hasMany(SalesReturn::class);
     }
 
-    public function usedCustomerVoucher()
-    {
-        return $this->hasOne(CustomerVoucher::class, 'used_transaction_id');
-    }
-
-    public function campaignLogs()
-    {
-        return $this->hasMany(CustomerCampaignLog::class);
-    }
 
     /**
      * createdAt

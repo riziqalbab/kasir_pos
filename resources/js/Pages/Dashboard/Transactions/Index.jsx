@@ -52,7 +52,6 @@ export default function Index({
     paymentGateways = [],
     defaultPaymentGateway = "cash",
     bankAccounts = [],
-    loyaltyTierOptions = [],
 }) {
     const {
         auth,
@@ -86,7 +85,6 @@ export default function Index({
     const [numpadOpen, setNumpadOpen] = useState(false);
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [selectedBankAccount, setSelectedBankAccount] = useState(null);
-    const [selectedVoucherId, setSelectedVoucherId] = useState("");
     const [openingCashInput, setOpeningCashInput] = useState("");
     const [shiftNotesInput, setShiftNotesInput] = useState("");
     const normalizedSelectedCategory =
@@ -158,14 +156,8 @@ export default function Index({
         () => Number(pricingPreview?.summary?.promo_discount_total ?? 0),
         [pricingPreview]
     );
-    const voucherDiscount = useMemo(
-        () => Number(pricingPreview?.summary?.voucher_discount_total ?? 0),
-        [pricingPreview]
-    );
-    const loyaltyDiscount = useMemo(
-        () => Number(pricingPreview?.summary?.loyalty_discount_total ?? 0),
-        [pricingPreview]
-    );
+    const voucherDiscount = 0;
+    const loyaltyDiscount = 0;
     const subtotal = useMemo(
         () => Number(pricingPreview?.summary?.subtotal_after_promo ?? 0),
         [pricingPreview]
@@ -216,7 +208,7 @@ export default function Index({
                 discount,
                 shipping_cost: shipping,
                 redeem_points: Number(redeemPointsInput || 0),
-                customer_voucher_id: selectedVoucherId || null,
+                customer_voucher_id: null,
             })
             .then((response) => {
                 if (!cancelled) {
@@ -243,27 +235,13 @@ export default function Index({
         discount,
         shipping,
         redeemPointsInput,
-        selectedVoucherId,
     ]);
 
     useEffect(() => {
         if (!selectedCustomer?.is_loyalty_member) {
             setRedeemPointsInput("");
-            setSelectedVoucherId("");
         }
     }, [selectedCustomer?.id, selectedCustomer?.is_loyalty_member]);
-
-    useEffect(() => {
-        const eligibleVoucherIds = new Set(
-            (pricingPreview?.eligible_vouchers || []).map((voucher) =>
-                String(voucher.id)
-            )
-        );
-
-        if (selectedVoucherId && !eligibleVoucherIds.has(selectedVoucherId)) {
-            setSelectedVoucherId("");
-        }
-    }, [pricingPreview?.eligible_vouchers, selectedVoucherId]);
 
     // Payment options
     const paymentOptions = useMemo(() => {
@@ -483,7 +461,7 @@ export default function Index({
                 customer_id: selectedCustomer.id,
                 discount,
                 redeem_points: Number(redeemPointsInput || 0),
-                customer_voucher_id: selectedVoucherId || null,
+                customer_voucher_id: null,
                 shipping_cost: shipping,
                 grand_total: payable,
                 cash: isCashPayment ? cash : payable,
@@ -503,7 +481,6 @@ export default function Index({
                     setShippingInput("");
                     setSelectedCustomer(null);
                     setSelectedBankAccount(null);
-                    setSelectedVoucherId("");
                     setPaymentMethod(defaultPaymentGateway ?? "cash");
                     setPayLater(false);
                     setDueDate("");
@@ -689,7 +666,6 @@ export default function Index({
                             placeholder="Pilih pelanggan..."
                             error={errors?.customer_id}
                             label="Pelanggan"
-                            tierOptions={loyaltyTierOptions}
                         />
                     </div>
 
@@ -1109,85 +1085,8 @@ export default function Index({
                                 </div>
                             )}
 
-                            {selectedCustomer?.is_loyalty_member && (
-                                <div className="rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-900/40 dark:bg-primary-950/20">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">
-                                                Loyalty Member
-                                            </p>
-                                            <p className="text-xs text-primary-600/80 dark:text-primary-400/80">
-                                                Tier {selectedCustomer.loyalty_tier} | saldo{" "}
-                                                {pricingPreview?.summary
-                                                    ?.available_loyalty_points ??
-                                                    0}{" "}
-                                                poin
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
-                            {selectedCustomer?.is_loyalty_member && (
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                        Redeem Poin
-                                    </label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={redeemPointsInput}
-                                        onChange={(e) =>
-                                            setRedeemPointsInput(
-                                                e.target.value.replace(
-                                                    /[^\d]/g,
-                                                    ""
-                                                )
-                                            )
-                                        }
-                                        placeholder={`Maks ${
-                                            pricingPreview?.summary
-                                                ?.available_loyalty_points ?? 0
-                                        } poin`}
-                                        className="w-full h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                                    />
-                                </div>
-                            )}
 
-                            {selectedCustomer?.is_loyalty_member &&
-                                (pricingPreview?.eligible_vouchers || [])
-                                    .length > 0 && (
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                            Voucher Customer
-                                        </label>
-                                        <select
-                                            value={selectedVoucherId}
-                                            onChange={(e) =>
-                                                setSelectedVoucherId(
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="w-full h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                                        >
-                                            <option value="">
-                                                Tanpa voucher
-                                            </option>
-                                            {(
-                                                pricingPreview?.eligible_vouchers ||
-                                                []
-                                            ).map((voucher) => (
-                                                <option
-                                                    key={voucher.id}
-                                                    value={voucher.id}
-                                                >
-                                                    {voucher.code} -{" "}
-                                                    {voucher.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
 
                             <div>
                                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
@@ -1335,24 +1234,8 @@ export default function Index({
                                 </div>
                             </div>
                         )}
-                        {voucherDiscount > 0 && (
-                            <div className="flex justify-between items-center mb-2 text-sm">
-                                <span className="text-slate-500">Voucher</span>
-                                <span className="text-primary-600">
-                                    -{formatPrice(voucherDiscount)}
-                                </span>
-                            </div>
-                        )}
-                        {loyaltyDiscount > 0 && (
-                            <div className="flex justify-between items-center mb-2 text-sm">
-                                <span className="text-slate-500">
-                                    Redeem Poin
-                                </span>
-                                <span className="text-primary-600">
-                                    -{formatPrice(loyaltyDiscount)}
-                                </span>
-                            </div>
-                        )}
+
+
                         {discount > 0 && (
                             <div className="flex justify-between items-center mb-2 text-sm">
                                 <span className="text-slate-500">Diskon Manual</span>

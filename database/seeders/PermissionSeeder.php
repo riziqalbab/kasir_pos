@@ -49,29 +49,11 @@ class PermissionSeeder extends Seeder
         $create('products-create');
         $create('products-edit');
         $create('products-delete');
-        $create('pricing-rules-access');
-        $create('pricing-rules-create');
-        $create('pricing-rules-update');
-        $create('pricing-rules-delete');
-
         // permission customers
         $create('customers-access');
         $create('customers-create');
         $create('customers-edit');
         $create('customers-delete');
-        $create('customer-vouchers-access');
-        $create('customer-vouchers-create');
-        $create('customer-vouchers-update');
-        $create('customer-vouchers-delete');
-        $create('customer-segments-access');
-        $create('customer-segments-create');
-        $create('customer-segments-update');
-        $create('customer-segments-delete');
-        $create('crm-campaigns-access');
-        $create('crm-campaigns-create');
-        $create('crm-campaigns-update');
-        $create('crm-campaigns-delete');
-        $create('crm-reminders-access');
 
         // permission transactions
         $create('transactions-access');
@@ -87,10 +69,6 @@ class PermissionSeeder extends Seeder
         // permission reports
         $create('reports-access');
         $create('profits-access');
-
-        // payment settings
-        $create('payment-settings-access');
-        $create('payment-settings-update');
 
         // stock opnames
         $create('stock-opnames-access');

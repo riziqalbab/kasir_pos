@@ -195,14 +195,7 @@ export default function PaymentPanel({
                             - {formatPrice(voucherDiscount)}
                         </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-slate-500 dark:text-slate-400">
-                            Redeem Poin
-                        </span>
-                        <span className="font-medium text-danger-500">
-                            - {formatPrice(loyaltyDiscount)}
-                        </span>
-                    </div>
+
                     <div className="flex justify-between text-sm">
                         <span className="text-slate-500 dark:text-slate-400">
                             Diskon
@@ -222,56 +215,7 @@ export default function PaymentPanel({
                     </div>
                 </div>
 
-                {selectedCustomer?.is_loyalty_member && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Redeem Poin
-                            </label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                value={redeemPointsInput}
-                                onChange={(e) =>
-                                    onRedeemPointsChange?.(
-                                        e.target.value.replace(/[^\d]/g, "")
-                                    )
-                                }
-                                placeholder={`Maks ${availablePoints} poin`}
-                                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700
-                                    bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200
-                                    focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
-                                    transition-all text-base"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Saldo tersedia: {availablePoints} poin
-                            </p>
-                        </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Voucher Customer
-                            </label>
-                            <select
-                                value={selectedVoucherId}
-                                onChange={(e) =>
-                                    onVoucherChange?.(e.target.value)
-                                }
-                                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700
-                                    bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200
-                                    focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
-                                    transition-all text-base"
-                            >
-                                <option value="">Tanpa voucher</option>
-                                {voucherOptions.map((voucher) => (
-                                    <option key={voucher.id} value={voucher.id}>
-                                        {voucher.code} - {voucher.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </>
-                )}
 
                 {/* Discount Input */}
                 <div>

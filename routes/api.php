@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,8 +12,3 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Payment Gateway Webhooks (no auth required)
-Route::prefix('webhooks')->group(function () {
-    Route::post('/midtrans', [PaymentWebhookController::class, 'midtrans'])->name('webhooks.midtrans');
-    Route::post('/xendit', [PaymentWebhookController::class, 'xendit'])->name('webhooks.xendit');
-});

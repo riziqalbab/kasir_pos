@@ -187,53 +187,6 @@ export default function Menu() {
             ],
         },
         {
-            title: "CRM & Pricing",
-            details: [
-                {
-                    title: "Member",
-                    href: route("members.index"),
-                    active: url.startsWith("/dashboard/members"),
-                    icon: <IconCrown size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["customers-access"]),
-                },
-                {
-                    title: "Promo Harga",
-                    href: route("pricing-rules.index"),
-                    active: url.startsWith("/dashboard/pricing-rules"),
-                    icon: <IconChartInfographic size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["pricing-rules-access"]),
-                },
-                {
-                    title: "Voucher Customer",
-                    href: route("customer-vouchers.index"),
-                    active: url.startsWith("/dashboard/customer-vouchers"),
-                    icon: <IconCreditCard size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["customer-vouchers-access"]),
-                },
-                {
-                    title: "Segment Customer",
-                    href: route("customer-segments.index"),
-                    active: url.startsWith("/dashboard/customer-segments"),
-                    icon: <IconUsers size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["customer-segments-access"]),
-                },
-                {
-                    title: "Campaign CRM",
-                    href: route("crm-campaigns.index"),
-                    active: url.startsWith("/dashboard/crm-campaigns"),
-                    icon: <IconSpeakerphone size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["crm-campaigns-access"]),
-                },
-                {
-                    title: "Reminder CRM",
-                    href: route("crm-reminders.index"),
-                    active: url.startsWith("/dashboard/crm-reminders"),
-                    icon: <IconClockHour6 size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["crm-reminders-access"]),
-                },
-            ],
-        },
-        {
             title: "Reports",
             details: [
                 {
@@ -329,13 +282,6 @@ export default function Menu() {
             title: "Pengaturan",
             details: [
                 {
-                    title: "Payment Gateway",
-                    href: route("settings.payments.edit"),
-                    active: url === "/dashboard/settings/payments",
-                    icon: <IconCreditCard size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["payment-settings-access"]),
-                },
-                {
                     title: "Profil Toko",
                     href: route("settings.store"),
                     active: url === "/dashboard/settings/store",
@@ -348,13 +294,6 @@ export default function Menu() {
                     active: url === "/dashboard/settings/bank-accounts",
                     icon: <IconCreditCard size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["payment-settings-access"]),
-                },
-                {
-                    title: "Loyalty",
-                    href: route("settings.loyalty"),
-                    active: url === "/dashboard/settings/loyalty",
-                    icon: <IconGift size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["dashboard-access"]),
                 },
                 {
                     title: "Target Penjualan",
