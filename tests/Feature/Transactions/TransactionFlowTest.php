@@ -231,6 +231,69 @@ class TransactionFlowTest extends TestCase
         $this->assertDatabaseCount('transactions', 0);
     }
 
+    public function test_cashier_can_complete_transaction_without_customer_if_paying_cash(): void
+    {
+        $cashier = $this->createCashier();
+        $shift = $this->openShiftFor($cashier);
+        $product = $this->createProduct();
+
+        $quantity = 1;
+        $cart = Cart::create([
+            'cashier_id' => $cashier->id,
+            'product_id' => $product->id,
+            'qty' => $quantity,
+            'price' => $product->sell_price * $quantity,
+        ]);
+
+        $response = $this
+            ->actingAs($cashier)
+            ->post(route('transactions.store'), [
+                'customer_id' => null,
+                'discount' => 0,
+                'grand_total' => $product->sell_price,
+                'cash' => $product->sell_price,
+                'change' => 0,
+                'pay_later' => false,
+            ]);
+
+        $transaction = Transaction::latest('id')->first();
+        $this->assertNotNull($transaction);
+        $response->assertRedirect(route('transactions.print', $transaction->invoice));
+        $this->assertNull($transaction->customer_id);
+    }
+
+    public function test_cashier_cannot_complete_transaction_without_customer_if_pay_later(): void
+    {
+        $cashier = $this->createCashier();
+        $shift = $this->openShiftFor($cashier);
+        $product = $this->createProduct();
+
+        $quantity = 1;
+        $cart = Cart::create([
+            'cashier_id' => $cashier->id,
+            'product_id' => $product->id,
+            'qty' => $quantity,
+            'price' => $product->sell_price * $quantity,
+        ]);
+
+        $response = $this
+            ->from(route('transactions.index'))
+            ->actingAs($cashier)
+            ->post(route('transactions.store'), [
+                'customer_id' => null,
+                'discount' => 0,
+                'grand_total' => $product->sell_price,
+                'cash' => 0,
+                'change' => 0,
+                'pay_later' => true,
+                'due_date' => now()->addDays(7)->format('Y-m-d'),
+            ]);
+
+        $response->assertRedirect(route('transactions.index'));
+        $response->assertSessionHas('error', 'Pelanggan wajib dipilih jika memilih bayar belakangan (nota barang).');
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
     protected function openShiftFor(User $cashier)
     {
         return \App\Models\CashierShift::create([

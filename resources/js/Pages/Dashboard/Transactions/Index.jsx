@@ -382,7 +382,7 @@ export default function Index({
                     break;
                 case "F2":
                     e.preventDefault();
-                    if (carts.length > 0 && selectedCustomer)
+                    if (carts.length > 0)
                         handleSubmitTransaction();
                     break;
                 case "F3":
@@ -431,8 +431,8 @@ export default function Index({
             return;
         }
 
-        if (!selectedCustomer?.id) {
-            toast.error("Pilih pelanggan terlebih dahulu");
+        if (payLater && !selectedCustomer?.id) {
+            toast.error("Pilih pelanggan terlebih dahulu untuk transaksi bayar belakangan");
             return;
         }
 
@@ -458,7 +458,7 @@ export default function Index({
         router.post(
             route("transactions.store"),
             {
-                customer_id: selectedCustomer.id,
+                customer_id: selectedCustomer?.id ?? null,
                 discount,
                 redeem_points: Number(redeemPointsInput || 0),
                 customer_voucher_id: null,
@@ -1280,7 +1280,7 @@ export default function Index({
                             onClick={handleSubmitTransaction}
                             disabled={
                                 !carts.length ||
-                                !selectedCustomer ||
+                                (payLater && !selectedCustomer) ||
                                 (!payLater &&
                                     paymentMethod === "cash" &&
                                     cash < payable) ||
@@ -1289,7 +1289,7 @@ export default function Index({
                             }
                             className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
                                 carts.length &&
-                                selectedCustomer &&
+                                (!payLater || selectedCustomer) &&
                                 (paymentMethod !== "cash" || cash >= payable)
                                     && !isLoadingPricing
                                     ? "bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg shadow-primary-500/30"
@@ -1304,8 +1304,8 @@ export default function Index({
                                     <span>
                                         {!carts.length
                                             ? "Keranjang Kosong"
-                                            : !selectedCustomer
-                                            ? "Pilih Pelanggan"
+                                            : payLater && !selectedCustomer
+                                            ? "Pilih Pelanggan (Wajib)"
                                             : paymentMethod === "cash" &&
                                               cash < payable
                                             ? `Kurang ${formatPrice(

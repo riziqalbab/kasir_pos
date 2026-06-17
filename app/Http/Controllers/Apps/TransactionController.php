@@ -478,6 +478,12 @@ class TransactionController extends Controller
                 ->with('error', 'Tanggal jatuh tempo wajib diisi untuk nota barang.');
         }
 
+        if ($isPayLater && (! $request->filled('customer_id') || ! Customer::where('id', $request->customer_id)->exists())) {
+            return redirect()
+                ->route('transactions.index')
+                ->with('error', 'Pelanggan wajib dipilih jika memilih bayar belakangan (nota barang).');
+        }
+
         if ($paymentGateway && $paymentGateway !== 'bank_transfer') {
             return redirect()
                 ->route('transactions.index')
