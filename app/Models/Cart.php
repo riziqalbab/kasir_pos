@@ -15,7 +15,7 @@ class Cart extends Model
      * @var array
      */
     protected $fillable = [
-        'cashier_id', 'product_id', 'qty', 'price', 'hold_id', 'hold_label', 'held_at',
+        'cashier_id', 'product_id', 'qty', 'price', 'hold_id', 'hold_label', 'held_at', 'satuan', 'satuan_key',
     ];
 
     /**

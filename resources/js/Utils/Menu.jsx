@@ -93,7 +93,7 @@ export default function Menu() {
             title: "Sales",
             details: [
                 {
-                    title: "Transaksi",
+                    title: "POS Kasir",
                     href: route("transactions.index"),
                     active: url === "/dashboard/transactions" ? true : false, // Update comparison here
                     icon: <IconShoppingCart size={20} strokeWidth={1.5} />,

@@ -4,7 +4,6 @@ namespace Tests\Feature\Reports;
 
 use App\Models\Category;
 use App\Models\Customer;
-
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
@@ -268,8 +267,6 @@ class AdvancedSalesInsightsTest extends TestCase
             'description' => 'Rule promo dibuat.',
             'created_at' => now(),
         ]);
-
-
 
         $response = $this->actingAs($user)->get(route('reports.insights.index'));
 

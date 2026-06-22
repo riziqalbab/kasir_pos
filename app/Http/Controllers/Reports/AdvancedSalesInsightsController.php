@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
@@ -639,8 +638,6 @@ class AdvancedSalesInsightsController extends Controller
             $query->whereDate($column, '<=', $filters['end_date']);
         }
     }
-
-
 
     protected function hourBucketExpression(): string
     {

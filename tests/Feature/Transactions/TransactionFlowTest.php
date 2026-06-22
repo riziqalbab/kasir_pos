@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
@@ -183,7 +182,6 @@ class TransactionFlowTest extends TestCase
                 $this->assertSame($shift->id, $page->toArray()['props']['activeCashierShift']['id']);
             });
     }
-
 
     protected function createCashier(): User
     {

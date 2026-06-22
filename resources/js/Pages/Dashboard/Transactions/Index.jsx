@@ -327,6 +327,25 @@ export default function Index({
         );
     };
 
+    const handleUpdateUnit = (cartId, newSatuanKey) => {
+        setUpdatingCartId(cartId);
+
+        router.patch(
+            route("transactions.updateCart", cartId),
+            { satuan_key: newSatuanKey },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setUpdatingCartId(null);
+                },
+                onError: (errors) => {
+                    toast.error(errors?.message || "Gagal update satuan");
+                    setUpdatingCartId(null);
+                },
+            }
+        );
+    };
+
     // Handle numpad confirm for cash input
     const handleNumpadConfirm = useCallback((value) => {
         setCashInput(String(value));
@@ -734,6 +753,19 @@ export default function Index({
                                             const pricingRule =
                                                 pricingItem?.pricing_rule;
 
+                                            const availableUnits = [];
+                                            if (item.product?.satuan_jual_pcs) {
+                                                availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
+                                            } else {
+                                                availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
+                                            }
+                                            if (item.product?.isi_pcs_dalam_pack > 0) {
+                                                availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
+                                            }
+                                            if (item.product?.isi_pcs_dalam_dus > 0) {
+                                                availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+                                            }
+
                                             return (
                                         <div
                                             key={item.id}
@@ -762,7 +794,7 @@ export default function Index({
                                                     {item.product?.title ||
                                                         "Produk"}
                                                 </p>
-                                                <div className="text-xs text-slate-500">
+                                                <div className="text-xs text-slate-500 flex flex-col gap-1 mt-0.5">
                                                     {pricingRule &&
                                                         effectiveUnitPrice <
                                                             baseUnitPrice && (
@@ -779,6 +811,23 @@ export default function Index({
                                                         )}{" "}
                                                         × {item.qty}
                                                     </p>
+                                                    {availableUnits.length > 1 ? (
+                                                        <select
+                                                            value={item.satuan_key || "pcs"}
+                                                            onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
+                                                            className="text-[9px] font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-fit"
+                                                        >
+                                                            {availableUnits.map((u) => (
+                                                                <option key={u.key} value={u.key}>
+                                                                    {u.label} ({formatPrice(u.price)})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium inline-block w-fit">
+                                                            {item.satuan || "Pcs"}
+                                                        </span>
+                                                    )}
                                                     {pricingRule && (
                                                         <p className="mt-0.5 text-[11px] font-medium text-rose-500">
                                                             {pricingRule.name}

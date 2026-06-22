@@ -18,6 +18,7 @@ export default function AddCustomerModal({
     tierOptions = [],
 }) {
     const [form, setForm] = useState({
+        member_code: "",
         name: "",
         no_telp: "",
         address: "",
@@ -39,8 +40,8 @@ export default function AddCustomerModal({
 
         // Basic validation
         const newErrors = {};
+        if (!form.member_code.trim()) newErrors.member_code = "Kode pelanggan wajib diisi";
         if (!form.name.trim()) newErrors.name = "Nama wajib diisi";
-        if (!form.no_telp.trim()) newErrors.no_telp = "No. telepon wajib diisi";
         if (!form.address.trim()) newErrors.address = "Alamat wajib diisi";
 
         if (Object.keys(newErrors).length > 0) {
@@ -59,6 +60,7 @@ export default function AddCustomerModal({
             if (response.data.success) {
                 toast.success("Pelanggan berhasil ditambahkan");
                 setForm({
+                    member_code: "",
                     name: "",
                     no_telp: "",
                     address: "",
@@ -87,6 +89,7 @@ export default function AddCustomerModal({
 
     const handleClose = () => {
         setForm({
+            member_code: "",
             name: "",
             no_telp: "",
             address: "",
@@ -125,6 +128,32 @@ export default function AddCustomerModal({
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {/* Kode Pelanggan */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Kode Pelanggan{" "}
+                            <span className="text-danger-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="member_code"
+                            value={form.member_code}
+                            onChange={handleChange}
+                            placeholder="Masukkan kode pelanggan/member"
+                            className={`w-full h-11 px-4 rounded-xl border ${
+                                errors.member_code
+                                    ? "border-danger-500 focus:ring-danger-500/20"
+                                    : "border-slate-200 dark:border-slate-700 focus:ring-primary-500/20"
+                            } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-4 focus:border-primary-500 transition-all`}
+                            autoFocus
+                        />
+                        {errors.member_code && (
+                            <p className="mt-1 text-xs text-danger-500">
+                                {errors.member_code}
+                            </p>
+                        )}
+                    </div>
+
                     {/* Name */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -142,7 +171,6 @@ export default function AddCustomerModal({
                                     ? "border-danger-500 focus:ring-danger-500/20"
                                     : "border-slate-200 dark:border-slate-700 focus:ring-primary-500/20"
                             } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-4 focus:border-primary-500 transition-all`}
-                            autoFocus
                         />
                         {errors.name && (
                             <p className="mt-1 text-xs text-danger-500">
@@ -154,8 +182,7 @@ export default function AddCustomerModal({
                     {/* Phone */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                            No. Telepon{" "}
-                            <span className="text-danger-500">*</span>
+                            No. WA / Telepon (Opsional)
                         </label>
                         <input
                             type="tel"

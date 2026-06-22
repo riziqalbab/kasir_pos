@@ -27,6 +27,8 @@ class TransactionDetail extends Model
         'pricing_rule_kind',
         'pricing_group_key',
         'pricing_group_label',
+        'satuan',
+        'satuan_key',
     ];
 
     protected $casts = [

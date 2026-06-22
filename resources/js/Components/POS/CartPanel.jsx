@@ -15,13 +15,26 @@ const formatPrice = (value = 0) =>
     });
 
 // Single Cart Item
-function CartItem({ item, onUpdateQty, onRemove, isRemoving }) {
-    // Note: item.price from backend is already the total (sell_price * qty)
+function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
     const quantity = Number(item.qty || 0);
     const itemPrice = Number(item.price || 0);
-    const unitPrice =
-        Number(item.product?.sell_price || 0) || itemPrice / quantity || 0;
-    const subtotal = itemPrice; // Already calculated total from backend
+    const subtotal = itemPrice;
+
+    const availableUnits = [];
+    if (item.product?.satuan_jual_pcs) {
+        availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
+    } else {
+        availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
+    }
+    if (item.product?.isi_pcs_dalam_pack > 0) {
+        availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
+    }
+    if (item.product?.isi_pcs_dalam_dus > 0) {
+        availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+    }
+
+    const activeUnit = availableUnits.find(u => u.key === (item.satuan_key || "pcs"));
+    const unitPrice = activeUnit ? activeUnit.price : (Number(item.product?.sell_price || 0));
 
     return (
         <div
@@ -55,9 +68,28 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving }) {
                 <h4 className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
                     {item.product?.title || "Produk"}
                 </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {formatPrice(unitPrice)} × {item.qty}
-                </p>
+                <div className="flex flex-col gap-1 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatPrice(unitPrice)} × {item.qty}
+                    </p>
+                    {availableUnits.length > 1 ? (
+                        <select
+                            value={item.satuan_key || "pcs"}
+                            onChange={(e) => onUpdateUnit?.(item.id, e.target.value)}
+                            className="text-[11px] font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        >
+                            {availableUnits.map((u) => (
+                                <option key={u.key} value={u.key}>
+                                    {u.label} ({formatPrice(u.price)})
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium inline-block w-fit">
+                            {item.satuan || "Pcs"}
+                        </span>
+                    )}
+                </div>
                 <p className="text-sm font-semibold text-primary-600 dark:text-primary-400 mt-1">
                     {formatPrice(subtotal)}
                 </p>
@@ -127,6 +159,7 @@ export default function CartPanel({
     onRemove,
     removingItemId,
     className = "",
+    onUpdateUnit,
 }) {
     const totalItems = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
     // Note: item.price from backend is already sell_price * qty
@@ -165,6 +198,7 @@ export default function CartPanel({
                             onUpdateQty={onUpdateQty}
                             onRemove={onRemove}
                             isRemoving={removingItemId === item.id}
+                            onUpdateUnit={onUpdateUnit}
                         />
                     ))}
                 </div>

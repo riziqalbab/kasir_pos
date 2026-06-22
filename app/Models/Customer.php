@@ -15,6 +15,7 @@ class Customer extends Model
      * @var array
      */
     protected $fillable = [
+        'member_code',
         'name',
         'no_telp',
         'address',
@@ -47,7 +48,6 @@ class Customer extends Model
     {
         return $this->hasMany(Transaction::class);
     }
-
 
     public function receivables()
     {

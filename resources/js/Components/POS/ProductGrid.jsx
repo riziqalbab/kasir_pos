@@ -59,8 +59,8 @@ function ProductCard({ product, onAddToCart, isAdding }) {
 
                 {/* Stock Badge */}
                 {lowStock && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-medium bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-400 rounded-full">
-                        Sisa {product.stock}
+                    <span className="absolute top-2 right-2 px-2 py-0.5 text-[10px] font-medium bg-warning-100 text-warning-700 dark:bg-warning-900/50 dark:text-warning-400 rounded-full max-w-[80%] truncate">
+                        Sisa: {product.stock_breakdown || `${product.stock} Pcs`}
                     </span>
                 )}
 

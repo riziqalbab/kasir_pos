@@ -10,7 +10,6 @@ use Illuminate\Support\Collection;
 
 class PricingService
 {
-
     public function getActiveRules(?CarbonInterface $at = null): Collection
     {
         return collect();
@@ -68,7 +67,7 @@ class PricingService
     private function buildPreview(Collection $carts, ?Customer $customer, Collection $rules): array
     {
         $items = $carts->map(function (Cart $cart) {
-            $baseUnitPrice = (int) $cart->product->sell_price;
+            $baseUnitPrice = (int) $cart->product->getSellPriceForUnit($cart->satuan_key);
 
             return [
                 'cart_id' => $cart->id,

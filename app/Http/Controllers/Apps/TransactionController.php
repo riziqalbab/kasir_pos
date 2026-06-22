@@ -206,14 +206,42 @@ class TransactionController extends Controller
             return redirect()->back()->with('error', 'Product not found.');
         }
 
+        $satuanKey = $request->input('satuan_key', 'pcs');
+        $satuan = $product->getUnitNameForKey($satuanKey);
+        $sellPrice = $product->getSellPriceForUnit($satuanKey);
+
+        $conversion = 1;
+        if ($satuanKey === 'dus') {
+            $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+        } elseif ($satuanKey === 'pack') {
+            $conversion = $product->isi_pcs_dalam_pack ?: 1;
+        }
+        $requestedBaseQty = $request->qty * $conversion;
+
+        // Calculate total base qty of this product already in cart
+        $totalCartBaseQty = $requestedBaseQty;
+        $otherCarts = Cart::where('product_id', $request->product_id)
+            ->where('cashier_id', auth()->user()->id)
+            ->get();
+        foreach ($otherCarts as $otherCart) {
+            $otherConversion = 1;
+            if ($otherCart->satuan_key === 'dus') {
+                $otherConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+            } elseif ($otherCart->satuan_key === 'pack') {
+                $otherConversion = $product->isi_pcs_dalam_pack ?: 1;
+            }
+            $totalCartBaseQty += $otherCart->qty * $otherConversion;
+        }
+
         // Cek stok produk
-        if ($product->stock < $request->qty) {
-            return redirect()->back()->with('error', 'Out of Stock Product!.');
+        if ($product->stock < $totalCartBaseQty) {
+            return redirect()->back()->with('error', 'Stok tidak mencukupi.');
         }
 
         // Cek keranjang
         $cart = Cart::with('product')
             ->where('product_id', $request->product_id)
+            ->where('satuan_key', $satuanKey)
             ->where('cashier_id', auth()->user()->id)
             ->first();
 
@@ -222,7 +250,7 @@ class TransactionController extends Controller
             $cart->increment('qty', $request->qty);
 
             // Jumlahkan harga * kuantitas
-            $cart->price = $cart->product->sell_price * $cart->qty;
+            $cart->price = $sellPrice * $cart->qty;
 
             $cart->save();
         } else {
@@ -231,7 +259,9 @@ class TransactionController extends Controller
                 'cashier_id' => auth()->user()->id,
                 'product_id' => $request->product_id,
                 'qty' => $request->qty,
-                'price' => $request->sell_price * $request->qty,
+                'price' => $sellPrice * $request->qty,
+                'satuan' => $satuan,
+                'satuan_key' => $satuanKey,
             ]);
         }
 
@@ -269,7 +299,8 @@ class TransactionController extends Controller
     public function updateCart(Request $request, $cart_id)
     {
         $request->validate([
-            'qty' => 'required|integer|min:1',
+            'qty' => 'sometimes|integer|min:1',
+            'satuan_key' => 'sometimes|string|in:dus,pack,pcs',
         ]);
 
         $cart = Cart::with('product')->whereId($cart_id)
@@ -283,20 +314,52 @@ class TransactionController extends Controller
             ], 404);
         }
 
+        $newQty = $request->input('qty', $cart->qty);
+        $newSatuanKey = $request->input('satuan_key', $cart->satuan_key ?: 'pcs');
+        $product = $cart->product;
+        $newSatuan = $product->getUnitNameForKey($newSatuanKey);
+        $newSellPrice = $product->getSellPriceForUnit($newSatuanKey);
+
         // Check stock availability
-        if ($cart->product->stock < $request->qty) {
+        $newConversion = 1;
+        if ($newSatuanKey === 'dus') {
+            $newConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+        } elseif ($newSatuanKey === 'pack') {
+            $newConversion = $product->isi_pcs_dalam_pack ?: 1;
+        }
+        $newBaseQty = $newQty * $newConversion;
+
+        // Base qty of OTHER items in cart for the same product
+        $otherCartBaseQty = 0;
+        $otherCarts = Cart::where('product_id', $cart->product_id)
+            ->where('cashier_id', auth()->user()->id)
+            ->where('id', '!=', $cart->id)
+            ->get();
+        foreach ($otherCarts as $otherCart) {
+            $otherConversion = 1;
+            if ($otherCart->satuan_key === 'dus') {
+                $otherConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+            } elseif ($otherCart->satuan_key === 'pack') {
+                $otherConversion = $product->isi_pcs_dalam_pack ?: 1;
+            }
+            $otherCartBaseQty += $otherCart->qty * $otherConversion;
+        }
+
+        if ($product->stock < ($newBaseQty + $otherCartBaseQty)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Stok tidak mencukupi. Tersedia: '.$cart->product->stock,
+                'message' => 'Stok tidak mencukupi. Tersedia: '.$product->stock,
             ], 422);
         }
 
-        // Update quantity and price
-        $cart->qty = $request->qty;
-        $cart->price = $cart->product->sell_price * $request->qty;
+        // Update quantity, unit and price
+        $cart->qty = $newQty;
+        $cart->satuan_key = $newSatuanKey;
+        $cart->satuan = $newSatuan;
+        $cart->price = $newSellPrice * $newQty;
         $cart->save();
 
-        return back()->with('success', 'Quantity updated successfully');
+        return back()->with('success', 'Cart updated successfully');
     }
 
     /**
@@ -522,9 +585,8 @@ class TransactionController extends Controller
             $isPayLater,
             $manualDiscount,
             $shippingCost,
-            $requestedRedeemPoints,
-            $customer,
-            $voucher
+            $customer
+
         ) {
             $activeShift = $this->cashierShiftService->requireActiveShiftForUser(
                 auth()->user()->id,
@@ -570,8 +632,8 @@ class TransactionController extends Controller
                 $pricingItem = $pricingItems->firstWhere('cart_id', $cart->id);
                 $lineTotal = (int) data_get($pricingItem, 'line_total', $cart->price);
                 $linePromoDiscount = (int) data_get($pricingItem, 'line_discount_total', 0);
-                $baseUnitPrice = (int) data_get($pricingItem, 'base_unit_price', $cart->product->sell_price);
-                $unitPrice = (int) data_get($pricingItem, 'effective_unit_price', $cart->product->sell_price);
+                $baseUnitPrice = (int) data_get($pricingItem, 'base_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
+                $unitPrice = (int) data_get($pricingItem, 'effective_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
 
                 $transaction->details()->create([
                     'transaction_id' => $transaction->id,
@@ -586,9 +648,12 @@ class TransactionController extends Controller
                     'pricing_rule_kind' => data_get($pricingItem, 'pricing_rule.kind'),
                     'pricing_group_key' => data_get($pricingItem, 'pricing_group_key'),
                     'pricing_group_label' => data_get($pricingItem, 'pricing_group_label'),
+                    'satuan' => $cart->satuan,
+                    'satuan_key' => $cart->satuan_key ?: 'pcs',
                 ]);
 
-                $total_buy_price = $cart->product->buy_price * $cart->qty;
+                $buyPriceForUnit = $cart->product->getBuyPriceForUnit($cart->satuan_key);
+                $total_buy_price = $buyPriceForUnit * $cart->qty;
                 $lineShare = $subtotalAfterPromo > 0 ? $lineTotal / $subtotalAfterPromo : 0;
                 $allocatedManualDiscount = (int) round($appliedManualDiscount * $lineShare);
                 $netSellPrice = max(0, $lineTotal - $allocatedManualDiscount);
@@ -600,7 +665,15 @@ class TransactionController extends Controller
                 ]);
 
                 $product = Product::find($cart->product_id);
-                $product->stock = $product->stock - $cart->qty;
+                $conversion = 1;
+                if ($cart->satuan_key === 'dus') {
+                    $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+                } elseif ($cart->satuan_key === 'pack') {
+                    $conversion = $product->isi_pcs_dalam_pack ?: 1;
+                }
+                $qtyInBaseUnit = $cart->qty * $conversion;
+
+                $product->stock = $product->stock - $qtyInBaseUnit;
                 $product->save();
             }
 

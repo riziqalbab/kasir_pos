@@ -45,6 +45,11 @@ function CustomerCard({ customer, canUpdate, canDelete }) {
                                 {customer.name}
                             </Link>
                         </h3>
+                        {customer.member_code && (
+                            <span className="inline-block text-[10px] font-semibold bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-400 px-2 py-0.5 rounded mt-1">
+                                {customer.member_code}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -226,17 +231,24 @@ export default function Index({ customers }) {
                                                             .toUpperCase()}
                                                     </div>
                                                 )}
-                                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                                    <Link
-                                                        href={route(
-                                                            "customers.show",
-                                                            customer.id
-                                                        )}
-                                                        className="hover:text-primary-600"
-                                                    >
-                                                        {customer.name}
-                                                    </Link>
-                                                </p>
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                                        <Link
+                                                            href={route(
+                                                                "customers.show",
+                                                                customer.id
+                                                            )}
+                                                            className="hover:text-primary-600"
+                                                        >
+                                                            {customer.name}
+                                                        </Link>
+                                                    </p>
+                                                    {customer.member_code && (
+                                                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                                            {customer.member_code}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </Table.Td>
                                         <Table.Td>

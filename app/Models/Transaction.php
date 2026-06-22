@@ -110,7 +110,6 @@ class Transaction extends Model
         return $this->hasMany(SalesReturn::class);
     }
 
-
     /**
      * createdAt
      */

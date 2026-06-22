@@ -32,7 +32,6 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard.access', absolute: false));
     }
 
-
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
@@ -84,7 +83,6 @@ class AuthenticationTest extends TestCase
             'camera=(), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=()'
         );
     }
-
 
     public function test_production_security_warnings_are_shared_to_dashboard(): void
     {

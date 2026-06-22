@@ -3,7 +3,6 @@ import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, useForm, usePage, Link } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
 import Input from "@/Components/Dashboard/Input";
-import Textarea from "@/Components/Dashboard/TextArea";
 import InputSelect from "@/Components/Dashboard/InputSelect";
 import toast from "react-hot-toast";
 import {
@@ -13,6 +12,7 @@ import {
     IconPhoto,
     IconBarcode,
     IconCurrencyDollar,
+    IconScale,
 } from "@tabler/icons-react";
 
 export default function Create({ categories }) {
@@ -24,14 +24,27 @@ export default function Create({ categories }) {
         sku: "",
         title: "",
         category_id: "",
-        description: "",
-        buy_price: "",
-        sell_price: "",
-        stock: "",
+        satuan_beli: "",
+        isi_pcs_dalam_pack: 0,
+        isi_pack_dalam_dus: 1,
+        isi_pcs_dalam_dus: 0,
+        satuan_jual_dus: "Dus",
+        harga_beli_dus: 0,
+        harga_jual_dus: 0,
+        stok_dus: 0,
+        satuan_jual_pack: "Pak",
+        harga_beli_pack: 0,
+        harga_jual_pack: 0,
+        stok_pack: 0,
+        satuan_jual_pcs: "Pcs",
+        harga_beli_pcs: 0,
+        harga_jual_pcs: 0,
+        stok_pcs: 0,
     });
 
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+    const [activeTab, setActiveTab] = useState("pcs"); // 'dus', 'pack', 'pcs'
 
     const setSelectedCategoryHandler = (value) => {
         setSelectedCategory(value);
@@ -46,6 +59,23 @@ export default function Create({ categories }) {
         }
     };
 
+    const handleConversionChange = (field, value) => {
+        const val = parseInt(value, 10) || 0;
+        const updatedData = { ...data, [field]: val };
+        
+        // Auto-calculate isi_pcs_dalam_dus
+        const pcsPack = field === "isi_pcs_dalam_pack" ? val : Number(data.isi_pcs_dalam_pack || 0);
+        const packDus = field === "isi_pack_dalam_dus" ? val : Number(data.isi_pack_dalam_dus || 0);
+        updatedData.isi_pcs_dalam_dus = pcsPack * packDus;
+
+        // Apply changes
+        setData((prev) => ({
+            ...prev,
+            [field]: val,
+            isi_pcs_dalam_dus: updatedData.isi_pcs_dalam_dus,
+        }));
+    };
+
     const submit = (e) => {
         e.preventDefault();
         post(route("products.store"), {
@@ -53,6 +83,35 @@ export default function Create({ categories }) {
             onError: () => toast.error("Gagal menyimpan produk"),
         });
     };
+
+    // Calculate active tab profits
+    const activeTabPricing = {
+        dus: {
+            buy: Number(data.harga_beli_dus) || 0,
+            sell: Number(data.harga_jual_dus) || 0,
+            name: data.satuan_jual_dus || "Dus",
+        },
+        pack: {
+            buy: Number(data.harga_beli_pack) || 0,
+            sell: Number(data.harga_jual_pack) || 0,
+            name: data.satuan_jual_pack || "Pak",
+        },
+        pcs: {
+            buy: Number(data.harga_beli_pcs) || 0,
+            sell: Number(data.harga_jual_pcs) || 0,
+            name: data.satuan_jual_pcs || "Pcs",
+        },
+    }[activeTab];
+
+    const showProfit = activeTabPricing.buy > 0 && activeTabPricing.sell > 0;
+    const profitAmount = activeTabPricing.sell - activeTabPricing.buy;
+    const profitMargin = ((profitAmount / activeTabPricing.buy) * 100).toFixed(1);
+
+    // Calculate total computed stock in base unit (pcs) for preview
+    const computedTotalStock = 
+        (Number(data.stok_dus || 0) * Number(data.isi_pcs_dalam_dus || 0)) +
+        (Number(data.stok_pack || 0) * Number(data.isi_pcs_dalam_pack || 0)) +
+        Number(data.stok_pcs || 0);
 
     return (
         <>
@@ -144,11 +203,11 @@ export default function Create({ categories }) {
                                 />
                                 <Input
                                     type="text"
-                                    label="SKU"
+                                    label="SKU (Opsional)"
                                     value={data.sku}
                                     onChange={(e) => setData("sku", e.target.value)}
                                     errors={errors.sku}
-                                    placeholder="Masukkan SKU unik"
+                                    placeholder="Masukkan SKU unik (atau kosongkan untuk auto-generate)"
                                 />
                                 <Input
                                     type="text"
@@ -160,77 +219,224 @@ export default function Create({ categories }) {
                                     errors={errors.title}
                                     placeholder="Masukkan nama produk"
                                 />
-                                <div className="md:col-span-2">
-                                    <Textarea
-                                        label="Deskripsi"
-                                        placeholder="Deskripsi produk (opsional)"
-                                        errors={errors.description}
+                                <Input
+                                    type="text"
+                                    label="Satuan Beli"
+                                    value={data.satuan_beli}
+                                    onChange={(e) =>
+                                        setData("satuan_beli", e.target.value)
+                                    }
+                                    errors={errors.satuan_beli}
+                                    placeholder="Dus / Box / Pcs"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Conversion Section */}
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <IconScale size={18} />
+                                Keterangan Isi Barang (Konversi Satuan)
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <Input
+                                    type="number"
+                                    label="Isi [Pcs] dalam se-Pack"
+                                    value={data.isi_pcs_dalam_pack}
+                                    onChange={(e) =>
+                                        handleConversionChange("isi_pcs_dalam_pack", e.target.value)
+                                    }
+                                    errors={errors.isi_pcs_dalam_pack}
+                                    placeholder="0"
+                                />
+                                <div className="relative">
+                                    <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">×</span>
+                                    <Input
+                                        type="number"
+                                        label="Isi [Pack] dalam se-dus"
+                                        value={data.isi_pack_dalam_dus}
                                         onChange={(e) =>
-                                            setData(
-                                                "description",
-                                                e.target.value
-                                            )
+                                            handleConversionChange("isi_pack_dalam_dus", e.target.value)
                                         }
-                                        value={data.description}
-                                        rows={3}
+                                        errors={errors.isi_pack_dalam_dus}
+                                        placeholder="1"
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">=</span>
+                                    <Input
+                                        type="number"
+                                        label="Isi [Pcs] dalam se-dus"
+                                        value={data.isi_pcs_dalam_dus}
+                                        errors={errors.isi_pcs_dalam_dus}
+                                        disabled={true}
+                                        placeholder="0"
+                                        className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Pricing & Stock */}
+                        {/* Pricing & Stock Tabbed Layout */}
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                                <IconCurrencyDollar size={18} />
-                                Harga & Stok
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <Input
-                                    type="number"
-                                    label="Harga Beli"
-                                    value={data.buy_price}
-                                    onChange={(e) =>
-                                        setData("buy_price", e.target.value)
-                                    }
-                                    errors={errors.buy_price}
-                                    placeholder="0"
-                                />
-                                <Input
-                                    type="number"
-                                    label="Harga Jual"
-                                    value={data.sell_price}
-                                    onChange={(e) =>
-                                        setData("sell_price", e.target.value)
-                                    }
-                                    errors={errors.sell_price}
-                                    placeholder="0"
-                                />
-                                <Input
-                                    type="number"
-                                    label="Stok"
-                                    value={data.stock}
-                                    onChange={(e) =>
-                                        setData("stock", e.target.value)
-                                    }
-                                    errors={errors.stock}
-                                    placeholder="0"
-                                />
+                            <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                    <IconCurrencyDollar size={18} />
+                                    Harga & Stok per Satuan Jual
+                                </h3>
+                                {/* Tabs Selector */}
+                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                    {["dus", "pack", "pcs"].map((tab) => (
+                                        <button
+                                            key={tab}
+                                            type="button"
+                                            onClick={() => setActiveTab(tab)}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all duration-200 ${
+                                                activeTab === tab
+                                                    ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                                                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                                            }`}
+                                        >
+                                            {tab === "pcs"
+                                                ? data.satuan_jual_pcs || "PCS"
+                                                : tab === "pack"
+                                                ? data.satuan_jual_pack || "PAK"
+                                                : data.satuan_jual_dus || "DUS"}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Tab Content */}
+                            {activeTab === "dus" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        type="text"
+                                        label="Nama Satuan Jual (DUS)"
+                                        value={data.satuan_jual_dus}
+                                        onChange={(e) => setData("satuan_jual_dus", e.target.value)}
+                                        errors={errors.satuan_jual_dus}
+                                        placeholder="Dus"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Stok Awal (DUS)"
+                                        value={data.stok_dus}
+                                        onChange={(e) => setData("stok_dus", e.target.value)}
+                                        errors={errors.stok_dus}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Beli (DUS)"
+                                        value={data.harga_beli_dus}
+                                        onChange={(e) => setData("harga_beli_dus", e.target.value)}
+                                        errors={errors.harga_beli_dus}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Jual (DUS)"
+                                        value={data.harga_jual_dus}
+                                        onChange={(e) => setData("harga_jual_dus", e.target.value)}
+                                        errors={errors.harga_jual_dus}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === "pack" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        type="text"
+                                        label="Nama Satuan Jual (PACK)"
+                                        value={data.satuan_jual_pack}
+                                        onChange={(e) => setData("satuan_jual_pack", e.target.value)}
+                                        errors={errors.satuan_jual_pack}
+                                        placeholder="Pak"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Stok Awal (PACK)"
+                                        value={data.stok_pack}
+                                        onChange={(e) => setData("stok_pack", e.target.value)}
+                                        errors={errors.stok_pack}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Beli (PACK)"
+                                        value={data.harga_beli_pack}
+                                        onChange={(e) => setData("harga_beli_pack", e.target.value)}
+                                        errors={errors.harga_beli_pack}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Jual (PACK)"
+                                        value={data.harga_jual_pack}
+                                        onChange={(e) => setData("harga_jual_pack", e.target.value)}
+                                        errors={errors.harga_jual_pack}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === "pcs" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        type="text"
+                                        label="Nama Satuan Jual (PCS)"
+                                        value={data.satuan_jual_pcs}
+                                        onChange={(e) => setData("satuan_jual_pcs", e.target.value)}
+                                        errors={errors.satuan_jual_pcs}
+                                        placeholder="Pcs"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Stok Awal (PCS)"
+                                        value={data.stok_pcs}
+                                        onChange={(e) => setData("stok_pcs", e.target.value)}
+                                        errors={errors.stok_pcs}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Beli (PCS)"
+                                        value={data.harga_beli_pcs}
+                                        onChange={(e) => setData("harga_beli_pcs", e.target.value)}
+                                        errors={errors.harga_beli_pcs}
+                                        placeholder="0"
+                                    />
+                                    <Input
+                                        type="number"
+                                        label="Harga Jual (PCS)"
+                                        value={data.harga_jual_pcs}
+                                        onChange={(e) => setData("harga_jual_pcs", e.target.value)}
+                                        errors={errors.harga_jual_pcs}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Stock equivalence display */}
+                            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-500">
+                                <span>Estimasi Total Stok Terdaftar (dalam PCS):</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                                    {computedTotalStock} Pcs
+                                </span>
                             </div>
 
                             {/* Profit Estimation */}
-                            {data.buy_price > 0 && data.sell_price > 0 && (
+                            {showProfit && (
                                 <div className="mt-4 p-4 rounded-xl bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-900">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm text-success-700 dark:text-success-400 font-medium">
-                                                Estimasi Profit per Item
+                                                Estimasi Profit per {activeTabPricing.name}
                                             </p>
                                             <p className="text-2xl font-bold text-success-600 dark:text-success-500 mt-1">
-                                                + Rp{" "}
-                                                {(
-                                                    data.sell_price -
-                                                    data.buy_price
-                                                ).toLocaleString("id-ID")}
+                                                + Rp {profitAmount.toLocaleString("id-ID")}
                                             </p>
                                         </div>
                                         <div className="text-right">
@@ -238,13 +444,7 @@ export default function Create({ categories }) {
                                                 Margin
                                             </p>
                                             <p className="text-xl font-bold text-success-600 dark:text-success-500 mt-1">
-                                                {(
-                                                    ((data.sell_price -
-                                                        data.buy_price) /
-                                                        data.buy_price) *
-                                                    100
-                                                ).toFixed(1)}
-                                                %
+                                                {profitMargin}%
                                             </p>
                                         </div>
                                     </div>

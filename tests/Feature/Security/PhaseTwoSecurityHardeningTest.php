@@ -3,11 +3,8 @@
 namespace Tests\Feature\Security;
 
 use App\Models\PaymentSetting;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class PhaseTwoSecurityHardeningTest extends TestCase
@@ -30,7 +27,6 @@ class PhaseTwoSecurityHardeningTest extends TestCase
         $this->assertNotSame('xendit-secret', $raw->xendit_secret_key);
         $this->assertNotSame('callback-secret', $raw->xendit_callback_token);
     }
-
 
     public function test_env_override_takes_precedence_over_database_secret(): void
     {

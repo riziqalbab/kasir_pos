@@ -147,7 +147,6 @@ class AuditLogTest extends TestCase
         ]);
     }
 
-
     public function test_bank_account_and_cashier_shift_actions_are_audited(): void
     {
         $user = $this->createUserWithPermissions([

@@ -130,6 +130,4 @@ class SettingController extends Controller
 
         return back()->with('success', 'Profil toko berhasil diperbarui');
     }
-
-
 }

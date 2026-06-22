@@ -6,12 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Laravolt\Indonesia\Models\City;
-use Laravolt\Indonesia\Models\District;
-use Laravolt\Indonesia\Models\Province;
-use Laravolt\Indonesia\Models\Village;
 
 class CustomerController extends Controller
 {
@@ -48,11 +43,7 @@ class CustomerController extends Controller
      */
     public function create()
     {
-        $provinces = Province::select('code', 'name')->orderBy('name')->get();
-
-        return Inertia::render('Dashboard/Customers/Create', [
-            'provinces' => $provinces,
-        ]);
+        return Inertia::render('Dashboard/Customers/Create');
     }
 
     /**
@@ -66,33 +57,18 @@ class CustomerController extends Controller
          * validate
          */
         $request->validate([
+            'member_code' => 'required|unique:customers,member_code',
             'name' => 'required',
-            'no_telp' => 'required|unique:customers',
+            'no_telp' => 'nullable|unique:customers,no_telp',
             'address' => 'required',
-            'province_id' => 'required|string',
-            'regency_id' => 'required|string',
-            'district_id' => 'required|string',
-            'village_id' => 'required|string',
         ]);
-
-        $province = Province::where('code', $request->province_id)->first();
-        $regency = City::where('code', $request->regency_id)->first();
-        $district = District::where('code', $request->district_id)->first();
-        $village = Village::where('code', $request->village_id)->first();
 
         // create customer
         Customer::create([
+            'member_code' => $request->member_code,
             'name' => $request->name,
             'no_telp' => $request->no_telp,
             'address' => $request->address,
-            'province_id' => $request->province_id,
-            'province_name' => $province?->name,
-            'regency_id' => $request->regency_id,
-            'regency_name' => $regency?->name,
-            'district_id' => $request->district_id,
-            'district_name' => $district?->name,
-            'village_id' => $request->village_id,
-            'village_name' => $village?->name,
         ]);
 
         // redirect
@@ -107,38 +83,18 @@ class CustomerController extends Controller
     public function storeAjax(Request $request)
     {
         $validated = $request->validate([
+            'member_code' => 'required|string|unique:customers,member_code',
             'name' => 'required|string|max:255',
-            'no_telp' => 'required|string|unique:customers,no_telp',
+            'no_telp' => 'nullable|string|unique:customers,no_telp',
             'address' => 'required|string',
-            'province_id' => 'nullable|string',
-            'regency_id' => 'nullable|string',
-            'district_id' => 'nullable|string',
-            'village_id' => 'nullable|string',
         ]);
 
         try {
-            $provinceCode = $validated['province_id'] ?? null;
-            $regencyCode = $validated['regency_id'] ?? null;
-            $districtCode = $validated['district_id'] ?? null;
-            $villageCode = $validated['village_id'] ?? null;
-
-            $province = $provinceCode ? Province::where('code', $provinceCode)->first() : null;
-            $regency = $regencyCode ? City::where('code', $regencyCode)->first() : null;
-            $district = $districtCode ? District::where('code', $districtCode)->first() : null;
-            $village = $villageCode ? Village::where('code', $villageCode)->first() : null;
-
             $customer = Customer::create([
+                'member_code' => $validated['member_code'],
                 'name' => $validated['name'],
                 'no_telp' => $validated['no_telp'],
                 'address' => $validated['address'],
-                'province_id' => $provinceCode,
-                'province_name' => $province?->name,
-                'regency_id' => $regencyCode,
-                'regency_name' => $regency?->name,
-                'district_id' => $districtCode,
-                'district_name' => $district?->name,
-                'village_id' => $villageCode,
-                'village_name' => $village?->name,
             ]);
 
             return response()->json([
@@ -168,23 +124,8 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer)
     {
-        $provinces = Province::select('code', 'name')->orderBy('name')->get();
-        $regencies = $customer->province_id
-            ? City::where('province_code', $customer->province_id)->select('code', 'name')->orderBy('name')->get()
-            : [];
-        $districts = $customer->regency_id
-            ? District::where('city_code', $customer->regency_id)->select('code', 'name')->orderBy('name')->get()
-            : [];
-        $villages = $customer->district_id
-            ? Village::where('district_code', $customer->district_id)->select('code', 'name')->orderBy('name')->get()
-            : [];
-
         return Inertia::render('Dashboard/Customers/Edit', [
             'customer' => $customer,
-            'provinces' => $provinces,
-            'regencies' => $regencies,
-            'districts' => $districts,
-            'villages' => $villages,
         ]);
     }
 
@@ -200,33 +141,18 @@ class CustomerController extends Controller
          * validate
          */
         $request->validate([
+            'member_code' => 'required|unique:customers,member_code,'.$customer->id,
             'name' => 'required',
-            'no_telp' => 'required|unique:customers,no_telp,'.$customer->id,
+            'no_telp' => 'nullable|unique:customers,no_telp,'.$customer->id,
             'address' => 'required',
-            'province_id' => 'required|string',
-            'regency_id' => 'required|string',
-            'district_id' => 'required|string',
-            'village_id' => 'required|string',
         ]);
-
-        $province = Province::where('code', $request->province_id)->first();
-        $regency = City::where('code', $request->regency_id)->first();
-        $district = District::where('code', $request->district_id)->first();
-        $village = Village::where('code', $request->village_id)->first();
 
         // update customer
         $customer->update([
+            'member_code' => $request->member_code,
             'name' => $request->name,
             'no_telp' => $request->no_telp,
             'address' => $request->address,
-            'province_id' => $request->province_id,
-            'province_name' => $province?->name,
-            'regency_id' => $request->regency_id,
-            'regency_name' => $regency?->name,
-            'district_id' => $request->district_id,
-            'district_name' => $district?->name,
-            'village_id' => $request->village_id,
-            'village_name' => $village?->name,
         ]);
 
         // redirect
@@ -238,6 +164,7 @@ class CustomerController extends Controller
         $stats = $this->buildStats($customer);
         $recentTransactions = $this->recentTransactions($customer);
         $frequentProducts = $this->frequentProducts($customer);
+
         return Inertia::render('Dashboard/Customers/Show', [
             'customer' => $customer,
             'stats' => $stats,
@@ -275,6 +202,7 @@ class CustomerController extends Controller
         $stats = $this->buildStats($customer);
         $recentTransactions = $this->recentTransactions($customer);
         $frequentProducts = $this->frequentProducts($customer);
+
         return response()->json([
             'success' => true,
             'customer' => [
@@ -291,8 +219,6 @@ class CustomerController extends Controller
             'frequent_products' => $frequentProducts,
         ]);
     }
-
-
 
     private function buildStats(Customer $customer)
     {

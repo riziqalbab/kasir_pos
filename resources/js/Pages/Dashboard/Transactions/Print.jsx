@@ -562,7 +562,7 @@ export default function Print({ transaction }) {
                                                             </div>
                                                         </td>
                                                         <td className="py-3 text-center text-slate-600 dark:text-slate-400">
-                                                            {quantity}
+                                                            {quantity} {item.satuan || "Pcs"}
                                                         </td>
                                                         <td className="py-3 text-right font-semibold text-slate-900 dark:text-white">
                                                             {formatPrice(

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, useForm, usePage, Link } from "@inertiajs/react";
+import { Head, useForm, Link } from "@inertiajs/react";
 import Input from "@/Components/Dashboard/Input";
 import Textarea from "@/Components/Dashboard/TextArea";
 import toast from "react-hot-toast";
@@ -9,79 +9,14 @@ import {
     IconDeviceFloppy,
     IconArrowLeft,
 } from "@tabler/icons-react";
-import axios from "axios";
 
 export default function Create() {
-    const { errors, provinces = [] } = usePage().props;
-
-    const { data, setData, post, processing } = useForm({
+    const { data, setData, post, processing, errors } = useForm({
+        member_code: "",
         name: "",
         no_telp: "",
         address: "",
-        province_id: "",
-        regency_id: "",
-        district_id: "",
-        village_id: "",
     });
-
-    const [regencies, setRegencies] = useState([]);
-    const [districts, setDistricts] = useState([]);
-    const [villages, setVillages] = useState([]);
-
-    const fetchRegencies = async (provinceId) => {
-        if (!provinceId) {
-            setRegencies([]);
-            return;
-        }
-        const res = await axios.get(route("regions.regencies"), {
-            params: { province_id: provinceId },
-        });
-        setRegencies(res.data);
-    };
-
-    const fetchDistricts = async (regencyId) => {
-        if (!regencyId) {
-            setDistricts([]);
-            return;
-        }
-        const res = await axios.get(route("regions.districts"), {
-            params: { regency_id: regencyId },
-        });
-        setDistricts(res.data);
-    };
-
-    const fetchVillages = async (districtId) => {
-        if (!districtId) {
-            setVillages([]);
-            return;
-        }
-        const res = await axios.get(route("regions.villages"), {
-            params: { district_id: districtId },
-        });
-        setVillages(res.data);
-    };
-
-    // reset children when parent changes
-    useEffect(() => {
-        setData("regency_id", "");
-        setData("district_id", "");
-        setData("village_id", "");
-        setDistricts([]);
-        setVillages([]);
-        fetchRegencies(data.province_id);
-    }, [data.province_id]);
-
-    useEffect(() => {
-        setData("district_id", "");
-        setData("village_id", "");
-        setVillages([]);
-        fetchDistricts(data.regency_id);
-    }, [data.regency_id]);
-
-    useEffect(() => {
-        setData("village_id", "");
-        fetchVillages(data.district_id);
-    }, [data.district_id]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -115,15 +50,26 @@ export default function Create() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
                                 type="text"
+                                label="Kode Pelanggan"
+                                placeholder="Masukkan kode pelanggan/member"
+                                errors={errors.member_code}
+                                onChange={(e) => setData("member_code", e.target.value)}
+                                value={data.member_code}
+                            />
+                            <Input
+                                type="text"
                                 label="Nama Pelanggan"
                                 placeholder="Masukkan nama lengkap"
                                 errors={errors.name}
                                 onChange={(e) => setData("name", e.target.value)}
                                 value={data.name}
                             />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
                                 type="text"
-                                label="No. Handphone"
+                                label="No. WA (Opsional)"
                                 placeholder="08xxxxxxxxxx"
                                 errors={errors.no_telp}
                                 onChange={(e) =>
@@ -133,114 +79,9 @@ export default function Create() {
                             />
                         </div>
 
-
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Provinsi
-                                </label>
-                                <select
-                                    value={data.province_id}
-                                    onChange={(e) => setData("province_id", e.target.value)}
-                                    className="w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-sm"
-                                >
-                                    <option value="">Pilih Provinsi</option>
-                                    {provinces.map((prov) => (
-                                        <option key={prov.code} value={prov.code}>
-                                            {prov.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.province_id && (
-                                    <p className="text-xs text-danger-500 mt-1">
-                                        {errors.province_id}
-                                    </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Kota/Kabupaten
-                                </label>
-                                <select
-                                    value={data.regency_id}
-                                    onChange={(e) => setData("regency_id", e.target.value)}
-                                    className="w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-sm"
-                                    disabled={!data.province_id}
-                                >
-                                    <option value="">Pilih Kota/Kabupaten</option>
-                                    {regencies.map((item) => (
-                                        <option key={item.code} value={item.code}>
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.regency_id && (
-                                    <p className="text-xs text-danger-500 mt-1">
-                                        {errors.regency_id}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Kecamatan
-                                </label>
-                                <select
-                                    value={data.district_id}
-                                    onChange={(e) => setData("district_id", e.target.value)}
-                                    className="w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-sm"
-                                    disabled={!data.regency_id}
-                                >
-                                    <option value="">Pilih Kecamatan</option>
-                                    {districts.map((item) => (
-                                        <option key={item.code} value={item.code}>
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.district_id && (
-                                    <p className="text-xs text-danger-500 mt-1">
-                                        {errors.district_id}
-                                    </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Kelurahan
-                                </label>
-                                <select
-                                    value={data.village_id}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setData("village_id", val);
-                                    }}
-                                    className="w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-sm"
-                                    disabled={!data.district_id}
-                                >
-                                    <option value="">Pilih Kelurahan</option>
-                                    {villages.map((item) => (
-                                        <option
-                                            key={item.code}
-                                            value={item.code}
-                                        >
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.village_id && (
-                                    <p className="text-xs text-danger-500 mt-1">
-                                        {errors.village_id}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
                         <Textarea
-                            label="Alamat Detail"
-                            placeholder="Alamat lengkap pelanggan"
+                            label="Alamat"
+                            placeholder="Masukkan alamat lengkap"
                             errors={errors.address}
                             onChange={(e) => setData("address", e.target.value)}
                             value={data.address}
