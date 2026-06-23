@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AgentTransaction;
 use App\Models\CashierShift;
 use App\Models\SalesReturn;
 use App\Models\Transaction;
@@ -94,17 +95,45 @@ class CashierShiftService
             ->where('return_type', '!=', 'refund_cash')
             ->sum(DB::raw('COALESCE(credited_amount, 0)'));
 
+        $agentTransactions = AgentTransaction::query()
+            ->where('cashier_shift_id', $shift->id)
+            ->where('status', 'success');
+
+        $agentCashInTotal = (int) (clone $agentTransactions)
+            ->whereHas('agentTransactionType', function ($query) {
+                $query->where('type', 'debet');
+            })
+            ->sum(DB::raw('nominal + (case when admin_fee_payment_method = "cash" then admin_fee_customer else 0 end)'));
+
+        $agentCashOutTotal = (int) (clone $agentTransactions)
+            ->whereHas('agentTransactionType', function ($query) {
+                $query->where('type', 'kredit');
+            })
+            ->sum('nominal');
+
+        $agentFeesCashInTotal = (int) (clone $agentTransactions)
+            ->whereHas('agentTransactionType', function ($query) {
+                $query->where('type', 'kredit');
+            })
+            ->where('admin_fee_payment_method', 'cash')
+            ->sum('admin_fee_customer');
+
         $transactionsCount = (int) (clone $transactions)->count();
         $salesReturnsCount = (int) (clone $salesReturns)->count();
-        $expectedCash = (int) $shift->opening_cash + $cashSalesTotal - $cashRefundTotal;
+        $agentTransactionsCount = (int) (clone $agentTransactions)->count();
+        $expectedCash = (int) $shift->opening_cash + $cashSalesTotal - $cashRefundTotal + $agentCashInTotal - $agentCashOutTotal + $agentFeesCashInTotal;
 
         return [
             'cash_sales_total' => $cashSalesTotal,
             'non_cash_sales_total' => $nonCashSalesTotal,
             'cash_refund_total' => $cashRefundTotal,
             'non_cash_refund_total' => $nonCashRefundTotal,
+            'agent_cash_in_total' => $agentCashInTotal,
+            'agent_cash_out_total' => $agentCashOutTotal,
+            'agent_fees_cash_in_total' => $agentFeesCashInTotal,
             'transactions_count' => $transactionsCount,
             'sales_returns_count' => $salesReturnsCount,
+            'agent_transactions_count' => $agentTransactionsCount,
             'expected_cash' => $expectedCash,
         ];
     }

@@ -28,8 +28,12 @@ class CashierShift extends Model
         'non_cash_sales_total',
         'cash_refund_total',
         'non_cash_refund_total',
+        'agent_cash_in_total',
+        'agent_cash_out_total',
+        'agent_fees_cash_in_total',
         'transactions_count',
         'sales_returns_count',
+        'agent_transactions_count',
         'cash_difference',
         'notes',
         'close_notes',
@@ -50,8 +54,12 @@ class CashierShift extends Model
         'non_cash_sales_total' => 'integer',
         'cash_refund_total' => 'integer',
         'non_cash_refund_total' => 'integer',
+        'agent_cash_in_total' => 'integer',
+        'agent_cash_out_total' => 'integer',
+        'agent_fees_cash_in_total' => 'integer',
         'transactions_count' => 'integer',
         'sales_returns_count' => 'integer',
+        'agent_transactions_count' => 'integer',
         'cash_difference' => 'integer',
     ];
 
@@ -78,6 +86,11 @@ class CashierShift extends Model
     public function salesReturns()
     {
         return $this->hasMany(SalesReturn::class);
+    }
+
+    public function agentTransactions()
+    {
+        return $this->hasMany(AgentTransaction::class);
     }
 
     public function scopeOpen($query)

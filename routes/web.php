@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Apps\AgentTransactionController;
+use App\Http\Controllers\Apps\AgentTransactionTypeController;
 use App\Http\Controllers\Apps\AuditLogController;
 use App\Http\Controllers\Apps\CashierShiftController;
 use App\Http\Controllers\Apps\CategoryController;
@@ -211,6 +213,21 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
     // aging & reminders
     Route::get('/aging', [\App\Http\Controllers\Apps\AgingController::class, 'index'])->middleware('permission:receivables-access')->name('aging.index');
+
+    // Agent Link routes
+    Route::resource('agent-transaction-types', AgentTransactionTypeController::class)
+        ->except(['show', 'create', 'edit'])
+        ->middlewareFor('index', 'permission:agent-transaction-types-access')
+        ->middlewareFor('store', 'permission:agent-transaction-types-create')
+        ->middlewareFor('update', 'permission:agent-transaction-types-edit')
+        ->middlewareFor('destroy', 'permission:agent-transaction-types-delete');
+
+    Route::get('agent-transactions', [AgentTransactionController::class, 'index'])->middleware('permission:agent-transactions-access')->name('agent-transactions.index');
+    Route::post('agent-transactions', [AgentTransactionController::class, 'store'])->middleware(['permission:agent-transactions-create', 'active_shift'])->name('agent-transactions.store');
+    Route::put('agent-transactions/{agentTransaction}', [AgentTransactionController::class, 'update'])->middleware(['permission:agent-transactions-edit', 'active_shift'])->name('agent-transactions.update');
+    Route::delete('agent-transactions/{agentTransaction}', [AgentTransactionController::class, 'destroy'])->middleware(['permission:agent-transactions-delete', 'active_shift'])->name('agent-transactions.destroy');
+    Route::patch('agent-transactions/{agentTransaction}/status', [AgentTransactionController::class, 'updateStatus'])->middleware(['permission:agent-transactions-edit', 'active_shift'])->name('agent-transactions.status');
+    Route::get('agent-transactions/{agentTransaction}/print', [AgentTransactionController::class, 'printReceipt'])->middleware('permission:agent-transactions-access')->name('agent-transactions.print');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -34,6 +34,7 @@ import {
     IconTruckDelivery,
     IconTruckReturn,
     IconSpeakerphone,
+    IconBuildingBank,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -211,6 +212,25 @@ export default function Menu() {
                     active: url.startsWith("/dashboard/reports/insights"),
                     icon: <IconChartBar size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
+                },
+            ],
+        },
+        {
+            title: "Agen Link",
+            details: [
+                {
+                    title: "Pencatatan Agen",
+                    href: route("agent-transactions.index"),
+                    active: url.startsWith("/dashboard/agent-transactions") || url.startsWith("/dashboard/agent-transactions/print"),
+                    icon: <IconBuildingBank size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["agent-transactions-access"]),
+                },
+                {
+                    title: "Tipe Transaksi",
+                    href: route("agent-transaction-types.index"),
+                    active: url.startsWith("/dashboard/agent-transaction-types"),
+                    icon: <IconTable size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["agent-transaction-types-access"]),
                 },
             ],
         },

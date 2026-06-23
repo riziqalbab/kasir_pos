@@ -163,6 +163,22 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Refund Non Tunai</p>
                                 <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.non_cash_refund_total)}</p>
                             </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Transaksi Agen</p>
+                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.agent_transactions_count || 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Masuk</p>
+                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_in_total)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Keluar</p>
+                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_out_total)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Admin Agen Tunai</p>
+                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_fees_cash_in_total)}</p>
+                            </div>
                         </div>
 
                         <div className="mt-5 grid gap-4 md:grid-cols-2">

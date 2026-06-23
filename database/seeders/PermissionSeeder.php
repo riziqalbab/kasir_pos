@@ -105,6 +105,18 @@ class PermissionSeeder extends Seeder
         $create('supplier-returns-create');
         $create('supplier-returns-update');
 
+        // agent transactions
+        $create('agent-transactions-access');
+        $create('agent-transactions-create');
+        $create('agent-transactions-edit');
+        $create('agent-transactions-delete');
+
+        // agent transaction types
+        $create('agent-transaction-types-access');
+        $create('agent-transaction-types-create');
+        $create('agent-transaction-types-edit');
+        $create('agent-transaction-types-delete');
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

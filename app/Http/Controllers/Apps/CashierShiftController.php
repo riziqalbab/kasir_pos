@@ -184,8 +184,12 @@ class CashierShiftController extends Controller
             'non_cash_sales_total' => $shift->isOpen() ? $summary['non_cash_sales_total'] : (int) $shift->non_cash_sales_total,
             'cash_refund_total' => $shift->isOpen() ? $summary['cash_refund_total'] : (int) $shift->cash_refund_total,
             'non_cash_refund_total' => $shift->isOpen() ? $summary['non_cash_refund_total'] : (int) $shift->non_cash_refund_total,
+            'agent_cash_in_total' => $shift->isOpen() ? $summary['agent_cash_in_total'] : (int) $shift->agent_cash_in_total,
+            'agent_cash_out_total' => $shift->isOpen() ? $summary['agent_cash_out_total'] : (int) $shift->agent_cash_out_total,
+            'agent_fees_cash_in_total' => $shift->isOpen() ? $summary['agent_fees_cash_in_total'] : (int) $shift->agent_fees_cash_in_total,
             'transactions_count' => $shift->isOpen() ? $summary['transactions_count'] : (int) $shift->transactions_count,
             'sales_returns_count' => $shift->isOpen() ? $summary['sales_returns_count'] : (int) $shift->sales_returns_count,
+            'agent_transactions_count' => $shift->isOpen() ? $summary['agent_transactions_count'] : (int) $shift->agent_transactions_count,
             'notes' => $shift->notes,
             'close_notes' => $shift->close_notes,
             'user' => $shift->user ? [
@@ -213,6 +217,7 @@ class CashierShiftController extends Controller
             'cash_difference' => $shift->cash_difference !== null ? (int) $shift->cash_difference : null,
             'transactions_count' => (int) ($shift->transactions_count ?? 0),
             'sales_returns_count' => (int) ($shift->sales_returns_count ?? 0),
+            'agent_transactions_count' => (int) ($shift->agent_transactions_count ?? 0),
         ];
     }
 }
