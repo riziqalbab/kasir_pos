@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Apps\AgentAdminBankController;
+use App\Http\Controllers\Apps\AgentAdminLoketController;
 use App\Http\Controllers\Apps\AgentTransactionController;
 use App\Http\Controllers\Apps\AgentTransactionTypeController;
 use App\Http\Controllers\Apps\AuditLogController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\Apps\StockMutationController;
 use App\Http\Controllers\Apps\StockOpnameController;
 use App\Http\Controllers\Apps\SupplierReturnController;
 use App\Http\Controllers\Apps\TransactionController;
+use App\Http\Controllers\Apps\UnitController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PermissionController;
@@ -79,6 +82,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:products-create')
         ->middlewareFor(['edit', 'update'], 'permission:products-edit')
         ->middlewareFor('destroy', 'permission:products-delete');
+    Route::resource('units', UnitController::class)
+        ->except(['create', 'edit', 'show', 'update'])
+        ->middlewareFor('index', 'permission:units-access')
+        ->middlewareFor('store', 'permission:units-create')
+        ->middlewareFor('destroy', 'permission:units-delete');
     Route::get('stock-opnames', [StockOpnameController::class, 'index'])->middleware('permission:stock-opnames-access')->name('stock-opnames.index');
     Route::get('stock-opnames/create', [StockOpnameController::class, 'create'])->middleware('permission:stock-opnames-create')->name('stock-opnames.create');
     Route::post('stock-opnames', [StockOpnameController::class, 'store'])->middleware('permission:stock-opnames-create')->name('stock-opnames.store');
@@ -221,6 +229,20 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor('store', 'permission:agent-transaction-types-create')
         ->middlewareFor('update', 'permission:agent-transaction-types-edit')
         ->middlewareFor('destroy', 'permission:agent-transaction-types-delete');
+
+    Route::resource('agent-admin-banks', AgentAdminBankController::class)
+        ->except(['show', 'create', 'edit'])
+        ->middlewareFor('index', 'permission:agent-admin-banks-access')
+        ->middlewareFor('store', 'permission:agent-admin-banks-create')
+        ->middlewareFor('update', 'permission:agent-admin-banks-edit')
+        ->middlewareFor('destroy', 'permission:agent-admin-banks-delete');
+
+    Route::resource('agent-admin-lokets', AgentAdminLoketController::class)
+        ->except(['show', 'create', 'edit'])
+        ->middlewareFor('index', 'permission:agent-admin-lokets-access')
+        ->middlewareFor('store', 'permission:agent-admin-lokets-create')
+        ->middlewareFor('update', 'permission:agent-admin-lokets-edit')
+        ->middlewareFor('destroy', 'permission:agent-admin-lokets-delete');
 
     Route::get('agent-transactions', [AgentTransactionController::class, 'index'])->middleware('permission:agent-transactions-access')->name('agent-transactions.index');
     Route::post('agent-transactions', [AgentTransactionController::class, 'store'])->middleware(['permission:agent-transactions-create', 'active_shift'])->name('agent-transactions.store');

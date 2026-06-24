@@ -4,6 +4,8 @@ import { Head, useForm, usePage, Link } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
 import Input from "@/Components/Dashboard/Input";
 import InputSelect from "@/Components/Dashboard/InputSelect";
+import UnitSelect from "@/Components/Dashboard/UnitSelect";
+import QuickAddUnitModal from "@/Components/Dashboard/QuickAddUnitModal";
 import toast from "react-hot-toast";
 import {
     IconPackage,
@@ -13,9 +15,10 @@ import {
     IconBarcode,
     IconCurrencyDollar,
     IconScale,
+    IconPlus,
 } from "@tabler/icons-react";
 
-export default function Create({ categories }) {
+export default function Create({ categories, units = [] }) {
     const { errors } = usePage().props;
 
     const { data, setData, post, processing } = useForm({
@@ -45,6 +48,21 @@ export default function Create({ categories }) {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [activeTab, setActiveTab] = useState("pcs"); // 'dus', 'pack', 'pcs'
+    
+    // Quick Add Unit State
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [activeUnitField, setActiveUnitField] = useState("");
+
+    const openQuickAddModal = (field) => {
+        setActiveUnitField(field);
+        setShowQuickAdd(true);
+    };
+
+    const handleQuickAddSuccess = (newUnitName) => {
+        if (activeUnitField) {
+            setData(activeUnitField, newUnitName);
+        }
+    };
 
     const setSelectedCategoryHandler = (value) => {
         setSelectedCategory(value);
@@ -59,21 +77,53 @@ export default function Create({ categories }) {
         }
     };
 
+    const handleHargaBeliChange = (unitKey, value) => {
+        const val = parseInt(value, 10) || 0;
+        if (unitKey === "dus") {
+            const packDus = Number(data.isi_pack_dalam_dus) || 1;
+            const pcsDus = Number(data.isi_pcs_dalam_dus) || 1;
+            setData((prev) => ({
+                ...prev,
+                harga_beli_dus: val,
+                harga_beli_pack: Math.floor(val / packDus),
+                harga_beli_pcs: Math.floor(val / pcsDus),
+            }));
+        } else if (unitKey === "pack") {
+            const pcsPack = Number(data.isi_pcs_dalam_pack) || 1;
+            setData((prev) => ({
+                ...prev,
+                harga_beli_pack: val,
+                harga_beli_pcs: Math.floor(val / pcsPack),
+            }));
+        } else if (unitKey === "pcs") {
+            setData("harga_beli_pcs", val);
+        }
+    };
+
     const handleConversionChange = (field, value) => {
         const val = parseInt(value, 10) || 0;
-        const updatedData = { ...data, [field]: val };
         
-        // Auto-calculate isi_pcs_dalam_dus
-        const pcsPack = field === "isi_pcs_dalam_pack" ? val : Number(data.isi_pcs_dalam_pack || 0);
-        const packDus = field === "isi_pack_dalam_dus" ? val : Number(data.isi_pack_dalam_dus || 0);
-        updatedData.isi_pcs_dalam_dus = pcsPack * packDus;
+        setData((prev) => {
+            const updated = { ...prev, [field]: val };
+            
+            // Auto-calculate isi_pcs_dalam_dus
+            const pcsPack = field === "isi_pcs_dalam_pack" ? val : Number(prev.isi_pcs_dalam_pack || 0);
+            const packDus = field === "isi_pack_dalam_dus" ? val : Number(prev.isi_pack_dalam_dus || 0);
+            updated.isi_pcs_dalam_dus = pcsPack * packDus;
 
-        // Apply changes
-        setData((prev) => ({
-            ...prev,
-            [field]: val,
-            isi_pcs_dalam_dus: updatedData.isi_pcs_dalam_dus,
-        }));
+            // Auto-calculate buy prices if we have a buy price for DUS or PACK
+            if (updated.harga_beli_dus > 0) {
+                const packDusFactor = updated.isi_pack_dalam_dus || 1;
+                const pcsDusFactor = updated.isi_pcs_dalam_dus || 1;
+                updated.harga_beli_pack = Math.floor(updated.harga_beli_dus / packDusFactor);
+                updated.harga_beli_pcs = Math.floor(updated.harga_beli_dus / pcsDusFactor);
+            } else if (updated.harga_beli_pack > 0) {
+                const pcsPackFactor = updated.isi_pcs_dalam_pack || 1;
+                updated.harga_beli_pcs = Math.floor(updated.harga_beli_pack / pcsPackFactor);
+            }
+
+            return updated;
+        });
     };
 
     const submit = (e) => {
@@ -219,15 +269,14 @@ export default function Create({ categories }) {
                                     errors={errors.title}
                                     placeholder="Masukkan nama produk"
                                 />
-                                <Input
-                                    type="text"
+                                <UnitSelect
                                     label="Satuan Beli"
                                     value={data.satuan_beli}
-                                    onChange={(e) =>
-                                        setData("satuan_beli", e.target.value)
-                                    }
+                                    onChange={(e) => setData("satuan_beli", e.target.value)}
+                                    units={units}
                                     errors={errors.satuan_beli}
                                     placeholder="Dus / Box / Pcs"
+                                    onAddClick={() => openQuickAddModal("satuan_beli")}
                                 />
                             </div>
                         </div>
@@ -310,13 +359,14 @@ export default function Create({ categories }) {
                             {/* Tab Content */}
                             {activeTab === "dus" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input
-                                        type="text"
+                                    <UnitSelect
                                         label="Nama Satuan Jual (DUS)"
                                         value={data.satuan_jual_dus}
                                         onChange={(e) => setData("satuan_jual_dus", e.target.value)}
+                                        units={units}
                                         errors={errors.satuan_jual_dus}
                                         placeholder="Dus"
+                                        onAddClick={() => openQuickAddModal("satuan_jual_dus")}
                                     />
                                     <Input
                                         type="number"
@@ -330,7 +380,7 @@ export default function Create({ categories }) {
                                         type="number"
                                         label="Harga Beli (DUS)"
                                         value={data.harga_beli_dus}
-                                        onChange={(e) => setData("harga_beli_dus", e.target.value)}
+                                        onChange={(e) => handleHargaBeliChange("dus", e.target.value)}
                                         errors={errors.harga_beli_dus}
                                         placeholder="0"
                                     />
@@ -347,13 +397,14 @@ export default function Create({ categories }) {
 
                             {activeTab === "pack" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input
-                                        type="text"
+                                    <UnitSelect
                                         label="Nama Satuan Jual (PACK)"
                                         value={data.satuan_jual_pack}
                                         onChange={(e) => setData("satuan_jual_pack", e.target.value)}
+                                        units={units}
                                         errors={errors.satuan_jual_pack}
                                         placeholder="Pak"
+                                        onAddClick={() => openQuickAddModal("satuan_jual_pack")}
                                     />
                                     <Input
                                         type="number"
@@ -367,7 +418,7 @@ export default function Create({ categories }) {
                                         type="number"
                                         label="Harga Beli (PACK)"
                                         value={data.harga_beli_pack}
-                                        onChange={(e) => setData("harga_beli_pack", e.target.value)}
+                                        onChange={(e) => handleHargaBeliChange("pack", e.target.value)}
                                         errors={errors.harga_beli_pack}
                                         placeholder="0"
                                     />
@@ -384,13 +435,14 @@ export default function Create({ categories }) {
 
                             {activeTab === "pcs" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input
-                                        type="text"
+                                    <UnitSelect
                                         label="Nama Satuan Jual (PCS)"
                                         value={data.satuan_jual_pcs}
                                         onChange={(e) => setData("satuan_jual_pcs", e.target.value)}
+                                        units={units}
                                         errors={errors.satuan_jual_pcs}
                                         placeholder="Pcs"
+                                        onAddClick={() => openQuickAddModal("satuan_jual_pcs")}
                                     />
                                     <Input
                                         type="number"
@@ -404,7 +456,7 @@ export default function Create({ categories }) {
                                         type="number"
                                         label="Harga Beli (PCS)"
                                         value={data.harga_beli_pcs}
-                                        onChange={(e) => setData("harga_beli_pcs", e.target.value)}
+                                        onChange={(e) => handleHargaBeliChange("pcs", e.target.value)}
                                         errors={errors.harga_beli_pcs}
                                         placeholder="0"
                                     />
@@ -472,6 +524,13 @@ export default function Create({ categories }) {
                     </div>
                 </div>
             </form>
+
+            {/* Quick Add Unit Modal */}
+            <QuickAddUnitModal
+                show={showQuickAdd}
+                onClose={() => setShowQuickAdd(false)}
+                onSuccess={handleQuickAddSuccess}
+            />
         </>
     );
 }

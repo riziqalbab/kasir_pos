@@ -239,21 +239,117 @@ export default function ProductGrid({
                 </div>
             </div>
 
-            {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+            {/* Products Table */}
+            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
                 {filteredProducts.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                        {filteredProducts.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                product={product}
-                                onAddToCart={onAddToCart}
-                                isAdding={addingProductId === product.id}
-                            />
-                        ))}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                        Produk / Barcode
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                        Kategori
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                        Stok
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                        Harga Jual
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550 text-right">
+                                        Aksi
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {filteredProducts.map((product) => {
+                                    const hasStock = product.stock > 0;
+                                    const lowStock = product.stock > 0 && product.stock <= 5;
+                                    const promoBadge = product.pricing_badge;
+                                    const promoPrice = Number(promoBadge?.promo_price || 0);
+                                    const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
+                                    const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
+                                    const showBadge = Boolean(promoBadge?.label);
+
+                                    return (
+                                        <tr
+                                            key={product.id}
+                                            onClick={() => hasStock && onAddToCart(product)}
+                                            className={`
+                                                hover:bg-slate-50/70 dark:hover:bg-slate-80/40 transition-colors cursor-pointer group
+                                                ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}
+                                            `}
+                                        >
+                                            <td className="px-4 py-3">
+                                                <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                                                    {product.title}
+                                                </div>
+                                                <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-2 mt-0.5">
+                                                    {product.barcode && <span>Code: {product.barcode}</span>}
+                                                    {product.sku && <span>SKU: {product.sku}</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                                <span className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
+                                                    {product.category?.name || "Umum"}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-medium">
+                                                {!hasStock ? (
+                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400 rounded-full">
+                                                        Habis
+                                                    </span>
+                                                ) : lowStock ? (
+                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400 rounded-full">
+                                                        Sisa: {product.stock_breakdown || `${product.stock} Pcs`}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-700 dark:text-slate-300">
+                                                        {product.stock_breakdown || `${product.stock} Pcs`}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm">
+                                                {showPromo && (
+                                                    <span className="text-xs text-slate-400 line-through mr-1.5">
+                                                        {formatPrice(basePrice)}
+                                                    </span>
+                                                )}
+                                                <span className="font-bold text-primary-600 dark:text-primary-400">
+                                                    {formatPrice(showPromo ? promoPrice : product.sell_price)}
+                                                </span>
+                                                {showBadge && (
+                                                    <span className="ml-1.5 rounded-full bg-rose-100 dark:bg-rose-950/30 px-2 py-0.5 text-[10px] font-semibold text-rose-650 dark:text-rose-400">
+                                                        {promoBadge.label}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <button
+                                                    type="button"
+                                                    disabled={!hasStock || addingProductId === product.id}
+                                                    className={`
+                                                        px-3 py-1.5 rounded-xl font-medium text-xs transition-colors
+                                                        ${
+                                                            hasStock
+                                                                ? "bg-primary-500 hover:bg-primary-600 text-white shadow-sm"
+                                                                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                                                        }
+                                                    `}
+                                                >
+                                                    {addingProductId === product.id ? "..." : "+ Pilih"}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-650">
                         <IconShoppingBag
                             size={48}
                             strokeWidth={1.5}

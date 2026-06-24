@@ -176,7 +176,7 @@ function ProductCard({
 
 export default function Index({ products }) {
     const { can } = useAuthorization();
-    const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'list'
+    const [viewMode, setViewMode] = useState("list"); // 'grid' | 'list'
     const [showBarcodeModal, setShowBarcodeModal] = useState(false);
     const [singleProductBarcode, setSingleProductBarcode] = useState(null);
     const [selectedProducts, setSelectedProducts] = useState([]);

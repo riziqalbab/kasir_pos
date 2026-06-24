@@ -14,6 +14,8 @@ class AgentTransaction extends Model
         'cashier_shift_id',
         'agent_transaction_type_id',
         'bank_account_id',
+        'agent_admin_bank_id',
+        'agent_admin_loket_id',
         'transaction_date',
         'customer_name',
         'customer_phone',
@@ -33,6 +35,8 @@ class AgentTransaction extends Model
         'admin_fee_customer' => 'integer',
         'admin_fee_bank' => 'integer',
         'net_profit' => 'integer',
+        'agent_admin_bank_id' => 'integer',
+        'agent_admin_loket_id' => 'integer',
     ];
 
     protected static function boot()
@@ -62,5 +66,15 @@ class AgentTransaction extends Model
     public function bankAccount()
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    public function agentAdminBank()
+    {
+        return $this->belongsTo(AgentAdminBank::class);
+    }
+
+    public function agentAdminLoket()
+    {
+        return $this->belongsTo(AgentAdminLoket::class);
     }
 }

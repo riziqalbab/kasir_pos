@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Apps;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Unit;
 use App\Services\AuditLogService;
 use App\Services\StockMutationService;
 use Illuminate\Http\Request;
@@ -45,10 +46,13 @@ class ProductController extends Controller
     {
         // get categories
         $categories = Category::all();
+        // get units
+        $units = Unit::orderBy('name')->get();
 
         // return inertia
         return Inertia::render('Dashboard/Products/Create', [
             'categories' => $categories,
+            'units' => $units,
         ]);
     }
 
@@ -67,6 +71,7 @@ class ProductController extends Controller
             'sku' => 'nullable|unique:products,sku',
             'title' => 'required',
             'category_id' => 'required',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
             'satuan_beli' => 'nullable|string',
             'isi_pcs_dalam_pack' => 'nullable|integer|min:0',
             'isi_pack_dalam_dus' => 'nullable|integer|min:1',
@@ -94,8 +99,12 @@ class ProductController extends Controller
         ]);
 
         // upload image
-        $image = $request->file('image');
-        $image->storeAs('public/products', $image->hashName());
+        $imageName = null;
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $image->storeAs('public/products', $image->hashName());
+            $imageName = $image->hashName();
+        }
 
         $isiPcsDalamPack = (int) $request->input('isi_pcs_dalam_pack', 0);
         $isiPackDalamDus = (int) $request->input('isi_pack_dalam_dus', 1);
@@ -125,7 +134,7 @@ class ProductController extends Controller
 
         // create product
         $product = Product::create([
-            'image' => $image->hashName(),
+            'image' => $imageName,
             'barcode' => $request->barcode,
             'sku' => $sku,
             'title' => $request->title,
@@ -175,10 +184,13 @@ class ProductController extends Controller
     {
         // get categories
         $categories = Category::all();
+        // get units
+        $units = Unit::orderBy('name')->get();
 
         return Inertia::render('Dashboard/Products/Edit', [
             'product' => $product,
             'categories' => $categories,
+            'units' => $units,
         ]);
     }
 

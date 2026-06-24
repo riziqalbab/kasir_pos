@@ -35,6 +35,7 @@ import {
     IconTruckReturn,
     IconSpeakerphone,
     IconBuildingBank,
+    IconScale,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -87,6 +88,13 @@ export default function Menu() {
                     active: url.startsWith("/dashboard/suppliers"),
                     icon: <IconBuildingWarehouse size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["suppliers-access"]),
+                },
+                {
+                    title: "Satuan",
+                    href: route("units.index"),
+                    active: url.startsWith("/dashboard/units"),
+                    icon: <IconScale size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["units-access"]),
                 },
             ],
         },
@@ -231,6 +239,20 @@ export default function Menu() {
                     active: url.startsWith("/dashboard/agent-transaction-types"),
                     icon: <IconTable size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["agent-transaction-types-access"]),
+                },
+                {
+                    title: "Admin Bank Link",
+                    href: route("agent-admin-banks.index"),
+                    active: url.startsWith("/dashboard/agent-admin-banks"),
+                    icon: <IconTable size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["agent-admin-banks-access"]),
+                },
+                {
+                    title: "Admin Loket",
+                    href: route("agent-admin-lokets.index"),
+                    active: url.startsWith("/dashboard/agent-admin-lokets"),
+                    icon: <IconTable size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["agent-admin-lokets-access"]),
                 },
             ],
         },

@@ -49,6 +49,11 @@ class PermissionSeeder extends Seeder
         $create('products-create');
         $create('products-edit');
         $create('products-delete');
+
+        // permission units
+        $create('units-access');
+        $create('units-create');
+        $create('units-delete');
         // permission customers
         $create('customers-access');
         $create('customers-create');
@@ -116,6 +121,18 @@ class PermissionSeeder extends Seeder
         $create('agent-transaction-types-create');
         $create('agent-transaction-types-edit');
         $create('agent-transaction-types-delete');
+
+        // agent admin banks
+        $create('agent-admin-banks-access');
+        $create('agent-admin-banks-create');
+        $create('agent-admin-banks-edit');
+        $create('agent-admin-banks-delete');
+
+        // agent admin lokets
+        $create('agent-admin-lokets-access');
+        $create('agent-admin-lokets-create');
+        $create('agent-admin-lokets-edit');
+        $create('agent-admin-lokets-delete');
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

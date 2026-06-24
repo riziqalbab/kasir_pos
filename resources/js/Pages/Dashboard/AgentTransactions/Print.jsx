@@ -103,7 +103,10 @@ export default function Print({ transaction, storeProfile }) {
                         </div>
                         <div className="flex justify-between">
                             <span>Biaya Admin :</span>
-                            <span>{formatRp(transaction.admin_fee_customer)}</span>
+                            <span>
+                                {formatRp(transaction.admin_fee_customer)}
+                                {transaction.agent_admin_loket ? ` (${transaction.agent_admin_loket.code})` : ''}
+                            </span>
                         </div>
                         <p className="border-b border-dashed border-slate-400 my-2"></p>
                         <div className="flex justify-between text-xs font-bold pt-1">

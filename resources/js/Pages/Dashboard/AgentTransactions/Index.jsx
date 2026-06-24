@@ -28,6 +28,8 @@ export default function Index({
     stats = {},
     bankAccounts = [],
     transactionTypes = [],
+    agentAdminBanks = [],
+    agentAdminLokets = [],
     activeCashierShift = null
 }) {
     const { flash, auth } = usePage().props;
@@ -50,12 +52,14 @@ export default function Index({
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         agent_transaction_type_id: "",
         bank_account_id: "",
+        agent_admin_bank_id: "",
+        agent_admin_loket_id: "",
         customer_name: "",
         customer_phone: "",
         reference_number: "",
         nominal: "",
-        admin_fee_customer: "",
-        admin_fee_bank: "",
+        admin_fee_customer: 0,
+        admin_fee_bank: 0,
         admin_fee_payment_method: "cash",
         status: "success",
         notes: "",
@@ -109,6 +113,8 @@ export default function Index({
         setData({
             agent_transaction_type_id: tx.agent_transaction_type_id,
             bank_account_id: tx.bank_account_id || "",
+            agent_admin_bank_id: tx.agent_admin_bank_id || "",
+            agent_admin_loket_id: tx.agent_admin_loket_id || "",
             customer_name: tx.customer_name || "",
             customer_phone: tx.customer_phone || "",
             reference_number: tx.reference_number || "",
@@ -127,14 +133,42 @@ export default function Index({
         setData("agent_transaction_type_id", id);
         const selectedType = transactionTypes.find((t) => t.id === parseInt(id));
         if (selectedType) {
+            const matchingBank = agentAdminBanks.find((b) => b.amount === selectedType.default_admin_fee_bank);
+            const matchingLoket = agentAdminLokets.find((l) => l.amount === selectedType.default_admin_fee_customer);
+
             setData((prevData) => ({
                 ...prevData,
                 agent_transaction_type_id: id,
                 admin_fee_customer: selectedType.default_admin_fee_customer,
                 admin_fee_bank: selectedType.default_admin_fee_bank,
+                agent_admin_bank_id: matchingBank ? matchingBank.id : "",
+                agent_admin_loket_id: matchingLoket ? matchingLoket.id : "",
             }));
         }
     };
+
+    const handleAdminBankChange = (id) => {
+        const selectedBank = agentAdminBanks.find((b) => b.id === parseInt(id));
+        setData((prevData) => ({
+            ...prevData,
+            agent_admin_bank_id: id,
+            admin_fee_bank: selectedBank ? selectedBank.amount : 0,
+        }));
+    };
+
+    const handleAdminLoketChange = (id) => {
+        const selectedLoket = agentAdminLokets.find((l) => l.id === parseInt(id));
+        setData((prevData) => ({
+            ...prevData,
+            agent_admin_loket_id: id,
+            admin_fee_customer: selectedLoket ? selectedLoket.amount : 0,
+        }));
+    };
+
+    const selectedType = transactionTypes.find((t) => t.id === parseInt(data.agent_transaction_type_id));
+    const modalTotal = selectedType && selectedType.type === 'debet'
+        ? (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0)
+        : (parseInt(data.nominal) || 0);
 
     // Form submit
     const handleSubmit = (e) => {
@@ -438,8 +472,14 @@ export default function Index({
                                             {formatRp(tx.nominal)}
                                         </td>
                                         <td className="p-4 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                            <p>{formatRp(tx.admin_fee_customer)}</p>
-                                            <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 uppercase font-bold">
+                                            <p className="font-bold">{formatRp(tx.admin_fee_customer)}</p>
+                                            {tx.agent_admin_loket && (
+                                                <p className="text-[10px] text-slate-400 font-mono">Loket: {tx.agent_admin_loket.code}</p>
+                                            )}
+                                            {tx.agent_admin_bank && (
+                                                <p className="text-[10px] text-slate-400 font-mono">Bank: {tx.agent_admin_bank.code}</p>
+                                            )}
+                                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 uppercase font-bold">
                                                 {tx.admin_fee_payment_method}
                                             </span>
                                         </td>
@@ -598,33 +638,58 @@ export default function Index({
                             {/* Fees */}
                             <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Pelanggan (Loket)</label>
-                                    <input
-                                        type="number"
-                                        value={data.admin_fee_customer}
-                                        onChange={(e) => setData("admin_fee_customer", parseInt(e.target.value) || 0)}
-                                        placeholder="0"
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Loket</label>
+                                    <select
+                                        value={data.agent_admin_loket_id}
+                                        onChange={(e) => handleAdminLoketChange(e.target.value)}
                                         className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
-                                        min="0"
                                         required
-                                    />
-                                    {errors.admin_fee_customer && <p className="text-xs text-danger-500 mt-1">{errors.admin_fee_customer}</p>}
+                                    >
+                                        <option value="">-- Pilih Admin Loket --</option>
+                                        {agentAdminLokets.map((loket) => (
+                                            <option key={loket.id} value={loket.id}>
+                                                [{loket.code}] {formatRp(loket.amount)} {loket.description ? `(${loket.description})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.agent_admin_loket_id && <p className="text-xs text-danger-500 mt-1">{errors.agent_admin_loket_id}</p>}
+                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(data.admin_fee_customer)}</span></p>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Bank (EDC)</label>
-                                    <input
-                                        type="number"
-                                        value={data.admin_fee_bank}
-                                        onChange={(e) => setData("admin_fee_bank", parseInt(e.target.value) || 0)}
-                                        placeholder="0"
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Bank Link</label>
+                                    <select
+                                        value={data.agent_admin_bank_id}
+                                        onChange={(e) => handleAdminBankChange(e.target.value)}
                                         className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
-                                        min="0"
                                         required
-                                    />
-                                    {errors.admin_fee_bank && <p className="text-xs text-danger-500 mt-1">{errors.admin_fee_bank}</p>}
+                                    >
+                                        <option value="">-- Pilih Admin Bank --</option>
+                                        {agentAdminBanks.map((bank) => (
+                                            <option key={bank.id} value={bank.id}>
+                                                [{bank.code}] {formatRp(bank.amount)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.agent_admin_bank_id && <p className="text-xs text-danger-500 mt-1">{errors.agent_admin_bank_id}</p>}
+                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(data.admin_fee_bank)}</span></p>
                                 </div>
                             </div>
+
+                            {/* Total Pembayaran Block in Modal */}
+                            {data.agent_transaction_type_id && (
+                                <div className="p-4 rounded-xl bg-primary-50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/30 flex justify-between items-center">
+                                    <div>
+                                        <span className="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Total Pembayaran</span>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                                            {selectedType?.type === 'debet' ? "Nominal + Admin Loket" : "Nominal (Tarik Tunai)"}
+                                        </p>
+                                    </div>
+                                    <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                                        {formatRp(modalTotal)}
+                                    </span>
+                                </div>
+                            )}
 
                             {/* Payment Method for Admin Fee & Status */}
                             <div className="grid grid-cols-2 gap-4">

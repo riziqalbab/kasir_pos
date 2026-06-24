@@ -43,6 +43,9 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('supplier-returns-access', '%supplier-returns%');
         $this->createRoleWithPermissions('agent-transactions-access', '%agent-transactions%');
         $this->createRoleWithPermissions('agent-transaction-types-access', '%agent-transaction-types%');
+        $this->createRoleWithPermissions('agent-admin-banks-access', '%agent-admin-banks%');
+        $this->createRoleWithPermissions('agent-admin-lokets-access', '%agent-admin-lokets%');
+        $this->createRoleWithPermissions('units-access', '%units%');
 
         $superAdminRole = Role::firstOrCreate(['name' => 'super-admin']);
         $superAdminRole->syncPermissions(Permission::all());
@@ -66,6 +69,8 @@ class RoleSeeder extends Seeder
             'agent-transactions-create',
             'agent-transactions-edit',
             'agent-transactions-delete',
+            'agent-admin-banks-access',
+            'agent-admin-lokets-access',
         ])->get();
         $cashierRole->syncPermissions($cashierPermissions);
 

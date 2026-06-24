@@ -37,7 +37,7 @@ class AgentTransactionController extends Controller
 
         // build query
         $query = AgentTransaction::query()
-            ->with(['agentTransactionType', 'bankAccount', 'cashier:id,name'])
+            ->with(['agentTransactionType', 'bankAccount', 'cashier:id,name', 'agentAdminBank', 'agentAdminLoket'])
             ->when($filters['search'], function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('customer_name', 'like', "%{$search}%")
@@ -79,6 +79,8 @@ class AgentTransactionController extends Controller
         // Get related settings/master data
         $bankAccounts = BankAccount::active()->ordered()->get();
         $transactionTypes = AgentTransactionType::active()->get();
+        $agentAdminBanks = \App\Models\AgentAdminBank::oldest('code')->get();
+        $agentAdminLokets = \App\Models\AgentAdminLoket::oldest('code')->get();
 
         return Inertia::render('Dashboard/AgentTransactions/Index', [
             'transactions' => $transactions,
@@ -91,6 +93,8 @@ class AgentTransactionController extends Controller
             ],
             'bankAccounts' => $bankAccounts,
             'transactionTypes' => $transactionTypes,
+            'agentAdminBanks' => $agentAdminBanks,
+            'agentAdminLokets' => $agentAdminLokets,
             'activeCashierShift' => $activeShift ? [
                 'id' => $activeShift->id,
                 'opening_cash' => (int) $activeShift->opening_cash,
@@ -110,6 +114,8 @@ class AgentTransactionController extends Controller
         $validated = $request->validate([
             'agent_transaction_type_id' => 'required|exists:agent_transaction_types,id',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'agent_admin_bank_id' => 'nullable|exists:agent_admin_banks,id',
+            'agent_admin_loket_id' => 'nullable|exists:agent_admin_lokets,id',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
@@ -159,6 +165,8 @@ class AgentTransactionController extends Controller
         $validated = $request->validate([
             'agent_transaction_type_id' => 'required|exists:agent_transaction_types,id',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'agent_admin_bank_id' => 'nullable|exists:agent_admin_banks,id',
+            'agent_admin_loket_id' => 'nullable|exists:agent_admin_lokets,id',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
@@ -251,7 +259,7 @@ class AgentTransactionController extends Controller
      */
     public function printReceipt(AgentTransaction $agentTransaction)
     {
-        $agentTransaction->load(['agentTransactionType', 'bankAccount', 'cashier']);
+        $agentTransaction->load(['agentTransactionType', 'bankAccount', 'cashier', 'agentAdminBank', 'agentAdminLoket']);
         $storeProfile = \App\Models\Setting::first(); // Wait, let's see how setting profile is read. Usually App\Models\Setting::first(). Let's keep it safe.
 
         return Inertia::render('Dashboard/AgentTransactions/Print', [

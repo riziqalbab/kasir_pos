@@ -17,11 +17,13 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             PermissionSeeder::class,
+            UnitSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
             SampleDataSeeder::class,
             OperationalCoreSeeder::class,
             FeatureCoverageSeeder::class,
+            AgentLinkSeeder::class,
         ]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
