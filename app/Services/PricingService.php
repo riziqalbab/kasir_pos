@@ -18,7 +18,7 @@ class PricingService
     public function previewCart(iterable $carts, ?Customer $customer = null, ?CarbonInterface $at = null): array
     {
         $cartCollection = collect($carts)
-            ->filter(fn ($cart) => $cart instanceof Cart && $cart->product)
+            ->filter(fn ($cart) => $cart instanceof Cart && ($cart->product || $cart->service))
             ->values();
         $rules = $this->getActiveRules($at);
 
@@ -28,7 +28,7 @@ class PricingService
     public function previewCartWithRules(iterable $carts, ?Customer $customer, Collection $rules): array
     {
         $cartCollection = collect($carts)
-            ->filter(fn ($cart) => $cart instanceof Cart && $cart->product)
+            ->filter(fn ($cart) => $cart instanceof Cart && ($cart->product || $cart->service))
             ->values();
 
         return $this->buildPreview($cartCollection, $customer, $rules->values());
@@ -67,6 +67,30 @@ class PricingService
     private function buildPreview(Collection $carts, ?Customer $customer, Collection $rules): array
     {
         $items = $carts->map(function (Cart $cart) {
+            if ($cart->service_id) {
+                $servicePrice = \App\Models\ServicePrice::where('service_id', $cart->service_id)
+                    ->where('unit_id', $cart->satuan_key)
+                    ->first();
+                $baseUnitPrice = $servicePrice ? (int) $servicePrice->price : 0;
+
+                return [
+                    'cart_id' => $cart->id,
+                    'product_id' => null,
+                    'service_id' => $cart->service_id,
+                    'product_title' => $cart->service?->name,
+                    'qty' => (int) $cart->qty,
+                    'base_unit_price' => $baseUnitPrice,
+                    'effective_unit_price' => $baseUnitPrice,
+                    'line_base_total' => $baseUnitPrice * (int) $cart->qty,
+                    'line_total' => $baseUnitPrice * (int) $cart->qty,
+                    'line_discount_total' => 0,
+                    'pricing_rule' => null,
+                    'pricing_group_key' => null,
+                    'pricing_group_label' => null,
+                    'applied_rules' => [],
+                ];
+            }
+
             $baseUnitPrice = (int) $cart->product->getSellPriceForUnit($cart->satuan_key);
 
             return [

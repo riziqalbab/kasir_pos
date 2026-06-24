@@ -243,7 +243,7 @@
             @foreach ($transaction->details as $index => $detail)
                 <tr style="background: {{ $index % 2 === 0 ? '#f8fafc' : '#fff' }};">
                     <td>
-                        {{ $detail->product->title ?? 'Produk' }}
+                        {{ $detail->product ? $detail->product->title : ($detail->service ? $detail->service->name : 'Item') }}
                         @if ($detail->discount_total > 0 && ($detail->pricing_group_label || $detail->pricing_rule_name))
                             <div style="font-size:11px;color:#e11d48; margin-top:2px;">
                                 Promo: {{ $detail->pricing_group_label ?: $detail->pricing_rule_name }}

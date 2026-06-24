@@ -8,6 +8,8 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Receivable;
 use App\Models\Transaction;
+use App\Models\Service;
+use App\Models\ServicePrice;
 use App\Services\AuditLogService;
 use App\Services\CashierShiftService;
 use App\Services\PricingService;
@@ -38,7 +40,7 @@ class TransactionController extends Controller
         $activeShift = $this->cashierShiftService->getActiveShiftForUser($userId);
 
         // Get active cart items (not held)
-        $carts = Cart::with('product')
+        $carts = Cart::with(['product', 'service.servicePrices.unit'])
             ->where('cashier_id', $userId)
             ->active()
             ->latest()
@@ -49,7 +51,7 @@ class TransactionController extends Controller
         );
 
         // Get held carts grouped by hold_id
-        $heldCarts = Cart::with('product:id,title,sell_price,image')
+        $heldCarts = Cart::with(['product:id,title,sell_price,image', 'service.servicePrices.unit'])
             ->where('cashier_id', $userId)
             ->held()
             ->get()
@@ -123,6 +125,7 @@ class TransactionController extends Controller
             'heldCarts' => $heldCarts,
             'customers' => $customers,
             'products' => $products,
+            'services' => \App\Models\Service::with('servicePrices.unit')->get(),
             'categories' => $categories,
             'initialPricingPreview' => $initialPricingPreview,
             'paymentGateways' => $paymentGateways,
@@ -198,6 +201,55 @@ class TransactionController extends Controller
      */
     public function addToCart(Request $request)
     {
+        if ($request->has('service_id')) {
+            $service = Service::find($request->service_id);
+            if (! $service) {
+                return redirect()->back()->with('error', 'Jasa tidak ditemukan.');
+            }
+
+            $unitId = $request->input('satuan_key');
+            if (! $unitId) {
+                $firstPrice = $service->servicePrices()->first();
+                if (! $firstPrice) {
+                    return redirect()->back()->with('error', 'Jasa ini belum memiliki konfigurasi harga.');
+                }
+                $unitId = $firstPrice->unit_id;
+            }
+
+            $servicePrice = \App\Models\ServicePrice::with('unit')
+                ->where('service_id', $service->id)
+                ->where('unit_id', $unitId)
+                ->first();
+
+            if (! $servicePrice) {
+                return redirect()->back()->with('error', 'Satuan jasa tidak valid.');
+            }
+
+            $cart = Cart::where('service_id', $service->id)
+                ->where('satuan_key', (string) $unitId)
+                ->where('cashier_id', auth()->user()->id)
+                ->first();
+
+            $qty = $request->input('qty', 1);
+
+            if ($cart) {
+                $cart->increment('qty', $qty);
+                $cart->price = $servicePrice->price * $cart->qty;
+                $cart->save();
+            } else {
+                Cart::create([
+                    'cashier_id' => auth()->user()->id,
+                    'service_id' => $service->id,
+                    'qty' => $qty,
+                    'price' => $servicePrice->price * $qty,
+                    'satuan' => $servicePrice->unit->name,
+                    'satuan_key' => (string) $unitId,
+                ]);
+            }
+
+            return redirect()->route('transactions.index')->with('success', 'Jasa berhasil ditambahkan ke keranjang.');
+        }
+
         // Cari produk berdasarkan ID yang diberikan
         $product = Product::whereId($request->product_id)->first();
 
@@ -300,10 +352,10 @@ class TransactionController extends Controller
     {
         $request->validate([
             'qty' => 'sometimes|integer|min:1',
-            'satuan_key' => 'sometimes|string|in:dus,pack,pcs',
+            'satuan_key' => 'sometimes|string',
         ]);
 
-        $cart = Cart::with('product')->whereId($cart_id)
+        $cart = Cart::with(['product', 'service'])->whereId($cart_id)
             ->where('cashier_id', auth()->user()->id)
             ->first();
 
@@ -315,6 +367,41 @@ class TransactionController extends Controller
         }
 
         $newQty = $request->input('qty', $cart->qty);
+
+        if ($cart->service_id) {
+            $newSatuanKey = $request->input('satuan_key', $cart->satuan_key);
+
+            $servicePrice = \App\Models\ServicePrice::where('service_id', $cart->service_id)
+                ->where('unit_id', $newSatuanKey)
+                ->first();
+
+            if (! $servicePrice) {
+                if (! is_numeric($newSatuanKey)) {
+                    $unit = \App\Models\Unit::where('name', $newSatuanKey)->first();
+                    if ($unit) {
+                        $servicePrice = \App\Models\ServicePrice::where('service_id', $cart->service_id)
+                            ->where('unit_id', $unit->id)
+                            ->first();
+                    }
+                }
+            }
+
+            if (! $servicePrice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Satuan jasa tidak valid.',
+                ], 422);
+            }
+
+            $cart->qty = $newQty;
+            $cart->satuan_key = (string) $servicePrice->unit_id;
+            $cart->satuan = $servicePrice->unit->name;
+            $cart->price = $servicePrice->price * $newQty;
+            $cart->save();
+
+            return back()->with('success', 'Cart updated successfully');
+        }
+
         $newSatuanKey = $request->input('satuan_key', $cart->satuan_key ?: 'pcs');
         $product = $cart->product;
         $newSatuan = $product->getUnitNameForKey($newSatuanKey);
@@ -593,7 +680,7 @@ class TransactionController extends Controller
                 lockForUpdate: true
             );
 
-            $carts = Cart::with('product')
+            $carts = Cart::with(['product', 'service.servicePrices.unit'])
                 ->where('cashier_id', auth()->user()->id)
                 ->active()
                 ->get();
@@ -632,12 +719,19 @@ class TransactionController extends Controller
                 $pricingItem = $pricingItems->firstWhere('cart_id', $cart->id);
                 $lineTotal = (int) data_get($pricingItem, 'line_total', $cart->price);
                 $linePromoDiscount = (int) data_get($pricingItem, 'line_discount_total', 0);
-                $baseUnitPrice = (int) data_get($pricingItem, 'base_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
-                $unitPrice = (int) data_get($pricingItem, 'effective_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
+
+                if ($cart->service_id) {
+                    $baseUnitPrice = (int) data_get($pricingItem, 'base_unit_price', 0);
+                    $unitPrice = (int) data_get($pricingItem, 'effective_unit_price', 0);
+                } else {
+                    $baseUnitPrice = (int) data_get($pricingItem, 'base_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
+                    $unitPrice = (int) data_get($pricingItem, 'effective_unit_price', $cart->product->getSellPriceForUnit($cart->satuan_key));
+                }
 
                 $transaction->details()->create([
                     'transaction_id' => $transaction->id,
                     'product_id' => $cart->product_id,
+                    'service_id' => $cart->service_id,
                     'qty' => $cart->qty,
                     'base_unit_price' => $baseUnitPrice,
                     'unit_price' => $unitPrice,
@@ -652,8 +746,13 @@ class TransactionController extends Controller
                     'satuan_key' => $cart->satuan_key ?: 'pcs',
                 ]);
 
-                $buyPriceForUnit = $cart->product->getBuyPriceForUnit($cart->satuan_key);
-                $total_buy_price = $buyPriceForUnit * $cart->qty;
+                if ($cart->service_id) {
+                    $total_buy_price = 0;
+                } else {
+                    $buyPriceForUnit = $cart->product->getBuyPriceForUnit($cart->satuan_key);
+                    $total_buy_price = $buyPriceForUnit * $cart->qty;
+                }
+
                 $lineShare = $subtotalAfterPromo > 0 ? $lineTotal / $subtotalAfterPromo : 0;
                 $allocatedManualDiscount = (int) round($appliedManualDiscount * $lineShare);
                 $netSellPrice = max(0, $lineTotal - $allocatedManualDiscount);
@@ -664,17 +763,19 @@ class TransactionController extends Controller
                     'total' => $profits,
                 ]);
 
-                $product = Product::find($cart->product_id);
-                $conversion = 1;
-                if ($cart->satuan_key === 'dus') {
-                    $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
-                } elseif ($cart->satuan_key === 'pack') {
-                    $conversion = $product->isi_pcs_dalam_pack ?: 1;
-                }
-                $qtyInBaseUnit = $cart->qty * $conversion;
+                if (! $cart->service_id) {
+                    $product = Product::find($cart->product_id);
+                    $conversion = 1;
+                    if ($cart->satuan_key === 'dus') {
+                        $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+                    } elseif ($cart->satuan_key === 'pack') {
+                        $conversion = $product->isi_pcs_dalam_pack ?: 1;
+                    }
+                    $qtyInBaseUnit = $cart->qty * $conversion;
 
-                $product->stock = $product->stock - $qtyInBaseUnit;
-                $product->save();
+                    $product->stock = $product->stock - $qtyInBaseUnit;
+                    $product->save();
+                }
             }
 
             Cart::where('cashier_id', auth()->user()->id)->active()->delete();
@@ -700,7 +801,7 @@ class TransactionController extends Controller
     public function print($invoice)
     {
         // get transaction
-        $transaction = Transaction::with('details.product', 'cashier', 'customer', 'receivable', 'bankAccount')
+        $transaction = Transaction::with('details.product', 'details.service', 'cashier', 'customer', 'receivable', 'bankAccount')
             ->where('invoice', $invoice)
             ->firstOrFail();
 

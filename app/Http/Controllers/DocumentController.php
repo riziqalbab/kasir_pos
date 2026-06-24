@@ -62,7 +62,7 @@ class DocumentController extends Controller
     {
         $this->ensureFontDirectory();
 
-        $transaction = Transaction::with(['details.product', 'cashier', 'customer'])
+        $transaction = Transaction::with(['details.product', 'details.service', 'cashier', 'customer'])
             ->where('invoice', $invoice)
             ->firstOrFail();
 
@@ -87,7 +87,7 @@ class DocumentController extends Controller
     {
         $this->ensureFontDirectory();
 
-        $transaction = Transaction::with(['details.product', 'cashier', 'customer'])
+        $transaction = Transaction::with(['details.product', 'details.service', 'cashier', 'customer'])
             ->where('invoice', $invoice)
             ->firstOrFail();
 
@@ -106,7 +106,7 @@ class DocumentController extends Controller
     {
         $this->ensureFontDirectory();
 
-        $transaction = Transaction::with(['details.product', 'customer', 'cashier'])
+        $transaction = Transaction::with(['details.product', 'details.service', 'customer', 'cashier'])
             ->where('invoice', $invoice)
             ->firstOrFail();
 

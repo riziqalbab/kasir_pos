@@ -231,7 +231,7 @@
         <div style="height: 50pt; overflow: hidden;">
             <ul>
                 @foreach ($transaction->details->take(3) as $detail)
-                    <li>{{ Str::limit($detail->product->title, 40) }} ({{ $detail->qty }}x)</li>
+                    <li>{{ Str::limit($detail->product ? $detail->product->title : ($detail->service ? $detail->service->name : 'Item'), 40) }} ({{ $detail->qty }}x)</li>
                 @endforeach
             </ul>
         </div>

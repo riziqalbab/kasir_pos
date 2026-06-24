@@ -17,6 +17,7 @@ use App\Http\Controllers\Apps\StockOpnameController;
 use App\Http\Controllers\Apps\SupplierReturnController;
 use App\Http\Controllers\Apps\TransactionController;
 use App\Http\Controllers\Apps\UnitController;
+use App\Http\Controllers\Apps\ServiceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PermissionController;
@@ -87,6 +88,12 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor('index', 'permission:units-access')
         ->middlewareFor('store', 'permission:units-create')
         ->middlewareFor('destroy', 'permission:units-delete');
+    Route::resource('services', ServiceController::class)
+        ->except(['create', 'edit', 'show'])
+        ->middlewareFor('index', 'permission:services-access')
+        ->middlewareFor('store', 'permission:services-create')
+        ->middlewareFor('update', 'permission:services-edit')
+        ->middlewareFor('destroy', 'permission:services-delete');
     Route::get('stock-opnames', [StockOpnameController::class, 'index'])->middleware('permission:stock-opnames-access')->name('stock-opnames.index');
     Route::get('stock-opnames/create', [StockOpnameController::class, 'create'])->middleware('permission:stock-opnames-create')->name('stock-opnames.create');
     Route::post('stock-opnames', [StockOpnameController::class, 'store'])->middleware('permission:stock-opnames-create')->name('stock-opnames.store');

@@ -36,6 +36,7 @@ import {
     IconSpeakerphone,
     IconBuildingBank,
     IconScale,
+    IconBriefcase,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -95,6 +96,13 @@ export default function Menu() {
                     active: url.startsWith("/dashboard/units"),
                     icon: <IconScale size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["units-access"]),
+                },
+                {
+                    title: "Jasa",
+                    href: route("services.index"),
+                    active: url.startsWith("/dashboard/services"),
+                    icon: <IconBriefcase size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["services-access"]),
                 },
             ],
         },

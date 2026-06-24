@@ -21,20 +21,32 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
     const subtotal = itemPrice;
 
     const availableUnits = [];
-    if (item.product?.satuan_jual_pcs) {
-        availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
-    } else {
-        availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
-    }
-    if (item.product?.isi_pcs_dalam_pack > 0) {
-        availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
-    }
-    if (item.product?.isi_pcs_dalam_dus > 0) {
-        availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+    if (item.product) {
+        if (item.product?.satuan_jual_pcs) {
+            availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
+        } else {
+            availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
+        }
+        if (item.product?.isi_pcs_dalam_pack > 0) {
+            availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
+        }
+        if (item.product?.isi_pcs_dalam_dus > 0) {
+            availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+        }
+    } else if (item.service) {
+        if (item.service.service_prices) {
+            item.service.service_prices.forEach((sp) => {
+                availableUnits.push({
+                    key: String(sp.unit_id),
+                    label: sp.unit?.name || "Unit",
+                    price: Number(sp.price || 0),
+                });
+            });
+        }
     }
 
     const activeUnit = availableUnits.find(u => u.key === (item.satuan_key || "pcs"));
-    const unitPrice = activeUnit ? activeUnit.price : (Number(item.product?.sell_price || 0));
+    const unitPrice = activeUnit ? activeUnit.price : (Number(item.product?.sell_price || item.price / item.qty || 0));
 
     return (
         <div
@@ -66,7 +78,7 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
             {/* Product Info */}
             <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                    {item.product?.title || "Produk"}
+                    {item.product?.title || item.service?.name || "Produk"}
                 </h4>
                 <div className="flex flex-col gap-1 mt-0.5">
                     <p className="text-xs text-slate-500 dark:text-slate-400">

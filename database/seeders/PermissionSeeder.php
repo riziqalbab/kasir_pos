@@ -54,6 +54,12 @@ class PermissionSeeder extends Seeder
         $create('units-access');
         $create('units-create');
         $create('units-delete');
+
+        // permission services
+        $create('services-access');
+        $create('services-create');
+        $create('services-edit');
+        $create('services-delete');
         // permission customers
         $create('customers-access');
         $create('customers-create');

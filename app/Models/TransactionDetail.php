@@ -17,6 +17,7 @@ class TransactionDetail extends Model
     protected $fillable = [
         'transaction_id',
         'product_id',
+        'service_id',
         'qty',
         'base_unit_price',
         'unit_price',
@@ -59,6 +60,16 @@ class TransactionDetail extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * service
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
     }
 
     public function salesReturnItems()

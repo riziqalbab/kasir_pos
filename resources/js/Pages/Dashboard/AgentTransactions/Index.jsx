@@ -16,7 +16,9 @@ import {
     IconAlertCircle,
     IconCircleCheck,
     IconDeviceFloppy,
-    IconCalendar
+    IconCalendar,
+    IconShoppingCart,
+    IconTools
 } from "@tabler/icons-react";
 import toast from "react-hot-toast";
 import { useAuthorization } from "@/Utils/authorization";
@@ -243,6 +245,39 @@ export default function Index({
                         </span>
                     )}
                 </div>
+            </div>
+
+            {/* Transaction Mode Switcher */}
+            <div className="mb-6 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={() => router.visit(route("transactions.index"))}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    >
+                        <IconShoppingCart size={16} />
+                        <span>Produk</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => router.visit(route("transactions.index", { mode: "jasa" }))}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    >
+                        <IconTools size={16} />
+                        <span>Jasa / Layanan</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all bg-white dark:bg-slate-800 text-primary-600 dark:text-primary-400 shadow-sm cursor-default"
+                        disabled
+                    >
+                        <IconBuildingBank size={16} />
+                        <span>Agen Link</span>
+                    </button>
+                </div>
+                <span className="hidden sm:inline-block text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                    Mode Agen Link Aktif
+                </span>
             </div>
 
             {/* Cashier Shift Warning Banner */}

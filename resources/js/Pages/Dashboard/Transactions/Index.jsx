@@ -32,6 +32,7 @@ import {
     IconBuildingBank,
     IconAlertTriangle,
     IconWallet,
+    IconTools,
 } from "@tabler/icons-react";
 
 const formatPrice = (value = 0) =>
@@ -47,6 +48,7 @@ export default function Index({
     heldCarts = [],
     customers = [],
     products = [],
+    services = [],
     categories = [],
     initialPricingPreview = { items: [], summary: {} },
     paymentGateways = [],
@@ -63,6 +65,10 @@ export default function Index({
     const canOpenShift = can("cashier-shifts-open");
 
     // State
+    const urlParams = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
+    const initialMode = urlParams.get("mode") === "jasa" ? "jasa" : "produk";
+    const [transactionMode, setTransactionMode] = useState(initialMode);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
@@ -106,6 +112,12 @@ export default function Index({
     useEffect(() => {
         setPaymentMethod(defaultPaymentGateway ?? "cash");
     }, [defaultPaymentGateway]);
+
+    // Clear search and category on mode change
+    useEffect(() => {
+        setSearchQuery("");
+        setSelectedCategory(null);
+    }, [transactionMode]);
 
     useEffect(() => {
         setPricingPreview(initialPricingPreview);
@@ -269,6 +281,7 @@ export default function Index({
         }
     }, [isCashPayment, payable]);
 
+
     const handleOpenShift = () => {
         router.post(route("cashier-shifts.store"), {
             opening_cash: Number(openingCashInput || 0),
@@ -278,26 +291,26 @@ export default function Index({
     };
 
     // Handle add product to cart
-    const handleAddToCart = async (product) => {
-        if (!product?.id) return;
+    const handleAddToCart = async (item) => {
+        if (!item?.id) return;
 
-        setAddingProductId(product.id);
+        setAddingProductId(item.id);
+
+        const payload = item.is_service
+            ? { service_id: item.id, qty: 1 }
+            : { product_id: item.id, sell_price: item.sell_price, qty: 1 };
 
         router.post(
             route("transactions.addToCart"),
-            {
-                product_id: product.id,
-                sell_price: product.sell_price,
-                qty: 1,
-            },
+            payload,
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success(`${product.title} ditambahkan`);
+                    toast.success(`${item.title} ditambahkan`);
                     setAddingProductId(null);
                 },
                 onError: () => {
-                    toast.error("Gagal menambahkan produk");
+                    toast.error("Gagal menambahkan item");
                     setAddingProductId(null);
                 },
             }
@@ -514,8 +527,33 @@ export default function Index({
         );
     };
 
-    // Filter products including out of stock
-    const allProducts = useMemo(() => {
+    // Filter products or services based on mode
+    const displayItems = useMemo(() => {
+        if (transactionMode === "jasa") {
+            return services
+                .map((service) => {
+                    const defaultPrice = service.service_prices?.[0]?.price || 0;
+                    return {
+                        id: service.id,
+                        is_service: true,
+                        title: service.name,
+                        description: service.description || "",
+                        sell_price: defaultPrice,
+                        stock: 999999,
+                        stock_breakdown: "Jasa",
+                        category_id: null,
+                        category: null,
+                        service_prices: service.service_prices || [],
+                    };
+                })
+                .filter((item) => {
+                    return (
+                        !searchQuery ||
+                        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                });
+        }
+
         return products.filter((product) => {
             const matchesCategory =
                 normalizedSelectedCategory === null ||
@@ -530,7 +568,7 @@ export default function Index({
                     .includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         });
-    }, [products, normalizedSelectedCategory, searchQuery]);
+    }, [products, services, transactionMode, normalizedSelectedCategory, searchQuery]);
 
     if (!activeCashierShift) {
         return (
@@ -651,10 +689,53 @@ export default function Index({
                             : "flex flex-col"
                     }`}
                 >
+                    {/* Transaction Mode Switcher */}
+                    <div className="px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+                        <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl w-full sm:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setTransactionMode("produk")}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    transactionMode === "produk"
+                                        ? "bg-white dark:bg-slate-950/20 dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                }`}
+                            >
+                                <IconShoppingCart size={16} />
+                                <span>Produk</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransactionMode("jasa")}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    transactionMode === "jasa"
+                                        ? "bg-white dark:bg-slate-950/20 dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                }`}
+                            >
+                                <IconTools size={16} />
+                                <span>Jasa / Layanan</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.visit(route("agent-transactions.index"))}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                            >
+                                <IconBuildingBank size={16} />
+                                <span>Agen Link</span>
+                            </button>
+                        </div>
+                        {transactionMode === "jasa" && (
+                            <span className="text-xs font-semibold text-slate-505 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
+                                Mode Jasa Aktif
+                            </span>
+                        )}
+                    </div>
+
                     <ProductGrid
-                        products={allProducts}
-                        categories={categories}
-                        selectedCategory={selectedCategory}
+                        products={displayItems}
+                        categories={transactionMode === "produk" ? categories : []}
+                        selectedCategory={transactionMode === "produk" ? selectedCategory : null}
                         onCategoryChange={(categoryId) =>
                             setSelectedCategory(
                                 categoryId === null ? null : Number(categoryId)
@@ -666,6 +747,11 @@ export default function Index({
                         onAddToCart={handleAddToCart}
                         addingProductId={addingProductId}
                         searchInputRef={searchInputRef}
+                        placeholder={
+                            transactionMode === "produk"
+                                ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
+                                : "Cari jasa / layanan... (tekan / untuk fokus)"
+                        }
                     />
                 </div>
 
@@ -754,16 +840,28 @@ export default function Index({
                                                 pricingItem?.pricing_rule;
 
                                             const availableUnits = [];
-                                            if (item.product?.satuan_jual_pcs) {
-                                                availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
-                                            } else {
-                                                availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
-                                            }
-                                            if (item.product?.isi_pcs_dalam_pack > 0) {
-                                                availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
-                                            }
-                                            if (item.product?.isi_pcs_dalam_dus > 0) {
-                                                availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+                                            if (item.product) {
+                                                if (item.product?.satuan_jual_pcs) {
+                                                    availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
+                                                } else {
+                                                    availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
+                                                }
+                                                if (item.product?.isi_pcs_dalam_pack > 0) {
+                                                    availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
+                                                }
+                                                if (item.product?.isi_pcs_dalam_dus > 0) {
+                                                    availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+                                                }
+                                            } else if (item.service) {
+                                                if (item.service.service_prices) {
+                                                    item.service.service_prices.forEach((sp) => {
+                                                        availableUnits.push({
+                                                            key: String(sp.unit_id),
+                                                            label: sp.unit?.name || "Unit",
+                                                            price: Number(sp.price || 0),
+                                                        });
+                                                    });
+                                                }
                                             }
 
                                             return (
@@ -792,6 +890,7 @@ export default function Index({
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
                                                     {item.product?.title ||
+                                                        item.service?.name ||
                                                         "Produk"}
                                                 </p>
                                                 <div className="text-xs text-slate-500 flex flex-col gap-1 mt-0.5">

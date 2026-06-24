@@ -187,6 +187,7 @@ export default function ProductGrid({
     onAddToCart,
     addingProductId,
     searchInputRef,
+    placeholder,
 }) {
     const normalizedSelectedCategory =
         selectedCategory === null ? null : Number(selectedCategory);
@@ -212,32 +213,34 @@ export default function ProductGrid({
                     onChange={onSearchChange}
                     onSearch={onSearch}
                     isSearching={isSearching}
-                    placeholder="Cari produk atau scan barcode... (tekan / untuk fokus)"
+                    placeholder={placeholder}
                     inputRef={searchInputRef}
                 />
             </div>
 
             {/* Category Tabs */}
-            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-2">
-                    <CategoryTab
-                        category={{ id: null, name: "Semua" }}
-                        isActive={normalizedSelectedCategory === null}
-                        onClick={() => onCategoryChange(null)}
-                    />
-                    {categories.map((category) => (
+            {categories && categories.length > 0 && (
+                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2">
                         <CategoryTab
-                            key={category.id}
-                            category={category}
-                            isActive={
-                                normalizedSelectedCategory ===
-                                Number(category.id)
-                            }
-                            onClick={() => onCategoryChange(Number(category.id))}
+                            category={{ id: null, name: "Semua" }}
+                            isActive={normalizedSelectedCategory === null}
+                            onClick={() => onCategoryChange(null)}
                         />
-                    ))}
+                        {categories.map((category) => (
+                            <CategoryTab
+                                key={category.id}
+                                category={category}
+                                isActive={
+                                    normalizedSelectedCategory ===
+                                    Number(category.id)
+                                }
+                                onClick={() => onCategoryChange(Number(category.id))}
+                            />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Products Table */}
             <div className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
@@ -286,18 +289,30 @@ export default function ProductGrid({
                                                 <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
                                                     {product.title}
                                                 </div>
-                                                <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-2 mt-0.5">
-                                                    {product.barcode && <span>Code: {product.barcode}</span>}
-                                                    {product.sku && <span>SKU: {product.sku}</span>}
-                                                </div>
+                                                {product.is_service ? (
+                                                    product.description && (
+                                                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">
+                                                            {product.description}
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-2 mt-0.5">
+                                                        {product.barcode && <span>Code: {product.barcode}</span>}
+                                                        {product.sku && <span>SKU: {product.sku}</span>}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                                                 <span className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
-                                                    {product.category?.name || "Umum"}
+                                                    {product.is_service ? "Jasa" : (product.category?.name || "Umum")}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm font-medium">
-                                                {!hasStock ? (
+                                                {product.is_service ? (
+                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-full">
+                                                        Jasa
+                                                    </span>
+                                                ) : !hasStock ? (
                                                     <span className="px-2 py-0.5 text-xs font-semibold bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400 rounded-full">
                                                         Habis
                                                     </span>

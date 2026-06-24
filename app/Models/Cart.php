@@ -15,7 +15,7 @@ class Cart extends Model
      * @var array
      */
     protected $fillable = [
-        'cashier_id', 'product_id', 'qty', 'price', 'hold_id', 'hold_label', 'held_at', 'satuan', 'satuan_key',
+        'cashier_id', 'product_id', 'service_id', 'qty', 'price', 'hold_id', 'hold_label', 'held_at', 'satuan', 'satuan_key',
     ];
 
     /**
@@ -35,6 +35,16 @@ class Cart extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * service
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
     }
 
     /**

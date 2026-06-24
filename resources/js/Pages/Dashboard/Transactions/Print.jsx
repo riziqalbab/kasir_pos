@@ -525,7 +525,7 @@ export default function Print({ transaction }) {
                                                             <p className="font-medium text-slate-900 dark:text-white">
                                                                 {
                                                                     item.product
-                                                                        ?.title
+                                                                        ?.title || item.service?.name
                                                                 }
                                                             </p>
                                                             {hasPromo && (

@@ -55,7 +55,7 @@
                 $total = $item->price;
                 $unit = $item->unit_price ?: ($qty ? $total / $qty : $total);
             @endphp
-            <div style="font-weight:600;">{{ $item->product->title ?? 'Produk' }}</div>
+            <div style="font-weight:600;">{{ $item->product ? $item->product->title : ($item->service ? $item->service->name : 'Item') }}</div>
             @if($item->discount_total > 0 && ($item->pricing_group_label || $item->pricing_rule_name))
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748b;">
                     <span>Promo: {{ $item->pricing_group_label ?: $item->pricing_rule_name }}</span>
