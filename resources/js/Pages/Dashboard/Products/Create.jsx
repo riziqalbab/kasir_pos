@@ -43,6 +43,8 @@ export default function Create({ categories, units = [] }) {
         harga_beli_pcs: 0,
         harga_jual_pcs: 0,
         stok_pcs: 0,
+        stock: 0,
+        is_stock_synced: true,
     });
 
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -122,6 +124,41 @@ export default function Create({ categories, units = [] }) {
                 updated.harga_beli_pcs = Math.floor(updated.harga_beli_pack / pcsPackFactor);
             }
 
+            // Recalculate stock fields to stay in sync using updated.stok_pcs as the ground truth
+            const totalPcs = Number(updated.stok_pcs || 0);
+            const newPcsPack = updated.isi_pcs_dalam_pack || 0;
+            const newPcsDus = updated.isi_pcs_dalam_dus || 0;
+
+            updated.stok_dus = newPcsDus > 0 ? Math.floor(totalPcs / newPcsDus) : 0;
+            updated.stok_pack = newPcsPack > 0 ? Math.floor(totalPcs / newPcsPack) : 0;
+            updated.stock = totalPcs;
+
+            return updated;
+        });
+    };
+
+    const handleStockChange = (unitKey, value) => {
+        const val = parseInt(value, 10) || 0;
+        
+        setData((prev) => {
+            const updated = { ...prev };
+            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
+            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
+
+            if (unitKey === "dus") {
+                updated.stok_dus = val;
+                updated.stok_pack = pcsPack > 0 ? Math.floor((val * pcsDus) / pcsPack) : 0;
+                updated.stok_pcs = val * pcsDus;
+            } else if (unitKey === "pack") {
+                updated.stok_pack = val;
+                updated.stok_dus = pcsDus > 0 ? Math.floor((val * pcsPack) / pcsDus) : 0;
+                updated.stok_pcs = val * pcsPack;
+            } else if (unitKey === "pcs") {
+                updated.stok_pcs = val;
+                updated.stok_dus = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+                updated.stok_pack = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
+            }
+            updated.stock = updated.stok_pcs;
             return updated;
         });
     };
@@ -364,7 +401,7 @@ export default function Create({ categories, units = [] }) {
                                         type="number"
                                         label="Stok Awal (DUS)"
                                         value={data.stok_dus}
-                                        onChange={(e) => setData("stok_dus", e.target.value)}
+                                        onChange={(e) => handleStockChange("dus", e.target.value)}
                                         errors={errors.stok_dus}
                                         placeholder="0"
                                     />
@@ -402,7 +439,7 @@ export default function Create({ categories, units = [] }) {
                                         type="number"
                                         label="Stok Awal (PACK)"
                                         value={data.stok_pack}
-                                        onChange={(e) => setData("stok_pack", e.target.value)}
+                                        onChange={(e) => handleStockChange("pack", e.target.value)}
                                         errors={errors.stok_pack}
                                         placeholder="0"
                                     />
@@ -440,7 +477,7 @@ export default function Create({ categories, units = [] }) {
                                         type="number"
                                         label="Stok Awal (PCS)"
                                         value={data.stok_pcs}
-                                        onChange={(e) => setData("stok_pcs", e.target.value)}
+                                        onChange={(e) => handleStockChange("pcs", e.target.value)}
                                         errors={errors.stok_pcs}
                                         placeholder="0"
                                     />

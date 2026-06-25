@@ -310,4 +310,63 @@ class MultipleSellingUnitsTest extends TestCase
         $this->assertStringStartsWith('SKU-', $product->sku);
         $this->assertEquals('Product with Updated SKU', $product->title);
     }
+
+    public function test_store_product_with_synced_stock()
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo([
+            Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']),
+            Permission::firstOrCreate(['name' => 'products-create', 'guard_name' => 'web']),
+        ]);
+
+        $category = Category::create([
+            'name' => 'Makanan Ringan',
+            'description' => 'Deskripsi Makanan Ringan',
+            'image' => 'category.png',
+        ]);
+
+        // Post request with is_stock_synced => true
+        $response = $this
+            ->actingAs($admin)
+            ->post(route('products.store'), [
+                'barcode' => 'BARCODE-SYNCED',
+                'title' => 'Synced Stock Product',
+                'category_id' => $category->id,
+                'satuan_beli' => 'Dus',
+                'isi_pcs_dalam_pack' => 10,
+                'isi_pack_dalam_dus' => 10,
+                'isi_pcs_dalam_dus' => 100,
+
+                // DUS
+                'satuan_jual_dus' => 'Dus',
+                'harga_beli_dus' => 250000,
+                'harga_jual_dus' => 280000,
+                'stok_dus' => 5,
+
+                // PAK
+                'satuan_jual_pack' => 'Pak',
+                'harga_beli_pack' => 27000,
+                'harga_jual_pack' => 30000,
+                'stok_pack' => 50,
+
+                // PCS
+                'satuan_jual_pcs' => 'Pcs',
+                'harga_beli_pcs' => 2800,
+                'harga_jual_pcs' => 3200,
+                'stok_pcs' => 500,
+
+                'stock' => 500,
+                'is_stock_synced' => true,
+            ]);
+
+        $response->assertRedirect(route('products.index'));
+
+        // Retrieve and check the product
+        $product = Product::where('barcode', 'BARCODE-SYNCED')->first();
+        $this->assertNotNull($product);
+        $this->assertEquals(500, $product->stock);
+        $this->assertEquals(5, $product->stok_dus);
+        $this->assertEquals(50, $product->stok_pack);
+        $this->assertEquals(500, $product->stok_pcs);
+    }
 }

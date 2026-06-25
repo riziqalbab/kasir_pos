@@ -96,6 +96,7 @@ class ProductController extends Controller
             'buy_price' => 'nullable|integer|min:0',
             'sell_price' => 'nullable|integer|min:0',
             'stock' => 'nullable|integer|min:0',
+            'is_stock_synced' => 'nullable|boolean',
         ]);
 
         // upload image
@@ -123,7 +124,12 @@ class ProductController extends Controller
 
         $stokDus = (int) $request->input('stok_dus', 0);
         $stokPack = (int) $request->input('stok_pack', 0);
-        $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+
+        if ($request->input('is_stock_synced')) {
+            $computedStock = (int) $request->input('stock', $stokPcs);
+        } else {
+            $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+        }
 
         $sku = $request->input('sku');
         if (empty($sku)) {
