@@ -45,6 +45,7 @@ const defaultFilters = {
     invoice: "",
     cashier_id: "",
     customer_id: "",
+    item_type: "",
 };
 
 const formatCurrency = (value = 0) =>
@@ -113,7 +114,8 @@ const ProfitReport = ({
         filterData.start_date ||
         filterData.end_date ||
         filterData.cashier_id ||
-        filterData.customer_id;
+        filterData.customer_id ||
+        filterData.item_type;
 
     const stats = {
         profit_total: summary?.profit_total ?? 0,
@@ -128,7 +130,7 @@ const ProfitReport = ({
         {
             title: "Total Profit",
             value: formatCurrency(stats.profit_total),
-            description: "Akumulasi bersih",
+            description: `Barang: ${formatCurrency(summary?.profit_product ?? 0)} • Jasa: ${formatCurrency(summary?.profit_service ?? 0)}`,
             icon: <IconCoin />,
             gradient: "from-success-500 to-success-700",
         },
@@ -198,7 +200,7 @@ const ProfitReport = ({
                 {showFilters && (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 animate-slide-up">
                         <form onSubmit={applyFilters}>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Tanggal Mulai
@@ -247,6 +249,25 @@ const ProfitReport = ({
                                         }
                                         className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Tipe Item
+                                    </label>
+                                    <select
+                                        value={filterData.item_type || ""}
+                                        onChange={(e) =>
+                                            handleChange(
+                                                "item_type",
+                                                e.target.value
+                                            )
+                                        }
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-850 dark:text-slate-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm outline-none cursor-pointer"
+                                    >
+                                        <option value="">Semua Tipe</option>
+                                        <option value="produk">Produk / Barang</option>
+                                        <option value="jasa">Jasa / Layanan</option>
+                                    </select>
                                 </div>
                                 <InputSelect
                                     label="Kasir"

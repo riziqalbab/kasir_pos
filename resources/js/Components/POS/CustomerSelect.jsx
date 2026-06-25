@@ -131,6 +131,11 @@ export default function CustomerSelect({
                                             {selected.no_telp}
                                         </p>
                                     )}
+                                    {selected.is_loyalty_member && (
+                                        <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold truncate">
+                                            {selected.loyalty_points || 0} Poin Loyalty
+                                        </p>
+                                    )}
                                 </>
                             ) : (
                                 <p className="text-sm text-slate-400 dark:text-slate-500">
@@ -246,6 +251,11 @@ export default function CustomerSelect({
                                                     {customer.no_telp && (
                                                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                                             {customer.no_telp}
+                                                        </p>
+                                                    )}
+                                                    {customer.is_loyalty_member && (
+                                                        <p className="text-xs text-primary-600 dark:text-primary-400 font-semibold">
+                                                            {customer.loyalty_points || 0} Poin
                                                         </p>
                                                     )}
                                                 </div>

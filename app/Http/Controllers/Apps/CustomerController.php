@@ -61,6 +61,7 @@ class CustomerController extends Controller
             'name' => 'required',
             'no_telp' => 'nullable|unique:customers,no_telp',
             'address' => 'required',
+            'is_loyalty_member' => 'nullable|boolean',
         ]);
 
         // create customer
@@ -69,6 +70,8 @@ class CustomerController extends Controller
             'name' => $request->name,
             'no_telp' => $request->no_telp,
             'address' => $request->address,
+            'is_loyalty_member' => (bool) $request->is_loyalty_member,
+            'loyalty_member_since' => $request->is_loyalty_member ? now() : null,
         ]);
 
         // redirect
@@ -87,6 +90,7 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'no_telp' => 'nullable|string|unique:customers,no_telp',
             'address' => 'required|string',
+            'is_loyalty_member' => 'nullable|boolean',
         ]);
 
         try {
@@ -95,6 +99,8 @@ class CustomerController extends Controller
                 'name' => $validated['name'],
                 'no_telp' => $validated['no_telp'],
                 'address' => $validated['address'],
+                'is_loyalty_member' => (bool) ($validated['is_loyalty_member'] ?? false),
+                'loyalty_member_since' => ($validated['is_loyalty_member'] ?? false) ? now() : null,
             ]);
 
             return response()->json([
@@ -105,6 +111,8 @@ class CustomerController extends Controller
                     'name' => $customer->name,
                     'no_telp' => $customer->no_telp,
                     'address' => $customer->address,
+                    'is_loyalty_member' => (bool) $customer->is_loyalty_member,
+                    'loyalty_points' => (int) $customer->loyalty_points,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -145,15 +153,42 @@ class CustomerController extends Controller
             'name' => 'required',
             'no_telp' => 'nullable|unique:customers,no_telp,'.$customer->id,
             'address' => 'required',
+            'is_loyalty_member' => 'nullable|boolean',
+            'loyalty_points' => 'nullable|integer|min:0',
         ]);
 
         // update customer
+        $isLoyaltyChecked = (bool) $request->is_loyalty_member;
+        $loyaltyPoints = $isLoyaltyChecked ? (int) $request->input('loyalty_points', 0) : 0;
+        $loyaltyMemberSince = $customer->loyalty_member_since;
+        if ($isLoyaltyChecked && !$customer->is_loyalty_member) {
+            $loyaltyMemberSince = now();
+        } elseif (!$isLoyaltyChecked) {
+            $loyaltyMemberSince = null;
+        }
+
+        $oldPoints = (int) $customer->loyalty_points;
+
         $customer->update([
             'member_code' => $request->member_code,
             'name' => $request->name,
             'no_telp' => $request->no_telp,
             'address' => $request->address,
+            'is_loyalty_member' => $isLoyaltyChecked,
+            'loyalty_member_since' => $loyaltyMemberSince,
+            'loyalty_points' => $loyaltyPoints,
         ]);
+
+        if ($isLoyaltyChecked && $oldPoints !== $loyaltyPoints) {
+            \App\Models\LoyaltyPointHistory::create([
+                'customer_id' => $customer->id,
+                'type' => 'adjustment',
+                'points_delta' => $loyaltyPoints - $oldPoints,
+                'balance_after' => $loyaltyPoints,
+                'amount_delta' => 0,
+                'notes' => 'Penyesuaian poin oleh Administrator.',
+            ]);
+        }
 
         // redirect
         return to_route('customers.index');

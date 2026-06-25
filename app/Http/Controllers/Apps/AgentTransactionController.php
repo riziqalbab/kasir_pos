@@ -147,7 +147,7 @@ class AgentTransactionController extends Controller
             ],
         );
 
-        return to_route('agent-transactions.index')->with('success', 'Transaksi agen berhasil dicatat.');
+        return back(fallback: route('agent-transactions.index'))->with('success', 'Transaksi agen berhasil dicatat.');
     }
 
     /**
@@ -159,7 +159,7 @@ class AgentTransactionController extends Controller
 
         // Prevent editing if the shift is closed and user is not super admin
         if ($agentTransaction->cashierShift && $agentTransaction->cashierShift->status !== 'open' && ! $request->user()->isSuperAdmin()) {
-            return to_route('agent-transactions.index')->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat diubah.');
+            return back(fallback: route('agent-transactions.index'))->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat diubah.');
         }
 
         $validated = $request->validate([
@@ -195,7 +195,7 @@ class AgentTransactionController extends Controller
             ],
         );
 
-        return to_route('agent-transactions.index')->with('success', 'Transaksi agen berhasil diperbarui.');
+        return back(fallback: route('agent-transactions.index'))->with('success', 'Transaksi agen berhasil diperbarui.');
     }
 
     /**
@@ -205,7 +205,7 @@ class AgentTransactionController extends Controller
     {
         // Prevent editing if the shift is closed and user is not super admin
         if ($agentTransaction->cashierShift && $agentTransaction->cashierShift->status !== 'open' && ! $request->user()->isSuperAdmin()) {
-            return to_route('agent-transactions.index')->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat diubah.');
+            return back(fallback: route('agent-transactions.index'))->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat diubah.');
         }
 
         $request->validate([
@@ -227,7 +227,7 @@ class AgentTransactionController extends Controller
             ],
         );
 
-        return to_route('agent-transactions.index')->with('success', 'Status transaksi agen berhasil diperbarui.');
+        return back(fallback: route('agent-transactions.index'))->with('success', 'Status transaksi agen berhasil diperbarui.');
     }
 
     /**
@@ -237,7 +237,7 @@ class AgentTransactionController extends Controller
     {
         // Prevent deleting if the shift is closed and user is not super admin
         if ($agentTransaction->cashierShift && $agentTransaction->cashierShift->status !== 'open' && ! $request->user()->isSuperAdmin()) {
-            return to_route('agent-transactions.index')->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat dihapus.');
+            return back(fallback: route('agent-transactions.index'))->with('error', 'Transaksi pada shift yang sudah ditutup tidak dapat dihapus.');
         }
 
         $before = $agentTransaction->toArray();
@@ -251,7 +251,7 @@ class AgentTransactionController extends Controller
             before: $before,
         );
 
-        return to_route('agent-transactions.index')->with('success', 'Transaksi agen berhasil dihapus.');
+        return back(fallback: route('agent-transactions.index'))->with('success', 'Transaksi agen berhasil dihapus.');
     }
 
     /**

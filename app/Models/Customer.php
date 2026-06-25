@@ -28,11 +28,24 @@ class Customer extends Model
         'district_name',
         'village_id',
         'village_name',
+        'is_loyalty_member',
+        'loyalty_tier',
+        'loyalty_points',
+        'loyalty_total_spent',
+        'loyalty_transaction_count',
+        'loyalty_member_since',
     ];
 
     protected $casts = [
         'last_purchase_at' => 'datetime',
+        'is_loyalty_member' => 'boolean',
+        'loyalty_member_since' => 'datetime',
     ];
+
+    public function loyaltyPointHistories()
+    {
+        return $this->hasMany(LoyaltyPointHistory::class);
+    }
 
     public function salesReturns()
     {

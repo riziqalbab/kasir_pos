@@ -114,6 +114,10 @@ class ReceivableController extends Controller
                 $receivable->transaction->update([
                     'payment_status' => $receivable->status === 'paid' ? 'paid' : 'unpaid',
                 ]);
+
+                if ($receivable->status === 'paid') {
+                    app(\App\Services\LoyaltyService::class)->awardPointsForTransaction($receivable->transaction);
+                }
             }
         });
 

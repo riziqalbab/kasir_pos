@@ -24,6 +24,7 @@ class SalesReportController extends Controller
             'invoice' => $request->input('invoice'),
             'cashier_id' => $request->input('cashier_id'),
             'customer_id' => $request->input('customer_id'),
+            'item_type' => $request->input('item_type'),
         ];
 
         $baseListQuery = $this->applyFilters(
@@ -58,14 +59,51 @@ class SalesReportController extends Controller
             ? Profit::whereIn('transaction_id', $transactionIds)->sum('total')
             : 0;
 
+        // Compute breakdowns
+        if ($transactionIds->isNotEmpty()) {
+            $revenueProduct = (int) TransactionDetail::whereIn('transaction_id', $transactionIds)->whereNotNull('product_id')->sum('price');
+            $revenueService = (int) TransactionDetail::whereIn('transaction_id', $transactionIds)->whereNotNull('service_id')->sum('price');
+
+            $profitProduct = (int) Profit::whereIn('transaction_id', $transactionIds)->whereNotNull('product_id')->sum('total');
+            $profitService = (int) Profit::whereIn('transaction_id', $transactionIds)->whereNotNull('service_id')->sum('total');
+
+            $itemsProduct = (int) TransactionDetail::whereIn('transaction_id', $transactionIds)->whereNotNull('product_id')->sum('qty');
+            $itemsService = (int) TransactionDetail::whereIn('transaction_id', $transactionIds)->whereNotNull('service_id')->sum('qty');
+        } else {
+            $revenueProduct = $revenueService = 0;
+            $profitProduct = $profitService = 0;
+            $itemsProduct = $itemsService = 0;
+        }
+
+        $itemType = $filters['item_type'] ?? null;
+        if ($itemType === 'produk') {
+            $displayRevenue = $revenueProduct;
+            $displayProfit = $profitProduct;
+            $displayItemsSold = $itemsProduct;
+        } elseif ($itemType === 'jasa') {
+            $displayRevenue = $revenueService;
+            $displayProfit = $profitService;
+            $displayItemsSold = $itemsService;
+        } else {
+            $displayRevenue = (int) ($totals->revenue_total ?? 0);
+            $displayProfit = (int) $profitTotal;
+            $displayItemsSold = (int) $itemsSold;
+        }
+
         $summary = [
             'orders_count' => (int) ($totals->orders_count ?? 0),
-            'revenue_total' => (int) ($totals->revenue_total ?? 0),
+            'revenue_total' => $displayRevenue,
+            'revenue_product' => $revenueProduct,
+            'revenue_service' => $revenueService,
             'discount_total' => (int) ($totals->discount_total ?? 0),
-            'items_sold' => (int) $itemsSold,
-            'profit_total' => (int) $profitTotal,
+            'items_sold' => $displayItemsSold,
+            'items_product' => $itemsProduct,
+            'items_service' => $itemsService,
+            'profit_total' => $displayProfit,
+            'profit_product' => $profitProduct,
+            'profit_service' => $profitService,
             'average_order' => ($totals->orders_count ?? 0) > 0
-                ? (int) round($totals->revenue_total / $totals->orders_count)
+                ? (int) round(($totals->revenue_total ?? 0) / $totals->orders_count)
                 : 0,
         ];
 
@@ -88,6 +126,13 @@ class SalesReportController extends Controller
             ->when($filters['cashier_id'] ?? null, fn ($q, $cashier) => $q->where('cashier_id', $cashier))
             ->when($filters['customer_id'] ?? null, fn ($q, $customer) => $q->where('customer_id', $customer))
             ->when($filters['start_date'] ?? null, fn ($q, $start) => $q->whereDate('created_at', '>=', $start))
-            ->when($filters['end_date'] ?? null, fn ($q, $end) => $q->whereDate('created_at', '<=', $end));
+            ->when($filters['end_date'] ?? null, fn ($q, $end) => $q->whereDate('created_at', '<=', $end))
+            ->when($filters['item_type'] ?? null, function ($q, $type) {
+                if ($type === 'produk') {
+                    return $q->whereHas('details', fn($query) => $query->whereNotNull('product_id'));
+                } elseif ($type === 'jasa') {
+                    return $q->whereHas('details', fn($query) => $query->whereNotNull('service_id'));
+                }
+            });
     }
 }

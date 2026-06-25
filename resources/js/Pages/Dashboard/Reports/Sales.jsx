@@ -49,6 +49,7 @@ const defaultFilterState = {
     invoice: "",
     cashier_id: "",
     customer_id: "",
+    item_type: "",
 };
 
 const formatCurrency = (value = 0) =>
@@ -70,6 +71,7 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
         invoice: castFilterString(filters?.invoice),
         cashier_id: castFilterString(filters?.cashier_id),
         customer_id: castFilterString(filters?.customer_id),
+        item_type: castFilterString(filters?.item_type),
     });
 
     const cashierFromFilters = useMemo(
@@ -108,6 +110,7 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
             invoice: castFilterString(filters?.invoice),
             cashier_id: castFilterString(filters?.cashier_id),
             customer_id: castFilterString(filters?.customer_id),
+            item_type: castFilterString(filters?.item_type),
         });
     }, [filters]);
 
@@ -154,7 +157,8 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
         filterData.start_date ||
         filterData.end_date ||
         filterData.cashier_id ||
-        filterData.customer_id;
+        filterData.customer_id ||
+        filterData.item_type;
 
     const safeSummary = {
         orders_count: summary?.orders_count ?? 0,
@@ -169,23 +173,21 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
         {
             title: "Pendapatan Bersih",
             value: formatCurrency(safeSummary.revenue_total),
-            description: "Total setelah diskon",
+            description: `Barang: ${formatCurrency(summary?.revenue_product ?? 0)} • Jasa: ${formatCurrency(summary?.revenue_service ?? 0)}`,
             icon: <IconReceipt2 />,
             gradient: "from-primary-500 to-primary-700",
         },
         {
             title: "Total Profit",
             value: formatCurrency(safeSummary.profit_total),
-            description: `Rata-rata ${formatCurrency(
-                safeSummary.average_order
-            )}`,
+            description: `Barang: ${formatCurrency(summary?.profit_product ?? 0)} • Jasa: ${formatCurrency(summary?.profit_service ?? 0)}`,
             icon: <IconCoin />,
             gradient: "from-success-500 to-success-700",
         },
         {
             title: "Item Terjual",
             value: safeSummary.items_sold.toLocaleString("id-ID"),
-            description: `${safeSummary.orders_count} transaksi`,
+            description: `Barang: ${(summary?.items_product ?? 0).toLocaleString("id-ID")} • Jasa: ${(summary?.items_service ?? 0).toLocaleString("id-ID")}`,
             icon: <IconShoppingBag />,
             gradient: "from-accent-500 to-accent-700",
         },
@@ -244,7 +246,7 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
                 {showFilters && (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 animate-slide-up">
                         <form onSubmit={applyFilters}>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         Tanggal Mulai
@@ -293,6 +295,25 @@ const Sales = ({ transactions, summary, filters, cashiers, customers }) => {
                                         }
                                         className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Tipe Item
+                                    </label>
+                                    <select
+                                        value={filterData.item_type}
+                                        onChange={(e) =>
+                                            handleChange(
+                                                "item_type",
+                                                e.target.value
+                                            )
+                                        }
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-850 dark:text-slate-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm outline-none cursor-pointer"
+                                    >
+                                        <option value="">Semua Tipe</option>
+                                        <option value="produk">Produk / Barang</option>
+                                        <option value="jasa">Jasa / Layanan</option>
+                                    </select>
                                 </div>
                                 <InputSelect
                                     label="Kasir"

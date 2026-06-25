@@ -5,7 +5,7 @@ import React, {
     useCallback,
     useRef,
 } from "react";
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head, router, usePage, useForm } from "@inertiajs/react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import POSLayout from "@/Layouts/POSLayout";
@@ -20,6 +20,7 @@ import HeldTransactions, {
 import useBarcodeScanner from "@/Hooks/useBarcodeScanner";
 import { getProductImageUrl } from "@/Utils/imageUrl";
 import { useAuthorization } from "@/Utils/authorization";
+import Pagination from "@/Components/Dashboard/Pagination";
 import {
     IconUser,
     IconShoppingCart,
@@ -33,6 +34,18 @@ import {
     IconAlertTriangle,
     IconWallet,
     IconTools,
+    IconPlus,
+    IconSearch,
+    IconX,
+    IconPencil,
+    IconPrinter,
+    IconTrendingUp,
+    IconCurrencyDollar,
+    IconAlertCircle,
+    IconDeviceFloppy,
+    IconCalendar,
+    IconPercentage,
+    IconRefresh,
 } from "@tabler/icons-react";
 
 const formatPrice = (value = 0) =>
@@ -54,6 +67,13 @@ export default function Index({
     paymentGateways = [],
     defaultPaymentGateway = "cash",
     bankAccounts = [],
+    // Agent props
+    agentTransactions = {},
+    agentFilters = {},
+    agentStats = {},
+    agentTransactionTypes = [],
+    agentAdminBanks = [],
+    agentAdminLokets = [],
 }) {
     const {
         auth,
@@ -66,8 +86,54 @@ export default function Index({
 
     // State
     const urlParams = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
-    const initialMode = urlParams.get("mode") === "jasa" ? "jasa" : "produk";
-    const [transactionMode, setTransactionMode] = useState(initialMode);
+    const getInitialMode = () => {
+        const mode = urlParams.get("mode");
+        if (mode === "jasa") return "jasa";
+        if (mode === "agen_link") return "agen_link";
+        return "produk";
+    };
+    const [transactionMode, setTransactionMode] = useState(getInitialMode());
+
+    // Agent Permissions
+    const canCreateAgent = can("agent-transactions-create") && activeCashierShift !== null;
+    const canEditAgent = can("agent-transactions-edit");
+    const canDeleteAgent = can("agent-transactions-delete");
+
+    // Agent useForm
+    const {
+        data: agentData,
+        setData: setAgentData,
+        post: postAgent,
+        put: putAgent,
+        processing: agentProcessing,
+        errors: agentErrors,
+        reset: resetAgent,
+        clearErrors: clearAgentErrors,
+    } = useForm({
+        agent_transaction_type_id: "",
+        bank_account_id: "",
+        agent_admin_bank_id: "",
+        agent_admin_loket_id: "",
+        customer_name: "",
+        customer_phone: "",
+        reference_number: "",
+        nominal: "",
+        admin_fee_customer: 0,
+        admin_fee_bank: 0,
+        admin_fee_payment_method: "cash",
+        status: "success",
+        notes: "",
+    });
+
+    const [editingAgentTx, setEditingAgentTx] = useState(null);
+
+    // Agent filters
+    const [agentSearch, setAgentSearch] = useState(agentFilters?.search || "");
+    const [agentStartDate, setAgentStartDate] = useState(agentFilters?.start_date || "");
+    const [agentEndDate, setAgentEndDate] = useState(agentFilters?.end_date || "");
+    const [agentTypeId, setAgentTypeId] = useState(agentFilters?.type_id || "");
+    const [agentBankAccountId, setAgentBankAccountId] = useState(agentFilters?.bank_account_id || "");
+    const [agentStatusFilter, setAgentStatusFilter] = useState(agentFilters?.status || "");
 
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -527,6 +593,161 @@ export default function Index({
         );
     };
 
+    // Agent Transaction Handlers
+    const handleAgentFilterSubmit = (e) => {
+        e.preventDefault();
+        router.get(
+            route("transactions.index"),
+            {
+                mode: "agen_link",
+                search: agentSearch,
+                start_date: agentStartDate,
+                end_date: agentEndDate,
+                type_id: agentTypeId,
+                bank_account_id: agentBankAccountId,
+                status: agentStatusFilter,
+            },
+            { preserveState: true }
+        );
+    };
+
+    const handleAgentResetFilters = () => {
+        setAgentSearch("");
+        setAgentStartDate("");
+        setAgentEndDate("");
+        setAgentTypeId("");
+        setAgentBankAccountId("");
+        setAgentStatusFilter("");
+        router.get(
+            route("transactions.index"),
+            { mode: "agen_link" },
+            { preserveState: true }
+        );
+    };
+
+    const handleAgentTypeChange = (id) => {
+        setAgentData("agent_transaction_type_id", id);
+        const selectedType = agentTransactionTypes.find((t) => t.id === parseInt(id));
+        if (selectedType) {
+            const matchingBank = agentAdminBanks.find((b) => b.amount === selectedType.default_admin_fee_bank);
+            const matchingLoket = agentAdminLokets.find((l) => l.amount === selectedType.default_admin_fee_customer);
+
+            setAgentData((prevData) => ({
+                ...prevData,
+                agent_transaction_type_id: id,
+                admin_fee_customer: selectedType.default_admin_fee_customer,
+                admin_fee_bank: selectedType.default_admin_fee_bank,
+                agent_admin_bank_id: matchingBank ? matchingBank.id : "",
+                agent_admin_loket_id: matchingLoket ? matchingLoket.id : "",
+            }));
+        }
+    };
+
+    const handleAgentAdminBankChange = (id) => {
+        const selectedBank = agentAdminBanks.find((b) => b.id === parseInt(id));
+        setAgentData((prevData) => ({
+            ...prevData,
+            agent_admin_bank_id: id,
+            admin_fee_bank: selectedBank ? selectedBank.amount : 0,
+        }));
+    };
+
+    const handleAgentAdminLoketChange = (id) => {
+        const selectedLoket = agentAdminLokets.find((l) => l.id === parseInt(id));
+        setAgentData((prevData) => ({
+            ...prevData,
+            agent_admin_loket_id: id,
+            admin_fee_customer: selectedLoket ? selectedLoket.amount : 0,
+        }));
+    };
+
+    const handleAgentSubmit = (e) => {
+        e.preventDefault();
+        if (editingAgentTx) {
+            putAgent(route("agent-transactions.update", editingAgentTx.id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Transaksi agen diperbarui.");
+                    setEditingAgentTx(null);
+                    resetAgent();
+                },
+                onError: () => {
+                    toast.error("Gagal memperbarui transaksi.");
+                }
+            });
+        } else {
+            postAgent(route("agent-transactions.store"), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Transaksi agen dicatat.");
+                    resetAgent();
+                },
+                onError: () => {
+                    toast.error("Gagal mencatat transaksi.");
+                }
+            });
+        }
+    };
+
+    const handleAgentStatusChange = (tx, newStatus) => {
+        router.patch(
+            route("agent-transactions.status", tx.id),
+            { status: newStatus },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success("Status transaksi berhasil diubah"),
+                onError: (errors) => toast.error(errors?.message || "Gagal mengubah status"),
+            }
+        );
+    };
+
+    const handleAgentDelete = (tx) => {
+        if (confirm(`Hapus transaksi senilai Rp ${new Intl.NumberFormat("id-ID").format(tx.nominal)}?`)) {
+            router.delete(route("agent-transactions.destroy", tx.id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Catatan transaksi berhasil dihapus");
+                    if (editingAgentTx?.id === tx.id) {
+                        handleCancelEditAgent();
+                    }
+                },
+                onError: (errors) => toast.error(errors?.message || "Gagal menghapus transaksi"),
+            });
+        }
+    };
+
+    const handleEditAgent = (tx) => {
+        clearAgentErrors();
+        setEditingAgentTx(tx);
+        setAgentData({
+            agent_transaction_type_id: tx.agent_transaction_type_id,
+            bank_account_id: tx.bank_account_id || "",
+            agent_admin_bank_id: tx.agent_admin_bank_id || "",
+            agent_admin_loket_id: tx.agent_admin_loket_id || "",
+            customer_name: tx.customer_name || "",
+            customer_phone: tx.customer_phone || "",
+            reference_number: tx.reference_number || "",
+            nominal: tx.nominal,
+            admin_fee_customer: tx.admin_fee_customer,
+            admin_fee_bank: tx.admin_fee_bank,
+            admin_fee_payment_method: tx.admin_fee_payment_method,
+            status: tx.status,
+            notes: tx.notes || "",
+        });
+        setMobileView("cart");
+    };
+
+    const handleCancelEditAgent = () => {
+        setEditingAgentTx(null);
+        resetAgent();
+        clearAgentErrors();
+    };
+
+    const selectedAgentType = agentTransactionTypes.find((t) => t.id === parseInt(agentData.agent_transaction_type_id));
+    const agentTxTotal = selectedAgentType && selectedAgentType.type === 'debet'
+        ? (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0)
+        : (parseInt(agentData.nominal) || 0);
+
     // Filter products or services based on mode
     const displayItems = useMemo(() => {
         if (transactionMode === "jasa") {
@@ -681,7 +902,7 @@ export default function Index({
                     </button>
                 </div>
 
-                {/* Left Panel - Products */}
+                {/* Left Panel - Products or Agent Link */}
                 <div
                     className={`flex-1 bg-slate-100 dark:bg-slate-950 overflow-hidden ${
                         mobileView !== "products"
@@ -718,41 +939,290 @@ export default function Index({
                             </button>
                             <button
                                 type="button"
-                                onClick={() => router.visit(route("agent-transactions.index"))}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                onClick={() => setTransactionMode("agen_link")}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    transactionMode === "agen_link"
+                                        ? "bg-white dark:bg-slate-950/20 dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                }`}
                             >
                                 <IconBuildingBank size={16} />
                                 <span>Agen Link</span>
                             </button>
                         </div>
                         {transactionMode === "jasa" && (
-                            <span className="text-xs font-semibold text-slate-505 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
                                 Mode Jasa Aktif
+                            </span>
+                        )}
+                        {transactionMode === "agen_link" && (
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
+                                Mode Agen Link Aktif
                             </span>
                         )}
                     </div>
 
-                    <ProductGrid
-                        products={displayItems}
-                        categories={transactionMode === "produk" ? categories : []}
-                        selectedCategory={transactionMode === "produk" ? selectedCategory : null}
-                        onCategoryChange={(categoryId) =>
-                            setSelectedCategory(
-                                categoryId === null ? null : Number(categoryId)
-                            )
-                        }
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        isSearching={isSearching}
-                        onAddToCart={handleAddToCart}
-                        addingProductId={addingProductId}
-                        searchInputRef={searchInputRef}
-                        placeholder={
-                            transactionMode === "produk"
-                                ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
-                                : "Cari jasa / layanan... (tekan / untuk fokus)"
-                        }
-                    />
+                    {transactionMode === "agen_link" ? (
+                        /* Agent Link History List & Stats */
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white p-3 rounded-xl shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Volume Transaksi</span>
+                                    <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_volume || 0)}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white p-3 rounded-xl shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Laba Bersih</span>
+                                    <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_profit || 0)}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-3 rounded-xl shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Admin Loket</span>
+                                    <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_customer_fees || 0)}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-rose-500 to-rose-700 text-white p-3 rounded-xl shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Admin Bank</span>
+                                    <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_bank_fees || 0)}</p>
+                                </div>
+                            </div>
+
+                            {/* Search & Filter Card */}
+                            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                <form onSubmit={handleAgentFilterSubmit} className="space-y-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Cari Pelanggan/Ref</label>
+                                            <input
+                                                type="text"
+                                                value={agentSearch}
+                                                onChange={(e) => setAgentSearch(e.target.value)}
+                                                placeholder="Cari..."
+                                                className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Tipe Transaksi</label>
+                                            <select
+                                                value={agentTypeId}
+                                                onChange={(e) => setAgentTypeId(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            >
+                                                <option value="">Semua</option>
+                                                {agentTransactionTypes.map((type) => (
+                                                    <option key={type.id} value={type.id}>
+                                                        {type.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">EDC / Rekening</label>
+                                            <select
+                                                value={agentBankAccountId}
+                                                onChange={(e) => setAgentBankAccountId(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            >
+                                                <option value="">Semua</option>
+                                                {bankAccounts.map((bank) => (
+                                                    <option key={bank.id} value={bank.id}>
+                                                        {bank.bank_name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Status</label>
+                                            <select
+                                                value={agentStatusFilter}
+                                                onChange={(e) => setAgentStatusFilter(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            >
+                                                <option value="">Semua</option>
+                                                <option value="success">Berhasil</option>
+                                                <option value="pending">Pending</option>
+                                                <option value="failed">Gagal</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Tgl Mulai</label>
+                                            <input
+                                                type="date"
+                                                value={agentStartDate}
+                                                onChange={(e) => setAgentStartDate(e.target.value)}
+                                                className="w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Tgl Akhir</label>
+                                            <input
+                                                type="date"
+                                                value={agentEndDate}
+                                                onChange={(e) => setAgentEndDate(e.target.value)}
+                                                className="w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={handleAgentResetFilters}
+                                            className="px-2.5 py-1 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                        >
+                                            Reset
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-2.5 py-1 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-semibold shadow-md transition-colors"
+                                        >
+                                            Filter
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            {/* List Table Card */}
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Waktu</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Layanan</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">EDC/Bank</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Nominal</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Admin Loket</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Laba</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Status</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400 text-right">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {agentTransactions?.data && agentTransactions.data.length > 0 ? (
+                                                agentTransactions.data.map((tx) => (
+                                                    <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                                                        <td className="p-3 text-slate-500 whitespace-nowrap">
+                                                            {tx.transaction_date ? new Date(tx.transaction_date).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }) : "-"}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <p className="font-semibold text-slate-800 dark:text-slate-200">
+                                                                {tx.agent_transaction_type?.name || "-"}
+                                                            </p>
+                                                            {tx.customer_name && (
+                                                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                    Cst: {tx.customer_name}
+                                                                </p>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 text-slate-600 dark:text-slate-400">
+                                                            {tx.bank_account ? (
+                                                                <span className="font-medium">{tx.bank_account.bank_name}</span>
+                                                            ) : (
+                                                                <span className="text-slate-400">Cash</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                                            {formatPrice(tx.nominal)}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <p className="font-semibold text-slate-700 dark:text-slate-300">{formatPrice(tx.admin_fee_customer)}</p>
+                                                            <span className="inline-block px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-500 uppercase font-bold">
+                                                                {tx.admin_fee_payment_method}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
+                                                            {formatPrice(tx.net_profit)}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <select
+                                                                value={tx.status}
+                                                                onChange={(e) => handleAgentStatusChange(tx, e.target.value)}
+                                                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold focus:outline-none border-0 ring-1 ring-inset cursor-pointer ${
+                                                                    tx.status === "success"
+                                                                        ? "bg-success-50 text-success-700 ring-success-600/10 dark:bg-success-950/20 dark:text-success-400"
+                                                                        : tx.status === "pending"
+                                                                        ? "bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-950/20 dark:text-amber-400"
+                                                                        : "bg-danger-50 text-danger-700 ring-danger-600/10 dark:bg-danger-950/20 dark:text-danger-400"
+                                                                }`}
+                                                            >
+                                                                <option value="success">Berhasil</option>
+                                                                <option value="pending">Pending</option>
+                                                                <option value="failed">Gagal</option>
+                                                            </select>
+                                                        </td>
+                                                        <td className="p-3 text-right">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <a
+                                                                    href={route("agent-transactions.print", tx.id)}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="p-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                                    title="Cetak Struk"
+                                                                >
+                                                                    <IconPrinter size={16} />
+                                                                </a>
+                                                                {canEditAgent && (
+                                                                    <button
+                                                                        onClick={() => handleEditAgent(tx)}
+                                                                        className="p-1 rounded text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-950/20"
+                                                                        title="Edit Transaksi"
+                                                                    >
+                                                                        <IconPencil size={16} />
+                                                                    </button>
+                                                                )}
+                                                                {canDeleteAgent && (
+                                                                    <button
+                                                                        onClick={() => handleAgentDelete(tx)}
+                                                                        className="p-1 rounded text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-950/20"
+                                                                        title="Hapus Catatan"
+                                                                    >
+                                                                        <IconTrash size={16} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="8" className="p-8 text-center text-slate-400">
+                                                        Tidak ada catatan transaksi agen.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {agentTransactions?.links && (
+                                    <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+                                        <Pagination links={agentTransactions.links} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        /* Standard POS Product/Service Grid */
+                        <ProductGrid
+                            products={displayItems}
+                            categories={transactionMode === "produk" ? categories : []}
+                            selectedCategory={transactionMode === "produk" ? selectedCategory : null}
+                            onCategoryChange={(categoryId) =>
+                                setSelectedCategory(
+                                    categoryId === null ? null : Number(categoryId)
+                                )
+                            }
+                            searchQuery={searchQuery}
+                            onSearchChange={setSearchQuery}
+                            isSearching={isSearching}
+                            onAddToCart={handleAddToCart}
+                            addingProductId={addingProductId}
+                            searchInputRef={searchInputRef}
+                            placeholder={
+                                transactionMode === "produk"
+                                    ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
+                                    : "Cari jasa / layanan... (tekan / untuk fokus)"
+                            }
+                        />
+                    )}
                 </div>
 
                 {/* Right Panel - Cart & Payment */}
@@ -762,225 +1232,447 @@ export default function Index({
                     }`}
                     style={{ height: "calc(100vh - 4rem)" }}
                 >
-                    {/* Customer Select - Fixed */}
-                    <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-                        <CustomerSelect
-                            customers={customers}
-                            selected={selectedCustomer}
-                            onSelect={setSelectedCustomer}
-                            placeholder="Pilih pelanggan..."
-                            error={errors?.customer_id}
-                            label="Pelanggan"
-                        />
-                    </div>
-
-                    {/* Held Transactions & Alerts */}
-                    {heldCarts.length > 0 && (
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                            <HeldTransactions
-                                heldCarts={heldCarts}
-                                hasActiveCart={carts.length > 0}
-                            />
-                        </div>
-                    )}
-
-                    {/* Cart Items - Scrollable */}
-                    <div className="flex-1 overflow-y-auto min-h-0">
-                        {/* Hold Button - at top of cart section */}
-                        {carts.length > 0 && (
-                            <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                                <HoldButton
-                                    hasItems={carts.length > 0}
-                                    onHold={handleHoldCart}
-                                    isHolding={isHolding}
-                                />
-                            </div>
-                        )}
-
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <IconShoppingCart size={16} />
-                                    Keranjang
+                    {transactionMode === "agen_link" ? (
+                        /* Agent Form Panel */
+                        <div className="flex flex-col h-full overflow-hidden">
+                            {/* Form Header */}
+                            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between flex-shrink-0">
+                                <h3 className="text-sm font-semibold text-slate-850 dark:text-white flex items-center gap-2">
+                                    <IconBuildingBank size={18} className="text-primary-500" />
+                                    {editingAgentTx ? "Edit Pencatatan Agen" : "Catat Transaksi Agen"}
                                 </h3>
-                                {carts.length > 0 && (
-                                    <span className="px-2.5 py-0.5 text-xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300 rounded-full whitespace-nowrap">
-                                        {cartCount} item
-                                    </span>
+                                {editingAgentTx && (
+                                    <button
+                                        onClick={handleCancelEditAgent}
+                                        className="text-xs font-semibold text-rose-500 hover:underline"
+                                    >
+                                        Batal Edit
+                                    </button>
                                 )}
                             </div>
 
-                            {carts.length > 0 ? (
-                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                                    {carts.map((item) => (
-                                        (() => {
-                                            const pricingItem =
-                                                pricingItemsByCartId[item.id];
-                                            const baseLineTotal = Number(
-                                                pricingItem?.line_base_total ??
-                                                    item.price ??
-                                                    0
-                                            );
-                                            const effectiveLineTotal = Number(
-                                                pricingItem?.line_total ??
-                                                    item.price ??
-                                                    0
-                                            );
-                                            const effectiveUnitPrice = Number(
-                                                pricingItem?.effective_unit_price ??
-                                                    item.product?.sell_price ??
-                                                    0
-                                            );
-                                            const baseUnitPrice = Number(
-                                                pricingItem?.base_unit_price ??
-                                                    item.product?.sell_price ??
-                                                    0
-                                            );
-                                            const pricingRule =
-                                                pricingItem?.pricing_rule;
+                            {/* Form Body - Scrollable */}
+                            <form onSubmit={handleAgentSubmit} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+                                {/* Type */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Layanan / Tipe Transaksi *</label>
+                                    <select
+                                        value={agentData.agent_transaction_type_id}
+                                        onChange={(e) => handleAgentTypeChange(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        required
+                                    >
+                                        <option value="">-- Pilih Tipe Transaksi --</option>
+                                        {agentTransactionTypes.map((type) => (
+                                            <option key={type.id} value={type.id}>
+                                                [{type.code}] {type.name} ({type.type === 'debet' ? 'Debet/Masuk' : 'Kredit/Keluar'})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {agentErrors.agent_transaction_type_id && <p className="text-xs text-rose-500 mt-1">{agentErrors.agent_transaction_type_id}</p>}
+                                </div>
 
-                                            const availableUnits = [];
-                                            if (item.product) {
-                                                if (item.product?.satuan_jual_pcs) {
-                                                    availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
-                                                } else {
-                                                    availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
-                                                }
-                                                if (item.product?.isi_pcs_dalam_pack > 0) {
-                                                    availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
-                                                }
-                                                if (item.product?.isi_pcs_dalam_dus > 0) {
-                                                    availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
-                                                }
-                                            } else if (item.service) {
-                                                if (item.service.service_prices) {
-                                                    item.service.service_prices.forEach((sp) => {
-                                                        availableUnits.push({
-                                                            key: String(sp.unit_id),
-                                                            label: sp.unit?.name || "Unit",
-                                                            price: Number(sp.price || 0),
-                                                        });
-                                                    });
-                                                }
-                                            }
+                                {/* Bank Account */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">EDC / Sumber Rekening Agen</label>
+                                    <select
+                                        value={agentData.bank_account_id}
+                                        onChange={(e) => setAgentData("bank_account_id", e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="">-- Tanpa Bank (Kas Fisik) --</option>
+                                        {bankAccounts.map((bank) => (
+                                            <option key={bank.id} value={bank.id}>
+                                                {bank.bank_name} - {bank.account_name} ({bank.account_number})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {agentErrors.bank_account_id && <p className="text-xs text-rose-500 mt-1">{agentErrors.bank_account_id}</p>}
+                                </div>
 
-                                            return (
-                                        <div
-                                            key={item.id}
-                                            className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 group"
+                                {/* Nominal */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Transaksi (Rp) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
+                                        <input
+                                            type="number"
+                                            value={agentData.nominal}
+                                            onChange={(e) => setAgentData("nominal", parseInt(e.target.value) || 0)}
+                                            placeholder="0"
+                                            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                    {agentErrors.nominal && <p className="text-xs text-rose-500 mt-1">{agentErrors.nominal}</p>}
+                                </div>
+
+                                {/* Admin Fees Dropdowns */}
+                                <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-800/20 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Admin Loket *</label>
+                                        <select
+                                            value={agentData.agent_admin_loket_id}
+                                            onChange={(e) => handleAgentAdminLoketChange(e.target.value)}
+                                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            required
                                         >
-                                            <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
-                                                {item.product?.image ? (
-                                                    <img
-                                                        src={getProductImageUrl(
-                                                            item.product.image
-                                                        )}
-                                                        alt={item.product.title}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <IconShoppingCart
-                                                            size={14}
-                                                            className="text-slate-400"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
-                                                    {item.product?.title ||
-                                                        item.service?.name ||
-                                                        "Produk"}
-                                                </p>
-                                                <div className="text-xs text-slate-500 flex flex-col gap-1 mt-0.5">
-                                                    {pricingRule &&
-                                                        effectiveUnitPrice <
-                                                            baseUnitPrice && (
-                                                            <p className="line-through text-slate-400">
-                                                                {formatPrice(
-                                                                    baseUnitPrice
-                                                                )}{" "}
-                                                                × {item.qty}
-                                                            </p>
-                                                        )}
-                                                    <p>
-                                                        {formatPrice(
-                                                            effectiveUnitPrice
-                                                        )}{" "}
-                                                        × {item.qty}
-                                                    </p>
-                                                    {availableUnits.length > 1 ? (
-                                                        <select
-                                                            value={item.satuan_key || "pcs"}
-                                                            onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
-                                                            className="text-[9px] font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-fit"
-                                                        >
-                                                            {availableUnits.map((u) => (
-                                                                <option key={u.key} value={u.key}>
-                                                                    {u.label} ({formatPrice(u.price)})
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    ) : (
-                                                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium inline-block w-fit">
-                                                            {item.satuan || "Pcs"}
-                                                        </span>
-                                                    )}
-                                                    {pricingRule && (
-                                                        <p className="mt-0.5 text-[11px] font-medium text-rose-500">
-                                                            {pricingRule.name}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() =>
-                                                        handleUpdateQty(
-                                                            item.id,
-                                                            Math.max(
-                                                                1,
-                                                                item.qty - 1
-                                                            )
-                                                        )
-                                                    }
-                                                    disabled={item.qty <= 1}
-                                                    className="w-6 h-6 rounded flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 disabled:opacity-50 text-xs"
-                                                >
-                                                    -
-                                                </button>
-                                                <span className="w-6 text-center text-xs font-medium">
-                                                    {item.qty}
-                                                </span>
-                                                <button
-                                                    onClick={() =>
-                                                        handleUpdateQty(
-                                                            item.id,
-                                                            item.qty + 1
-                                                        )
-                                                    }
-                                                    className="w-6 h-6 rounded flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 text-xs"
-                                                >
-                                                    +
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        handleRemoveFromCart(
-                                                            item.id
-                                                        )
-                                                    }
-                                                    className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-950/50 ml-1"
-                                                >
-                                                    <IconTrash size={12} />
-                                                </button>
-                                            </div>
-                                            <p className="text-xs font-semibold text-primary-600 dark:text-primary-400 w-16 text-right">
-                                                {formatPrice(
-                                                    effectiveLineTotal
-                                                )}
+                                            <option value="">-- Pilih --</option>
+                                            {agentAdminLokets.map((loket) => (
+                                                <option key={loket.id} value={loket.id}>
+                                                    [{loket.code}] {formatPrice(loket.amount)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {agentErrors.agent_admin_loket_id && <p className="text-xs text-rose-500 mt-0.5">{agentErrors.agent_admin_loket_id}</p>}
+                                        <p className="text-[9px] text-slate-400 mt-1">Biaya: <span className="font-semibold">{formatPrice(agentData.admin_fee_customer)}</span></p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Admin Bank *</label>
+                                        <select
+                                            value={agentData.agent_admin_bank_id}
+                                            onChange={(e) => handleAgentAdminBankChange(e.target.value)}
+                                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            required
+                                        >
+                                            <option value="">-- Pilih --</option>
+                                            {agentAdminBanks.map((bank) => (
+                                                <option key={bank.id} value={bank.id}>
+                                                    [{bank.code}] {formatPrice(bank.amount)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {agentErrors.agent_admin_bank_id && <p className="text-xs text-rose-500 mt-0.5">{agentErrors.agent_admin_bank_id}</p>}
+                                        <p className="text-[9px] text-slate-400 mt-1">Biaya: <span className="font-semibold">{formatPrice(agentData.admin_fee_bank)}</span></p>
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Payment Preview */}
+                                {agentData.agent_transaction_type_id && (
+                                    <div className="p-3.5 rounded-xl bg-primary-50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/30 flex justify-between items-center">
+                                        <div>
+                                            <span className="text-[10px] font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Estimasi Total Pembayaran</span>
+                                            <p className="text-[10px] text-slate-400">
+                                                {selectedAgentType?.type === 'debet' ? "Nominal + Admin Loket" : "Nominal (Tarik Tunai)"}
                                             </p>
                                         </div>
+                                        <span className="text-base font-bold text-primary-600 dark:text-primary-400">
+                                            {formatPrice(agentTxTotal)}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Admin Payment Method & Status */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Admin Diterima Secara</label>
+                                        <select
+                                            value={agentData.admin_fee_payment_method}
+                                            onChange={(e) => setAgentData("admin_fee_payment_method", e.target.value)}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            required
+                                        >
+                                            <option value="cash">Tunai (Laci Kas)</option>
+                                            <option value="bank">Transfer / Saldo Bank</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status Transaksi</label>
+                                        <select
+                                            value={agentData.status}
+                                            onChange={(e) => setAgentData("status", e.target.value)}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                            required
+                                        >
+                                            <option value="success">Berhasil</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="failed">Gagal</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Customer Name & Phone */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Nama Cst (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={agentData.customer_name}
+                                            onChange={(e) => setAgentData("customer_name", e.target.value)}
+                                            placeholder="Nama..."
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">No. Telp (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={agentData.customer_phone}
+                                            onChange={(e) => setAgentData("customer_phone", e.target.value)}
+                                            placeholder="No. HP..."
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Reference Number */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">No. Ref / Struk EDC (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={agentData.reference_number}
+                                        onChange={(e) => setAgentData("reference_number", e.target.value)}
+                                        placeholder="Kode Ref EDC..."
+                                        className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                </div>
+
+                                {/* Notes */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Catatan Tambahan</label>
+                                    <textarea
+                                        value={agentData.notes}
+                                        onChange={(e) => setAgentData("notes", e.target.value)}
+                                        placeholder="Catatan..."
+                                        className="w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-850 dark:text-slate-200 focus:outline-none"
+                                        rows="2"
+                                    />
+                                </div>
+                            </form>
+
+                            {/* Submit Button Block - Fixed at Bottom */}
+                            <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex-shrink-0">
+                                <button
+                                    onClick={handleAgentSubmit}
+                                    disabled={agentProcessing || !canCreateAgent}
+                                    className={`w-full h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                                        canCreateAgent && !agentProcessing
+                                            ? "bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-md shadow-primary-500/20"
+                                            : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                                    }`}
+                                >
+                                    {agentProcessing ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <IconDeviceFloppy size={16} />
+                                            <span>{editingAgentTx ? "Simpan Perubahan" : "Catat Transaksi"}</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Standard POS Cart & Payments */
+                        <>
+                            {/* Customer Select - Fixed */}
+                            <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+                                <CustomerSelect
+                                    customers={customers}
+                                    selected={selectedCustomer}
+                                    onSelect={setSelectedCustomer}
+                                    placeholder="Pilih pelanggan..."
+                                    error={errors?.customer_id}
+                                    label="Pelanggan"
+                                />
+                            </div>
+
+                            {/* Held Transactions & Alerts */}
+                            {heldCarts.length > 0 && (
+                                <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                                    <HeldTransactions
+                                        heldCarts={heldCarts}
+                                        hasActiveCart={carts.length > 0}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Cart Items - Scrollable */}
+                            <div className="flex-1 overflow-y-auto min-h-0">
+                                {/* Hold Button - at top of cart section */}
+                                {carts.length > 0 && (
+                                    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                                        <HoldButton
+                                            hasItems={carts.length > 0}
+                                            onHold={handleHoldCart}
+                                            isHolding={isHolding}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                            <IconShoppingCart size={16} />
+                                            Keranjang
+                                        </h3>
+                                        {carts.length > 0 && (
+                                            <span className="px-2.5 py-0.5 text-xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300 rounded-full whitespace-nowrap">
+                                                {cartCount} item
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {carts.length > 0 ? (
+                                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                                            {carts.map((item) => (
+                                                (() => {
+                                                    const pricingItem =
+                                                        pricingItemsByCartId[item.id];
+                                                    const baseLineTotal = Number(
+                                                        pricingItem?.line_base_total ??
+                                                            item.price ??
+                                                            0
+                                                    );
+                                                    const effectiveLineTotal = Number(
+                                                        pricingItem?.line_total ??
+                                                            item.price ??
+                                                            0
+                                                    );
+                                                    const effectiveUnitPrice = Number(
+                                                        pricingItem?.effective_unit_price ??
+                                                            item.product?.sell_price ??
+                                                            0
+                                                    );
+                                                    const baseUnitPrice = Number(
+                                                        pricingItem?.base_unit_price ??
+                                                            item.product?.sell_price ??
+                                                            0
+                                                    );
+                                                    const pricingRule =
+                                                        pricingItem?.pricing_rule;
+
+                                                    const availableUnits = [];
+                                                    if (item.product) {
+                                                        if (item.product?.satuan_jual_pcs) {
+                                                            availableUnits.push({ key: "pcs", label: item.product.satuan_jual_pcs, price: Number(item.product.harga_jual_pcs || item.product.sell_price || 0) });
+                                                        } else {
+                                                            availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
+                                                        }
+                                                        if (item.product?.isi_pcs_dalam_pack > 0) {
+                                                            availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
+                                                        }
+                                                        if (item.product?.isi_pcs_dalam_dus > 0) {
+                                                            availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
+                                                        }
+                                                    } else if (item.service) {
+                                                        if (item.service.service_prices) {
+                                                            item.service.service_prices.forEach((sp) => {
+                                                                availableUnits.push({
+                                                                    key: String(sp.unit_id),
+                                                                    label: sp.unit?.name || "Unit",
+                                                                    price: Number(sp.price || 0),
+                                                                });
+                                                            });
+                                                        }
+                                                    }
+
+                                                    return (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 group"
+                                                >
+                                                    <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                                                        {item.product?.image ? (
+                                                            <img
+                                                                src={getProductImageUrl(
+                                                                    item.product.image
+                                                                )}
+                                                                alt={item.product.title}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400">
+                                                                {item.is_service ? <IconTools size={18} /> : <IconShoppingCart size={18} />}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                                            {item.product?.title || item.service?.name}
+                                                        </h4>
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            {availableUnits.length > 1 ? (
+                                                                <select
+                                                                    value={item.satuan_key || "pcs"}
+                                                                    onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
+                                                                    disabled={updatingCartId === item.id}
+                                                                    className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-350 focus:outline-none"
+                                                                >
+                                                                    {availableUnits.map((u) => (
+                                                                        <option key={u.key} value={u.key}>
+                                                                            {u.label} ({formatPrice(u.price)})
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            ) : (
+                                                                <span className="text-[10px] text-slate-500 font-medium bg-slate-150 dark:bg-slate-800 px-1 py-0.5 rounded">
+                                                                    {item.satuan_key || "pcs"}
+                                                                </span>
+                                                            )}
+                                                            <span className="text-[10px] text-slate-400">
+                                                                x{item.qty}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-right flex-shrink-0">
+                                                        <div className="text-xs font-bold text-slate-800 dark:text-slate-250">
+                                                            {formatPrice(effectiveLineTotal)}
+                                                        </div>
+                                                        {pricingRule && (
+                                                            <div className="text-[10px] text-emerald-600 font-medium">
+                                                                Promo Aktif
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1">
+                                                        <button
+                                                            onClick={() =>
+                                                                handleUpdateQty(
+                                                                    item.id,
+                                                                    Number(item.qty) - 1
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                Number(item.qty) <= 1 ||
+                                                                updatingCartId === item.id
+                                                            }
+                                                            className="p-1 text-slate-500 hover:text-slate-700 disabled:opacity-30"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleUpdateQty(
+                                                                    item.id,
+                                                                    Number(item.qty) + 1
+                                                                )
+                                                            }
+                                                            disabled={updatingCartId === item.id}
+                                                            className="p-1 text-slate-500 hover:text-slate-700"
+                                                        >
+                                                            +
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleRemoveFromCart(
+                                                                    item.id
+                                                                )
+                                                            }
+                                                            disabled={removingItemId === item.id}
+                                                            className="p-1 text-rose-500 hover:text-rose-700"
+                                                        >
+                                                            <IconTrash size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             );
                                         })()
                                     ))}
@@ -1183,36 +1875,6 @@ export default function Index({
                                     </div>
                                 )}
 
-                            {/* Quick Amounts - Only for cash */}
-                            {paymentMethod === "cash" && (
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                        Nominal Cepat
-                                    </label>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {[10000, 20000, 50000, 100000].map(
-                                            (amt) => (
-                                                <button
-                                                    key={amt}
-                                                    onClick={() =>
-                                                        setCashInput(
-                                                            String(amt)
-                                                        )
-                                                    }
-                                                    className={`py-2 px-1 rounded-lg text-xs font-semibold transition-all ${
-                                                        Number(cashInput) ===
-                                                        amt
-                                                            ? "bg-primary-500 text-white"
-                                                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-                                                    }`}
-                                                >
-                                                    {formatPrice(amt)}
-                                                </button>
-                                            )
-                                        )}
-                                    </div>
-                                </div>
-                            )}
 
                             {/* Discount Input */}
                             {promoDiscount > 0 && (
@@ -1287,25 +1949,7 @@ export default function Index({
                                         className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                                     />
                                 </div>
-                                {/* Quick Shipping Amounts */}
-                                <div className="grid grid-cols-4 gap-2 mt-2">
-                                    {[10000, 15000, 20000, 25000].map((amt) => (
-                                        <button
-                                            key={amt}
-                                            type="button"
-                                            onClick={() =>
-                                                setShippingInput(String(amt))
-                                            }
-                                            className={`py-1.5 px-1 rounded-lg text-xs font-medium transition-all ${
-                                                Number(shippingInput) === amt
-                                                    ? "bg-primary-500 text-white"
-                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-                                            }`}
-                                        >
-                                            {formatPrice(amt)}
-                                        </button>
-                                    ))}
-                                </div>
+
                             </div>
 
                             {/* Cash Input - Only for cash */}
@@ -1400,6 +2044,14 @@ export default function Index({
                                 </span>
                             </div>
                         )}
+                        {pricingPreview?.summary?.points_earned_preview > 0 && (
+                            <div className="flex justify-between items-center mb-2 text-sm">
+                                <span className="text-slate-500">Poin Diperoleh</span>
+                                <span className="font-semibold text-primary-600 dark:text-primary-400">
+                                    +{pricingPreview.summary.points_earned_preview} Poin
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center mb-3">
                             <span className="font-semibold text-slate-800 dark:text-white">
                                 Total
@@ -1467,6 +2119,8 @@ export default function Index({
                             )}
                         </button>
                     </div>
+                        </>
+                    )}
                 </div>
             </div>
 

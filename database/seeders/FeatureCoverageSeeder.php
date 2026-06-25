@@ -163,6 +163,9 @@ class FeatureCoverageSeeder extends Seeder
             'store_email' => ['value' => 'halo@majubersama.test', 'description' => 'Email toko'],
             'store_website' => ['value' => 'https://majubersama.test', 'description' => 'Website atau sosial media'],
             'store_city' => ['value' => 'Bandung', 'description' => 'Kota/Kabupaten toko'],
+            'loyalty_points_enabled' => ['value' => '0', 'description' => 'Status aktif sistem poin pelanggan'],
+            'loyalty_points_threshold' => ['value' => '10000', 'description' => 'Minimal nominal belanja per transaksi untuk dapat poin'],
+            'loyalty_points_awarded' => ['value' => '1', 'description' => 'Jumlah poin yang diperoleh per kelipatan threshold'],
         ];
 
         foreach ($settings as $key => $payload) {

@@ -22,6 +22,7 @@ export default function AddCustomerModal({
         name: "",
         no_telp: "",
         address: "",
+        is_loyalty_member: true,
     });
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,6 +65,7 @@ export default function AddCustomerModal({
                     name: "",
                     no_telp: "",
                     address: "",
+                    is_loyalty_member: true,
                 });
                 setIsSubmitting(false);
                 onSuccess?.(response.data.customer);
@@ -93,6 +95,7 @@ export default function AddCustomerModal({
             name: "",
             no_telp: "",
             address: "",
+            is_loyalty_member: true,
         });
         setErrors({});
         onClose();
@@ -225,6 +228,21 @@ export default function AddCustomerModal({
                                 {errors.address}
                             </p>
                         )}
+                    </div>
+
+                    {/* Checkbox Loyalty Member */}
+                    <div className="flex items-center gap-2 py-1">
+                        <input
+                            type="checkbox"
+                            name="is_loyalty_member"
+                            id="is_loyalty_member"
+                            checked={form.is_loyalty_member}
+                            onChange={(e) => setForm(prev => ({ ...prev, is_loyalty_member: e.target.checked }))}
+                            className="rounded border-slate-300 dark:border-slate-700 text-primary-600 focus:ring-primary-500"
+                        />
+                        <label htmlFor="is_loyalty_member" className="text-sm font-medium text-slate-700 dark:text-slate-300 select-none cursor-pointer">
+                            Aktifkan sebagai Member Loyalty (Dapatkan Poin)
+                        </label>
                     </div>
 
 

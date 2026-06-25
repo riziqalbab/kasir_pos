@@ -46,8 +46,13 @@ function CustomerCard({ customer, canUpdate, canDelete }) {
                             </Link>
                         </h3>
                         {customer.member_code && (
-                            <span className="inline-block text-[10px] font-semibold bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-400 px-2 py-0.5 rounded mt-1">
+                            <span className="inline-block text-[10px] font-semibold bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-400 px-2 py-0.5 rounded mt-1 mr-1">
                                 {customer.member_code}
+                            </span>
+                        )}
+                        {customer.is_loyalty_member && (
+                            <span className="inline-block text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded mt-1">
+                                {customer.loyalty_points || 0} Poin
                             </span>
                         )}
                     </div>
@@ -202,6 +207,7 @@ export default function Index({ customers }) {
                                     <Table.Th>Pelanggan</Table.Th>
                                     <Table.Th>No. Telepon</Table.Th>
                                     <Table.Th>Alamat</Table.Th>
+                                    <Table.Th>Poin</Table.Th>
                                     <Table.Th></Table.Th>
                                 </tr>
                             </Table.Thead>
@@ -260,6 +266,17 @@ export default function Index({ customers }) {
                                             <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">
                                                 {customer.address || "-"}
                                             </p>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            {customer.is_loyalty_member ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                                    {customer.loyalty_points || 0} Poin
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 dark:text-slate-600">
+                                                    Bukan Member
+                                                </span>
+                                            )}
                                         </Table.Td>
                                         <Table.Td>
                                             <div className="flex gap-2">

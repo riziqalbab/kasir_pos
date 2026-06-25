@@ -253,14 +253,6 @@ export default function Create({ categories, units = [] }) {
                                 />
                                 <Input
                                     type="text"
-                                    label="SKU (Opsional)"
-                                    value={data.sku}
-                                    onChange={(e) => setData("sku", e.target.value)}
-                                    errors={errors.sku}
-                                    placeholder="Masukkan SKU unik (atau kosongkan untuk auto-generate)"
-                                />
-                                <Input
-                                    type="text"
                                     label="Nama Produk"
                                     value={data.title}
                                     onChange={(e) =>

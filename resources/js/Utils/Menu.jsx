@@ -352,6 +352,13 @@ export default function Menu() {
                     icon: <IconChartInfographic size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["dashboard-access"]),
                 },
+                {
+                    title: "Poin Pelanggan",
+                    href: route("settings.loyalty"),
+                    active: url === "/dashboard/settings/loyalty",
+                    icon: <IconCrown size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["dashboard-access"]),
+                },
             ],
         },
     ];

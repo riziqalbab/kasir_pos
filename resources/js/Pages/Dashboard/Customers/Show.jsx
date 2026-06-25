@@ -66,7 +66,7 @@ export default function Show({
                             <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">
                                 Ringkasan Pelanggan
                             </h2>
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
                                     <p className="text-xs uppercase tracking-wide text-slate-500">
                                         Total Transaksi
@@ -92,7 +92,15 @@ export default function Show({
                                             ? new Date(
                                                   stats.last_visit
                                               ).toLocaleDateString("id-ID")
-                                            : "-"}
+                                             : "-"}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        Poin Loyalty
+                                    </p>
+                                    <p className="mt-2 text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                        {customer.is_loyalty_member ? `${customer.loyalty_points || 0} Poin` : "Bukan Member"}
                                     </p>
                                 </div>
                             </div>

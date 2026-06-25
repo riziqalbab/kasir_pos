@@ -32,9 +32,10 @@ class TransactionController extends Controller
     /**
      * index
      *
+     * @param  \Illuminate\Http\Request  $request
      * @return void
      */
-    public function index()
+    public function index(Request $request)
     {
         $userId = auth()->user()->id;
         $activeShift = $this->cashierShiftService->getActiveShiftForUser($userId);
@@ -119,6 +120,58 @@ class TransactionController extends Controller
         // Get active bank accounts for bank transfer
         $bankAccounts = \App\Models\BankAccount::active()->ordered()->get();
 
+        // Agent Transactions data (for Unified POS Agen Link mode)
+        $agentFilters = [
+            'search' => $request->input('search'),
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'type_id' => $request->input('type_id'),
+            'bank_account_id' => $request->input('bank_account_id'),
+            'status' => $request->input('status'),
+        ];
+
+        $agentQuery = \App\Models\AgentTransaction::query()
+            ->with(['agentTransactionType', 'bankAccount', 'cashier:id,name', 'agentAdminBank', 'agentAdminLoket'])
+            ->when($agentFilters['search'], function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('customer_name', 'like', "%{$search}%")
+                        ->orWhere('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('reference_number', 'like', "%{$search}%")
+                        ->orWhere('notes', 'like', "%{$search}%");
+                });
+            })
+            ->when($agentFilters['start_date'], function ($query, $startDate) {
+                $query->whereDate('transaction_date', '>=', $startDate);
+            })
+            ->when($agentFilters['end_date'], function ($query, $endDate) {
+                $query->whereDate('transaction_date', '<=', $endDate);
+            })
+            ->when($agentFilters['type_id'], function ($query, $typeId) {
+                $query->where('agent_transaction_type_id', $typeId);
+            })
+            ->when($agentFilters['bank_account_id'], function ($query, $bankAccountId) {
+                $query->where('bank_account_id', $bankAccountId);
+            })
+            ->when($agentFilters['status'], function ($query, $status) {
+                $query->where('status', $status);
+            });
+
+        $statsQuery = clone $agentQuery;
+        $stats = $statsQuery->selectRaw('
+            COALESCE(SUM(CASE WHEN status = "success" THEN nominal ELSE 0 END), 0) as total_volume,
+            COALESCE(SUM(CASE WHEN status = "success" THEN admin_fee_customer ELSE 0 END), 0) as total_customer_fees,
+            COALESCE(SUM(CASE WHEN status = "success" THEN admin_fee_bank ELSE 0 END), 0) as total_bank_fees,
+            COALESCE(SUM(CASE WHEN status = "success" THEN net_profit ELSE 0 END), 0) as total_profit
+        ')->first();
+
+        $agentTransactions = $agentQuery->latest('transaction_date')
+            ->paginate(15)
+            ->withQueryString();
+
+        $transactionTypes = \App\Models\AgentTransactionType::active()->get();
+        $agentAdminBanks = \App\Models\AgentAdminBank::oldest('code')->get();
+        $agentAdminLokets = \App\Models\AgentAdminLoket::oldest('code')->get();
+
         return Inertia::render('Dashboard/Transactions/Index', [
             'carts' => $carts,
             'carts_total' => $carts_total,
@@ -132,6 +185,18 @@ class TransactionController extends Controller
             'defaultPaymentGateway' => $defaultGateway,
             'bankAccounts' => $bankAccounts,
             'shiftSummary' => $this->cashierShiftService->summarizeForDisplay($activeShift),
+            // Agent Link Props
+            'agentTransactions' => $agentTransactions,
+            'agentFilters' => $agentFilters,
+            'agentStats' => [
+                'total_volume' => (int) $stats->total_volume,
+                'total_customer_fees' => (int) $stats->total_customer_fees,
+                'total_bank_fees' => (int) $stats->total_bank_fees,
+                'total_profit' => (int) $stats->total_profit,
+            ],
+            'agentTransactionTypes' => $transactionTypes,
+            'agentAdminBanks' => $agentAdminBanks,
+            'agentAdminLokets' => $agentAdminLokets,
         ]);
     }
 
@@ -700,6 +765,12 @@ class TransactionController extends Controller
             $grandTotal = (int) data_get($checkoutPreview, 'summary.grand_total', 0);
             $changeAmount = $isCashPayment ? max(0, $cashAmount - $grandTotal) : 0;
 
+            $pointsEarned = 0;
+            $loyaltyService = app(\App\Services\LoyaltyService::class);
+            if ($customer && $customer->is_loyalty_member) {
+                $pointsEarned = $loyaltyService->calculatePoints($grandTotal);
+            }
+
             $transaction = Transaction::create([
                 'cashier_id' => auth()->user()->id,
                 'cashier_shift_id' => $activeShift->id,
@@ -713,6 +784,7 @@ class TransactionController extends Controller
                 'payment_method' => $isPayLater ? 'pay_later' : ($paymentGateway ?: 'cash'),
                 'payment_status' => $isCashPayment ? 'paid' : ($isPayLater ? 'unpaid' : 'pending'),
                 'bank_account_id' => $paymentGateway === 'bank_transfer' ? $request->bank_account_id : null,
+                'loyalty_points_earned' => $pointsEarned,
             ]);
 
             foreach ($carts as $cart) {
@@ -760,6 +832,8 @@ class TransactionController extends Controller
 
                 $transaction->profits()->create([
                     'transaction_id' => $transaction->id,
+                    'product_id' => $cart->product_id,
+                    'service_id' => $cart->service_id,
                     'total' => $profits,
                 ]);
 
@@ -791,6 +865,8 @@ class TransactionController extends Controller
                     'status' => 'unpaid',
                 ]);
             }
+
+            $loyaltyService->awardPointsForTransaction($transaction);
 
             return $transaction->fresh(['customer']);
         });
@@ -903,6 +979,8 @@ class TransactionController extends Controller
             'payment_status' => 'paid',
         ]);
 
+        app(\App\Services\LoyaltyService::class)->awardPointsForTransaction($transaction);
+
         $this->auditLogService->log(
             event: 'transaction.payment_confirmed',
             module: 'transactions',
@@ -940,6 +1018,14 @@ class TransactionController extends Controller
         $manualDiscountApplied = min($manualDiscountRequested, $subtotalAfterPromo);
         $grandTotal = max(0, $subtotalAfterPromo - $manualDiscountApplied + $shippingCost);
 
+        $loyaltyService = app(\App\Services\LoyaltyService::class);
+        $pointsEarnedPreview = 0;
+        if ($customer && $customer->is_loyalty_member) {
+            $pointsEarnedPreview = $loyaltyService->calculatePoints($grandTotal);
+        }
+
+        $loyaltyEnabled = \App\Models\Setting::getBool('loyalty_points_enabled', false);
+
         return [
             'items' => data_get($pricingPreview, 'items', []),
             'applied_groups' => data_get($pricingPreview, 'applied_groups', []),
@@ -954,23 +1040,23 @@ class TransactionController extends Controller
                 'manual_discount_total' => $manualDiscountApplied,
                 'shipping_cost' => $shippingCost,
                 'grand_total' => $grandTotal,
-                'available_loyalty_points' => 0,
+                'available_loyalty_points' => $customer ? (int) $customer->loyalty_points : 0,
                 'requested_redeem_points' => 0,
                 'applied_redeem_points' => 0,
                 'points_value' => 0,
-                'points_earned_preview' => 0,
+                'points_earned_preview' => $pointsEarnedPreview,
             ],
             'customer' => $customer ? [
                 'id' => $customer->id,
-                'is_loyalty_member' => false,
-                'member_code' => null,
-                'loyalty_tier' => 'regular',
-                'loyalty_points' => 0,
+                'is_loyalty_member' => (bool) $customer->is_loyalty_member,
+                'member_code' => $customer->member_code,
+                'loyalty_tier' => $customer->loyalty_tier ?? 'regular',
+                'loyalty_points' => (int) $customer->loyalty_points,
             ] : null,
             'voucher' => null,
             'eligible_vouchers' => [],
             'settings' => [
-                'enable_earn' => false,
+                'enable_earn' => $loyaltyEnabled,
                 'enable_redeem' => false,
                 'redeem_point_value' => 0,
                 'minimum_points_to_redeem' => 0,

@@ -130,4 +130,57 @@ class SettingController extends Controller
 
         return back()->with('success', 'Profil toko berhasil diperbarui');
     }
+
+    /**
+     * Show loyalty settings page
+     */
+    public function loyalty()
+    {
+        $settings = [
+            'loyalty_points_enabled' => Setting::getBool('loyalty_points_enabled', false),
+            'loyalty_points_threshold' => Setting::getInt('loyalty_points_threshold', 10000),
+            'loyalty_points_awarded' => Setting::getInt('loyalty_points_awarded', 1),
+        ];
+
+        return Inertia::render('Dashboard/Settings/Loyalty', [
+            'settings' => $settings,
+        ]);
+    }
+
+    /**
+     * Update loyalty settings
+     */
+    public function updateLoyalty(Request $request)
+    {
+        $request->validate([
+            'loyalty_points_enabled' => 'required|boolean',
+            'loyalty_points_threshold' => 'required|integer|min:1',
+            'loyalty_points_awarded' => 'required|integer|min:1',
+        ]);
+
+        $before = [
+            'loyalty_points_enabled' => Setting::get('loyalty_points_enabled', '0'),
+            'loyalty_points_threshold' => Setting::get('loyalty_points_threshold', '10000'),
+            'loyalty_points_awarded' => Setting::get('loyalty_points_awarded', '1'),
+        ];
+
+        Setting::set('loyalty_points_enabled', $request->loyalty_points_enabled ? '1' : '0', 'Status aktif sistem poin pelanggan');
+        Setting::set('loyalty_points_threshold', $request->loyalty_points_threshold, 'Minimal nominal belanja per transaksi untuk dapat poin');
+        Setting::set('loyalty_points_awarded', $request->loyalty_points_awarded, 'Jumlah poin yang diperoleh per kelipatan threshold');
+
+        $this->auditLogService->log(
+            event: 'loyalty.setting.updated',
+            module: 'store_settings',
+            auditable: ['target_label' => 'Loyalty Settings'],
+            description: 'Pengaturan poin pelanggan diperbarui.',
+            before: $before,
+            after: [
+                'loyalty_points_enabled' => $request->loyalty_points_enabled ? '1' : '0',
+                'loyalty_points_threshold' => $request->loyalty_points_threshold,
+                'loyalty_points_awarded' => $request->loyalty_points_awarded,
+            ],
+        );
+
+        return back()->with('success', 'Pengaturan poin pelanggan berhasil diperbarui');
+    }
 }

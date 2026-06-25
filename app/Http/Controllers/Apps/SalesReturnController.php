@@ -251,6 +251,8 @@ class SalesReturnController extends Controller
 
                 Profit::create([
                     'transaction_id' => $salesReturn->transaction_id,
+                    'product_id' => $detail->product_id,
+                    'service_id' => $detail->service_id,
                     'total' => -$margin,
                 ]);
             }

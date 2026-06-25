@@ -17,8 +17,24 @@ class Profit extends Model
      * @var array
      */
     protected $fillable = [
-        'transaction_id', 'total',
+        'transaction_id', 'product_id', 'service_id', 'total',
     ];
+
+    /**
+     * product
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * service
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
 
     /**
      * transaction
