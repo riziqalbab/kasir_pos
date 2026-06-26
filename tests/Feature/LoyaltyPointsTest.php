@@ -71,7 +71,7 @@ class LoyaltyPointsTest extends TestCase
         $this->assertEquals(0, $loyaltyService->calculatePoints(25000));
     }
 
-    public function test_customer_creation_supports_is_loyalty_member()
+    public function test_customer_creation_automatically_enables_loyalty_points()
     {
         $admin = User::factory()->create();
         $admin->assignRole('super-admin');
@@ -82,7 +82,6 @@ class LoyaltyPointsTest extends TestCase
                 'name' => 'John Doe',
                 'no_telp' => '081234567890',
                 'address' => 'Test Address',
-                'is_loyalty_member' => true,
             ]);
 
         $response->assertRedirect(route('customers.index'));
@@ -150,17 +149,17 @@ class LoyaltyPointsTest extends TestCase
         ]);
     }
 
-    public function test_non_member_customer_does_not_earn_points()
+    public function test_newly_created_customer_without_explicit_member_flag_still_earns_points()
     {
         Setting::set('loyalty_points_enabled', '1');
         Setting::set('loyalty_points_threshold', '10000');
         Setting::set('loyalty_points_awarded', '1');
 
+        // Customer created normally (is_loyalty_member defaults to true in DB)
         $customer = Customer::create([
             'member_code' => 'MEM-333',
-            'name' => 'Non-Member Customer',
+            'name' => 'Default Customer',
             'address' => 'Address',
-            'is_loyalty_member' => false,
         ]);
 
         $cashier = User::factory()->create();
@@ -191,7 +190,7 @@ class LoyaltyPointsTest extends TestCase
         $loyaltyService->awardPointsForTransaction($transaction);
 
         $customer->refresh();
-        $this->assertEquals(0, $customer->loyalty_points);
+        $this->assertEquals(2, $customer->loyalty_points);
     }
 
     public function test_admin_can_update_customer_loyalty_points()
@@ -212,7 +211,6 @@ class LoyaltyPointsTest extends TestCase
                 'member_code' => 'MEM-444',
                 'name' => 'John Doe updated',
                 'address' => 'Test Address',
-                'is_loyalty_member' => true,
                 'loyalty_points' => 25,
                 '_method' => 'PUT',
             ]);
@@ -221,6 +219,7 @@ class LoyaltyPointsTest extends TestCase
         
         $customer->refresh();
         $this->assertEquals(25, $customer->loyalty_points);
+        $this->assertTrue($customer->is_loyalty_member);
         
         $this->assertDatabaseHas('loyalty_point_histories', [
             'customer_id' => $customer->id,

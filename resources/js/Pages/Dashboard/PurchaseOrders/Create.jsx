@@ -39,6 +39,22 @@ export default function Create({ suppliers, products }) {
             toast.error("Produk sudah ada di daftar.");
             return;
         }
+
+        // Find default unit and buy price
+        let defaultUnitKey = "pcs";
+        let defaultUnitName = product.satuan_jual_pcs || "Pcs";
+        let defaultPrice = Number(product.harga_beli_pcs || product.buy_price) || 0;
+
+        if (!product.satuan_jual_pcs && product.satuan_jual_pack) {
+            defaultUnitKey = "pack";
+            defaultUnitName = product.satuan_jual_pack;
+            defaultPrice = Number(product.harga_beli_pack) || 0;
+        } else if (!product.satuan_jual_pcs && !product.satuan_jual_pack && product.satuan_jual_dus) {
+            defaultUnitKey = "dus";
+            defaultUnitName = product.satuan_jual_dus;
+            defaultPrice = Number(product.harga_beli_dus) || 0;
+        }
+
         setData("items", [
             ...data.items,
             {
@@ -46,7 +62,9 @@ export default function Create({ suppliers, products }) {
                 product_title: product.title,
                 product_sku: product.sku || "-",
                 qty_ordered: 1,
-                unit_price: Number(product.buy_price) || 0,
+                unit_price: defaultPrice,
+                satuan: defaultUnitName,
+                satuan_key: defaultUnitKey,
             },
         ]);
     };
@@ -61,6 +79,35 @@ export default function Create({ suppliers, products }) {
     const updateItem = (index, key, value) => {
         const items = [...data.items];
         items[index] = { ...items[index], [key]: key === "qty_ordered" ? parseInt(value) || 0 : Number(value) || 0 };
+        setData("items", items);
+    };
+
+    const handleUnitChange = (index, unitKey) => {
+        const items = [...data.items];
+        const item = items[index];
+        const product = products.find((p) => p.id === item.product_id);
+        if (!product) return;
+
+        let unitName = "";
+        let unitPrice = 0;
+
+        if (unitKey === "dus") {
+            unitName = product.satuan_jual_dus || "Dus";
+            unitPrice = Number(product.harga_beli_dus) || 0;
+        } else if (unitKey === "pack") {
+            unitName = product.satuan_jual_pack || "Pak";
+            unitPrice = Number(product.harga_beli_pack) || 0;
+        } else {
+            unitName = product.satuan_jual_pcs || "Pcs";
+            unitPrice = Number(product.harga_beli_pcs || product.buy_price) || 0;
+        }
+
+        items[index] = {
+            ...item,
+            satuan_key: unitKey,
+            satuan: unitName,
+            unit_price: unitPrice,
+        };
         setData("items", items);
     };
 
@@ -173,6 +220,7 @@ export default function Create({ suppliers, products }) {
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700">
                                             <th className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200">Produk</th>
+                                            <th className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-200">Satuan</th>
                                             <th className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">Qty</th>
                                             <th className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">Harga</th>
                                             <th className="px-3 py-2 text-right font-semibold text-slate-700 dark:text-slate-200">Subtotal</th>
@@ -185,6 +233,28 @@ export default function Create({ suppliers, products }) {
                                                 <td className="px-3 py-3">
                                                     <p className="font-medium text-slate-800 dark:text-slate-200">{item.product_title}</p>
                                                     <p className="text-xs text-slate-500">{item.product_sku}</p>
+                                                </td>
+                                                <td className="px-3 py-3">
+                                                    <select
+                                                        value={item.satuan_key}
+                                                        onChange={(e) => handleUnitChange(index, e.target.value)}
+                                                        className="h-10 w-24 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                                    >
+                                                        {(() => {
+                                                            const p = products.find((prod) => prod.id === item.product_id);
+                                                            return (
+                                                                <>
+                                                                    <option value="pcs">{p?.satuan_jual_pcs || "Pcs"}</option>
+                                                                    {p?.satuan_jual_pack && (
+                                                                        <option value="pack">{p.satuan_jual_pack}</option>
+                                                                    )}
+                                                                    {p?.satuan_jual_dus && (
+                                                                        <option value="dus">{p.satuan_jual_dus}</option>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </select>
                                                 </td>
                                                 <td className="px-3 py-3 text-right">
                                                     <input
@@ -222,7 +292,7 @@ export default function Create({ suppliers, products }) {
                                     </tbody>
                                     <tfoot>
                                         <tr className="border-t-2 border-slate-200 dark:border-slate-700">
-                                            <td colSpan={3} className="px-3 py-3 text-right font-bold text-slate-800 dark:text-slate-200">Total</td>
+                                            <td colSpan={4} className="px-3 py-3 text-right font-bold text-slate-800 dark:text-slate-200">Total</td>
                                             <td className="px-3 py-3 text-right font-bold text-primary-600 dark:text-primary-400">{formatCurrency(total)}</td>
                                             <td></td>
                                         </tr>

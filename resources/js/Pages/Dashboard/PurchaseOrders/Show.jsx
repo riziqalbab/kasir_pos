@@ -159,14 +159,16 @@ export default function Show({ order }) {
                                                     </p>
                                                     <p className="text-xs text-slate-500">{item.product?.sku || "-"}</p>
                                                 </Table.Td>
-                                                <Table.Td>{item.qty_ordered}</Table.Td>
-                                                <Table.Td>{item.qty_received}</Table.Td>
+                                                <Table.Td>{item.qty_ordered} {item.satuan || "Pcs"}</Table.Td>
+                                                <Table.Td>{item.qty_received} {item.satuan || "Pcs"}</Table.Td>
                                                 <Table.Td>
                                                     <span className={`font-semibold ${remaining > 0 ? "text-warning-600" : "text-success-600"}`}>
-                                                        {remaining}
+                                                        {remaining} {item.satuan || "Pcs"}
                                                     </span>
                                                 </Table.Td>
-                                                <Table.Td>{formatCurrency(item.unit_price)}</Table.Td>
+                                                <Table.Td>
+                                                    {formatCurrency(item.unit_price)} <span className="text-xs text-slate-400">/ {item.satuan || "Pcs"}</span>
+                                                </Table.Td>
                                                 <Table.Td className="font-semibold">{formatCurrency(item.qty_ordered * item.unit_price)}</Table.Td>
                                             </tr>
                                         );

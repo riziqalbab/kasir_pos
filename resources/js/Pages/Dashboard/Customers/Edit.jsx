@@ -13,7 +13,7 @@ export default function Edit({ customer }) {
         name: customer.name,
         no_telp: customer.no_telp || "",
         address: customer.address || "",
-        is_loyalty_member: !!customer.is_loyalty_member,
+        is_loyalty_member: true,
         loyalty_points: customer.loyalty_points || 0,
         _method: "PUT",
     });
@@ -78,36 +78,16 @@ export default function Edit({ customer }) {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 py-2">
-                            <input
-                                type="checkbox"
-                                id="is_loyalty_member"
-                                checked={data.is_loyalty_member}
-                                onChange={(e) =>
-                                    setData("is_loyalty_member", e.target.checked)
-                                }
-                                className="rounded border-slate-300 dark:border-slate-700 text-primary-600 focus:ring-primary-500"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                type="number"
+                                label="Jumlah Poin"
+                                placeholder="Masukkan jumlah poin"
+                                errors={errors.loyalty_points}
+                                onChange={(e) => setData("loyalty_points", e.target.value)}
+                                value={data.loyalty_points}
                             />
-                            <label
-                                htmlFor="is_loyalty_member"
-                                className="text-sm font-medium text-slate-700 dark:text-slate-300 select-none cursor-pointer"
-                            >
-                                Aktifkan sebagai Member Loyalty (Dapatkan Poin)
-                            </label>
                         </div>
-
-                        {data.is_loyalty_member && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input
-                                    type="number"
-                                    label="Jumlah Poin"
-                                    placeholder="Masukkan jumlah poin"
-                                    errors={errors.loyalty_points}
-                                    onChange={(e) => setData("loyalty_points", e.target.value)}
-                                    value={data.loyalty_points}
-                                />
-                            </div>
-                        )}
 
                         <Textarea
                             label="Alamat"

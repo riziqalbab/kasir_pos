@@ -115,6 +115,18 @@ class TransactionController extends Controller
             ];
         }
 
+        $paymentGateways[] = [
+            'value' => 'debit_credit',
+            'label' => 'Debit / Kredit',
+            'description' => 'Pembayaran via kartu debit atau kredit.',
+        ];
+
+        $paymentGateways[] = [
+            'value' => 'qris',
+            'label' => 'QRIS',
+            'description' => 'Pembayaran QRIS.',
+        ];
+
         $defaultGateway = 'cash';
 
         // Get active bank accounts for bank transfer
@@ -699,7 +711,7 @@ class TransactionController extends Controller
                 ->with('error', 'Pelanggan wajib dipilih jika memilih bayar belakangan (nota barang).');
         }
 
-        if ($paymentGateway && $paymentGateway !== 'bank_transfer') {
+        if ($paymentGateway && !in_array($paymentGateway, ['bank_transfer', 'debit_credit', 'qris'])) {
             return redirect()
                 ->route('transactions.index')
                 ->with('error', 'Gateway pembayaran tidak valid.');
@@ -782,7 +794,8 @@ class TransactionController extends Controller
                 'shipping_cost' => $shippingCost,
                 'grand_total' => $grandTotal,
                 'payment_method' => $isPayLater ? 'pay_later' : ($paymentGateway ?: 'cash'),
-                'payment_status' => $isCashPayment ? 'paid' : ($isPayLater ? 'unpaid' : 'pending'),
+                'payment_status' => ($isCashPayment || in_array($paymentGateway, ['debit_credit', 'qris'])) ? 'paid' : ($isPayLater ? 'unpaid' : 'pending'),
+                'payment_reference' => $request->payment_reference,
                 'bank_account_id' => $paymentGateway === 'bank_transfer' ? $request->bank_account_id : null,
                 'loyalty_points_earned' => $pointsEarned,
             ]);

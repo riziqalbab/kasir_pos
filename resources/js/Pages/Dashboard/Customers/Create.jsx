@@ -16,7 +16,7 @@ export default function Create() {
         name: "",
         no_telp: "",
         address: "",
-        is_loyalty_member: false,
+        is_loyalty_member: true,
     });
 
     const submit = (e) => {
@@ -80,23 +80,7 @@ export default function Create() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 py-2">
-                            <input
-                                type="checkbox"
-                                id="is_loyalty_member"
-                                checked={data.is_loyalty_member}
-                                onChange={(e) =>
-                                    setData("is_loyalty_member", e.target.checked)
-                                }
-                                className="rounded border-slate-300 dark:border-slate-700 text-primary-600 focus:ring-primary-500"
-                            />
-                            <label
-                                htmlFor="is_loyalty_member"
-                                className="text-sm font-medium text-slate-700 dark:text-slate-300 select-none cursor-pointer"
-                            >
-                                Aktifkan sebagai Member Loyalty (Dapatkan Poin)
-                            </label>
-                        </div>
+
 
                         <Textarea
                             label="Alamat"

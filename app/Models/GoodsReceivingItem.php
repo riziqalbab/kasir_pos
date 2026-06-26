@@ -15,6 +15,8 @@ class GoodsReceivingItem extends Model
         'product_id',
         'qty_received',
         'notes',
+        'satuan',
+        'satuan_key',
     ];
 
     protected $casts = [

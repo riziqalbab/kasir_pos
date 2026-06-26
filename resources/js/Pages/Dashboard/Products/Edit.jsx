@@ -60,7 +60,13 @@ export default function Edit({ categories, product, units = [] }) {
 
     const handleQuickAddSuccess = (newUnitName) => {
         if (activeUnitField) {
-            setData(activeUnitField, newUnitName);
+            setData((prev) => {
+                const updated = { ...prev, [activeUnitField]: newUnitName };
+                if (activeUnitField === "satuan_beli") {
+                    updated.satuan_jual_dus = newUnitName;
+                }
+                return updated;
+            });
         }
     };
 
@@ -277,14 +283,20 @@ export default function Edit({ categories, product, units = [] }) {
                                     placeholder="Nama produk"
                                 />
                                 <UnitSelect
-                                    label="Satuan Beli"
-                                    value={data.satuan_beli}
-                                    onChange={(e) => setData("satuan_beli", e.target.value)}
-                                    units={units}
-                                    errors={errors.satuan_beli}
-                                    placeholder="Dus / Box / Pcs"
-                                    onAddClick={() => openQuickAddModal("satuan_beli")}
-                                />
+                                     label="Satuan Beli"
+                                     value={data.satuan_beli}
+                                     onChange={(e) =>
+                                         setData((prev) => ({
+                                             ...prev,
+                                             satuan_beli: e.target.value,
+                                             satuan_jual_dus: e.target.value,
+                                         }))
+                                     }
+                                     units={units}
+                                     errors={errors.satuan_beli}
+                                     placeholder="Dus / Box / Pcs"
+                                     onAddClick={() => openQuickAddModal("satuan_beli")}
+                                 />
                             </div>
                         </div>
 

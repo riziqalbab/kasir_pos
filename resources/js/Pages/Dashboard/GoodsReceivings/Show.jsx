@@ -81,8 +81,10 @@ export default function Show({ receiving }) {
                                                 </p>
                                                 <p className="text-xs text-slate-500">{item.product?.sku || "-"}</p>
                                             </Table.Td>
-                                            <Table.Td className="font-semibold">{item.qty_received}</Table.Td>
-                                            <Table.Td>{formatCurrency(unitPrice)}</Table.Td>
+                                            <Table.Td className="font-semibold">{item.qty_received} {item.satuan || "Pcs"}</Table.Td>
+                                            <Table.Td>
+                                                {formatCurrency(unitPrice)} <span className="text-xs text-slate-400">/ {item.satuan || "Pcs"}</span>
+                                            </Table.Td>
                                             <Table.Td className="font-semibold">{formatCurrency(item.qty_received * unitPrice)}</Table.Td>
                                             <Table.Td className="text-xs text-slate-500">{item.notes || "-"}</Table.Td>
                                         </tr>

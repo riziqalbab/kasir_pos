@@ -50,18 +50,29 @@ class GoodsReceivingService
                     'product_id' => $poItem->product_id,
                     'qty_received' => $qtyReceived,
                     'notes' => $item['notes'] ?? null,
+                    'satuan' => $poItem->satuan,
+                    'satuan_key' => $poItem->satuan_key,
                 ]);
 
                 $poItem->increment('qty_received', $qtyReceived);
 
                 $product = $poItem->product;
                 $stockBefore = (int) $product->stock;
-                $product->increment('stock', $qtyReceived);
+
+                // Convert quantity received to base unit (PCS)
+                $qtyInPcs = $qtyReceived;
+                if ($poItem->satuan_key === 'dus') {
+                    $qtyInPcs = $qtyReceived * ($product->isi_pcs_dalam_dus ?: 1);
+                } elseif ($poItem->satuan_key === 'pack') {
+                    $qtyInPcs = $qtyReceived * ($product->isi_pcs_dalam_pack ?: 1);
+                }
+
+                $product->increment('stock', $qtyInPcs);
 
                 $this->stockMutationService->recordPurchaseInbound(
                     product: $product,
                     goodsReceiving: $receiving,
-                    qty: $qtyReceived,
+                    qty: $qtyInPcs,
                     stockBefore: $stockBefore,
                     stockAfter: (int) $product->stock,
                     notes: 'Penerimaan dari PO '.$order->document_number,

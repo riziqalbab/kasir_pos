@@ -262,6 +262,13 @@ export default function Menu() {
                     icon: <IconTable size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["agent-admin-lokets-access"]),
                 },
+                {
+                    title: "Rekening Bank",
+                    href: route("settings.bank-accounts.index"),
+                    active: url.startsWith("/dashboard/settings/bank-accounts"),
+                    icon: <IconCreditCard size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["payment-settings-access"]),
+                },
             ],
         },
         {
@@ -337,13 +344,6 @@ export default function Menu() {
                     active: url === "/dashboard/settings/store",
                     icon: <IconBuildingStore size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["dashboard-access"]),
-                },
-                {
-                    title: "Rekening Bank",
-                    href: route("settings.bank-accounts.index"),
-                    active: url === "/dashboard/settings/bank-accounts",
-                    icon: <IconCreditCard size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["payment-settings-access"]),
                 },
                 {
                     title: "Target Penjualan",

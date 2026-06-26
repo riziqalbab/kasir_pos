@@ -43,6 +43,8 @@ class PurchaseOrderService
                     'qty_ordered' => $item['qty_ordered'],
                     'qty_received' => 0,
                     'unit_price' => $item['unit_price'],
+                    'satuan' => $item['satuan'] ?? null,
+                    'satuan_key' => $item['satuan_key'] ?? null,
                 ]);
             }
 

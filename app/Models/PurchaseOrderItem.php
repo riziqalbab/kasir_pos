@@ -15,6 +15,8 @@ class PurchaseOrderItem extends Model
         'qty_ordered',
         'qty_received',
         'unit_price',
+        'satuan',
+        'satuan_key',
     ];
 
     protected $casts = [

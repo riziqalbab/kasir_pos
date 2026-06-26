@@ -150,6 +150,7 @@ export default function Index({
     const [paymentMethod, setPaymentMethod] = useState(
         defaultPaymentGateway ?? "cash"
     );
+    const [paymentReference, setPaymentReference] = useState("");
     const [payLater, setPayLater] = useState(false);
     const [dueDate, setDueDate] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -568,6 +569,7 @@ export default function Index({
                 bank_account_id: isBankTransfer
                     ? selectedBankAccount?.id
                     : null,
+                payment_reference: paymentReference || null,
                 pay_later: payLater,
                 due_date: dueDate,
             },
@@ -577,6 +579,7 @@ export default function Index({
                     setRedeemPointsInput("");
                     setCashInput("");
                     setShippingInput("");
+                    setPaymentReference("");
                     setSelectedCustomer(null);
                     setSelectedBankAccount(null);
                     setPaymentMethod(defaultPaymentGateway ?? "cash");
@@ -1253,6 +1256,24 @@ export default function Index({
 
                             {/* Form Body - Scrollable */}
                             <form onSubmit={handleAgentSubmit} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+                                {/* Bank Account */}
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">EDC / Sumber Rekening Agen</label>
+                                    <select
+                                        value={agentData.bank_account_id}
+                                        onChange={(e) => setAgentData("bank_account_id", e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="">-- Tanpa Bank (Kas Fisik) --</option>
+                                        {bankAccounts.map((bank) => (
+                                            <option key={bank.id} value={bank.id}>
+                                                {bank.bank_name} - {bank.account_name} ({bank.account_number})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {agentErrors.bank_account_id && <p className="text-xs text-rose-500 mt-1">{agentErrors.bank_account_id}</p>}
+                                </div>
+
                                 {/* Type */}
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Layanan / Tipe Transaksi *</label>
@@ -1270,24 +1291,6 @@ export default function Index({
                                         ))}
                                     </select>
                                     {agentErrors.agent_transaction_type_id && <p className="text-xs text-rose-500 mt-1">{agentErrors.agent_transaction_type_id}</p>}
-                                </div>
-
-                                {/* Bank Account */}
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">EDC / Sumber Rekening Agen</label>
-                                    <select
-                                        value={agentData.bank_account_id}
-                                        onChange={(e) => setAgentData("bank_account_id", e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    >
-                                        <option value="">-- Tanpa Bank (Kas Fisik) --</option>
-                                        {bankAccounts.map((bank) => (
-                                            <option key={bank.id} value={bank.id}>
-                                                {bank.bank_name} - {bank.account_name} ({bank.account_number})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {agentErrors.bank_account_id && <p className="text-xs text-rose-500 mt-1">{agentErrors.bank_account_id}</p>}
                                 </div>
 
                                 {/* Nominal */}
@@ -1392,43 +1395,6 @@ export default function Index({
                                             <option value="failed">Gagal</option>
                                         </select>
                                     </div>
-                                </div>
-
-                                {/* Customer Name & Phone */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Nama Cst (Optional)</label>
-                                        <input
-                                            type="text"
-                                            value={agentData.customer_name}
-                                            onChange={(e) => setAgentData("customer_name", e.target.value)}
-                                            placeholder="Nama..."
-                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">No. Telp (Optional)</label>
-                                        <input
-                                            type="text"
-                                            value={agentData.customer_phone}
-                                            onChange={(e) => setAgentData("customer_phone", e.target.value)}
-                                            placeholder="No. HP..."
-                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Reference Number */}
-                                <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">No. Ref / Struk EDC (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={agentData.reference_number}
-                                        onChange={(e) => setAgentData("reference_number", e.target.value)}
-                                        placeholder="Kode Ref EDC..."
-                                        className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
                                 </div>
 
                                 {/* Notes */}
@@ -1875,6 +1841,21 @@ export default function Index({
                                     </div>
                                 )}
 
+                            {/* Payment Reference - For non-cash payments (e.g. Bank Transfer, Debit/Credit, QRIS) */}
+                            {!payLater && paymentMethod !== "cash" && (
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                                        Nomor Transaksi / Ref Pembayaran
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={paymentReference}
+                                        onChange={(e) => setPaymentReference(e.target.value)}
+                                        placeholder="Kode Ref / Trace / ID Transaksi..."
+                                        className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                    />
+                                </div>
+                            )}
 
                             {/* Discount Input */}
                             {promoDiscount > 0 && (

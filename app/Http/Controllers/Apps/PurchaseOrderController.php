@@ -48,7 +48,13 @@ class PurchaseOrderController extends Controller
     public function create()
     {
         $suppliers = Supplier::orderBy('name')->get(['id', 'name']);
-        $products = Product::orderBy('title')->get(['id', 'title', 'sku', 'buy_price', 'stock']);
+        $products = Product::orderBy('title')->get([
+            'id', 'title', 'sku', 'buy_price', 'stock',
+            'satuan_jual_dus', 'harga_beli_dus',
+            'satuan_jual_pack', 'harga_beli_pack',
+            'satuan_jual_pcs', 'harga_beli_pcs',
+            'isi_pcs_dalam_pack', 'isi_pack_dalam_dus', 'isi_pcs_dalam_dus'
+        ]);
 
         return Inertia::render('Dashboard/PurchaseOrders/Create', [
             'suppliers' => $suppliers,
@@ -66,6 +72,8 @@ class PurchaseOrderController extends Controller
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.qty_ordered' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.satuan' => ['nullable', 'string', 'max:50'],
+            'items.*.satuan_key' => ['nullable', 'string', 'max:50'],
         ]);
 
         $order = $this->purchaseOrderService->createOrder($data, $data['items'], $request->user()->id);

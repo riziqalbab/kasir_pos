@@ -35,6 +35,7 @@ export default function Create({ orders }) {
                     qty_received_already: item.qty_received || 0,
                     outstanding: item.qty_ordered - (item.qty_received || 0),
                     qty_received: item.qty_ordered - (item.qty_received || 0),
+                    satuan: item.satuan || "Pcs",
                     notes: "",
                 }));
             setData({
@@ -131,9 +132,9 @@ export default function Create({ orders }) {
                                                     <p className="font-medium text-slate-800 dark:text-slate-200">{item.product_title}</p>
                                                     <p className="text-xs text-slate-500">{item.product_sku}</p>
                                                 </td>
-                                                <td className="px-3 py-3 text-right">{item.qty_ordered}</td>
-                                                <td className="px-3 py-3 text-right text-slate-500">{item.qty_received_already}</td>
-                                                <td className="px-3 py-3 text-right font-semibold text-warning-600">{item.outstanding}</td>
+                                                <td className="px-3 py-3 text-right">{item.qty_ordered} {item.satuan}</td>
+                                                <td className="px-3 py-3 text-right text-slate-500">{item.qty_received_already} {item.satuan}</td>
+                                                <td className="px-3 py-3 text-right font-semibold text-warning-600">{item.outstanding} {item.satuan}</td>
                                                 <td className="px-3 py-3 text-right">
                                                     <input
                                                         type="number"

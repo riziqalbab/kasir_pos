@@ -62,7 +62,13 @@ export default function Create({ categories, units = [] }) {
 
     const handleQuickAddSuccess = (newUnitName) => {
         if (activeUnitField) {
-            setData(activeUnitField, newUnitName);
+            setData((prev) => {
+                const updated = { ...prev, [activeUnitField]: newUnitName };
+                if (activeUnitField === "satuan_beli") {
+                    updated.satuan_jual_dus = newUnitName;
+                }
+                return updated;
+            });
         }
     };
 
@@ -301,7 +307,13 @@ export default function Create({ categories, units = [] }) {
                                 <UnitSelect
                                     label="Satuan Beli"
                                     value={data.satuan_beli}
-                                    onChange={(e) => setData("satuan_beli", e.target.value)}
+                                    onChange={(e) =>
+                                        setData((prev) => ({
+                                            ...prev,
+                                            satuan_beli: e.target.value,
+                                            satuan_jual_dus: e.target.value,
+                                        }))
+                                    }
                                     units={units}
                                     errors={errors.satuan_beli}
                                     placeholder="Dus / Box / Pcs"

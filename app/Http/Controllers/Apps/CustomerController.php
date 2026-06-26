@@ -61,7 +61,6 @@ class CustomerController extends Controller
             'name' => 'required',
             'no_telp' => 'nullable|unique:customers,no_telp',
             'address' => 'required',
-            'is_loyalty_member' => 'nullable|boolean',
         ]);
 
         // create customer
@@ -70,8 +69,8 @@ class CustomerController extends Controller
             'name' => $request->name,
             'no_telp' => $request->no_telp,
             'address' => $request->address,
-            'is_loyalty_member' => (bool) $request->is_loyalty_member,
-            'loyalty_member_since' => $request->is_loyalty_member ? now() : null,
+            'is_loyalty_member' => true,
+            'loyalty_member_since' => now(),
         ]);
 
         // redirect
@@ -90,7 +89,6 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'no_telp' => 'nullable|string|unique:customers,no_telp',
             'address' => 'required|string',
-            'is_loyalty_member' => 'nullable|boolean',
         ]);
 
         try {
@@ -99,8 +97,8 @@ class CustomerController extends Controller
                 'name' => $validated['name'],
                 'no_telp' => $validated['no_telp'],
                 'address' => $validated['address'],
-                'is_loyalty_member' => (bool) ($validated['is_loyalty_member'] ?? false),
-                'loyalty_member_since' => ($validated['is_loyalty_member'] ?? false) ? now() : null,
+                'is_loyalty_member' => true,
+                'loyalty_member_since' => now(),
             ]);
 
             return response()->json([
@@ -153,19 +151,13 @@ class CustomerController extends Controller
             'name' => 'required',
             'no_telp' => 'nullable|unique:customers,no_telp,'.$customer->id,
             'address' => 'required',
-            'is_loyalty_member' => 'nullable|boolean',
             'loyalty_points' => 'nullable|integer|min:0',
         ]);
 
         // update customer
-        $isLoyaltyChecked = (bool) $request->is_loyalty_member;
-        $loyaltyPoints = $isLoyaltyChecked ? (int) $request->input('loyalty_points', 0) : 0;
-        $loyaltyMemberSince = $customer->loyalty_member_since;
-        if ($isLoyaltyChecked && !$customer->is_loyalty_member) {
-            $loyaltyMemberSince = now();
-        } elseif (!$isLoyaltyChecked) {
-            $loyaltyMemberSince = null;
-        }
+        $isLoyaltyChecked = true;
+        $loyaltyPoints = (int) $request->input('loyalty_points', 0);
+        $loyaltyMemberSince = $customer->loyalty_member_since ?? now();
 
         $oldPoints = (int) $customer->loyalty_points;
 
@@ -179,7 +171,7 @@ class CustomerController extends Controller
             'loyalty_points' => $loyaltyPoints,
         ]);
 
-        if ($isLoyaltyChecked && $oldPoints !== $loyaltyPoints) {
+        if ($oldPoints !== $loyaltyPoints) {
             \App\Models\LoyaltyPointHistory::create([
                 'customer_id' => $customer->id,
                 'type' => 'adjustment',
