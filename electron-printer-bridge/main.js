@@ -1,4 +1,4 @@
-const { app, BrowserWindow, tray, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -566,7 +566,7 @@ function createMainWindow() {
 function createTray() {
   // Using a blank image or simple character since we don't have a physical icon.png yet
   // In production, we would have a nice icon.png
-  appTray = new tray(path.join(__dirname, 'icon.png'));
+  appTray = new Tray(path.join(__dirname, 'icon.png'));
   
   const contextMenu = Menu.buildFromTemplate([
     {
