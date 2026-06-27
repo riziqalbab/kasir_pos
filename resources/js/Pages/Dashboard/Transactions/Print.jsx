@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     IconArrowLeft,
@@ -10,12 +10,15 @@ import {
     IconBuildingBank,
     IconCheck,
     IconAlertCircle,
+    IconSettings,
 } from "@tabler/icons-react";
 import ThermalReceipt, {
     ThermalReceipt58mm,
 } from "@/Components/Receipt/ThermalReceipt";
 import ShippingLabel from "@/Components/Receipt/ShippingLabel";
 import { useAuthorization } from "@/Utils/authorization";
+import toast from "react-hot-toast";
+import PrinterBridgeSettingsModal from "@/Components/POS/PrinterBridgeSettingsModal";
 
 export default function Print({ transaction }) {
     const { storeProfile } = usePage().props;
@@ -111,8 +114,115 @@ export default function Print({ transaction }) {
     const isNonCash = paymentMethodKey !== "cash";
     const showPaymentLink = isNonCash && transaction.payment_url;
 
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isPrintingSilent, setIsPrintingSilent] = useState(false);
+
+    // Auto-detect and run silent print if enabled
+    useEffect(() => {
+        const isSilentEnabled = localStorage.getItem("silent_print_enabled") === "true";
+        const bridgeUrl = localStorage.getItem("printer_bridge_url") || "http://localhost:3001";
+        const preferredFormat = localStorage.getItem("preferred_format") || "thermal80";
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoPrintParam = urlParams.get("autoprint") === "true";
+
+        if (isSilentEnabled && autoPrintParam && transaction) {
+            // Match the preferred format if valid
+            if (preferredFormat && ["invoice", "thermal80", "thermal58", "shipping"].includes(preferredFormat)) {
+                setPrintMode(preferredFormat);
+            }
+
+            // Trigger silent print
+            handleSilentPrint(bridgeUrl, preferredFormat);
+        }
+    }, [transaction]);
+
+    const handleSilentPrint = async (url = "http://localhost:3001", format = "thermal80") => {
+        if (!transaction) return;
+        setIsPrintingSilent(true);
+
+        const cleanUrl = url.replace(/\/$/, "");
+        
+        // Let's format receipt data
+        const printPayload = {
+            paperWidth: format === "thermal58" ? "58mm" : "80mm",
+            store: {
+                name: storeProfile?.name || "Toko Anda",
+                logo: storeProfile?.logo || null,
+                address: storeProfile?.address || "",
+                phone: storeProfile?.phone || "",
+                email: storeProfile?.email || "",
+                website: storeProfile?.website || "",
+                footer: "Terima Kasih Atas Kunjungan Anda"
+            },
+            transaction: {
+                invoice: transaction.invoice,
+                date: formatDateTime(transaction.created_at),
+                cashier: transaction.cashier?.name || "Kasir",
+                customer: transaction.customer?.name || null,
+                items: (transaction.details || []).map(d => ({
+                    name: d.product?.name || d.service?.name || "Item",
+                    qty: d.qty,
+                    price: d.price,
+                    unit_price: d.unit_price,
+                    discount_total: d.discount_total
+                })),
+                subtotal: baseSubtotal,
+                discount: transaction.discount || 0,
+                shipping_cost: transaction.shipping_cost || 0,
+                grand_total: transaction.grand_total,
+                payment_method: paymentMethodLabel,
+                cash: transaction.cash || 0,
+                change: transaction.change || 0
+            }
+        };
+
+        try {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 4000); // 4 sec timeout
+            
+            const response = await fetch(`${cleanUrl}/print`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(printPayload),
+                signal: controller.signal
+            });
+            clearTimeout(id);
+
+            const result = await response.json();
+            if (result.success) {
+                toast.success("Silent Print Berhasil!");
+                
+                // Automatically redirect back to POS or previous page after 2 seconds
+                setTimeout(() => {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        router.visit(route("transactions.index"));
+                    }
+                }, 2000);
+            } else {
+                toast.error("Gagal mencetak: " + (result.error || "Kesalahan internal bridge"));
+                setIsPrintingSilent(false);
+            }
+        } catch (err) {
+            console.error("Silent printing request failed:", err);
+            toast.error("Printer Bridge tidak aktif atau salah konfigurasi.");
+            setIsPrintingSilent(false);
+        }
+    };
+
     const handlePrint = () => {
-        window.print();
+        const isSilentEnabled = localStorage.getItem("silent_print_enabled") === "true";
+        const bridgeUrl = localStorage.getItem("printer_bridge_url") || "http://localhost:3001";
+        
+        if (isSilentEnabled) {
+            handleSilentPrint(bridgeUrl, printMode);
+        } else {
+            window.print();
+        }
     };
 
     const SimpleBarcode = ({ value }) => {
@@ -243,6 +353,26 @@ export default function Print({ transaction }) {
                                         Konfirmasi Bayar
                                     </button>
                                 )}
+
+                            {/* Silent Print / Native Print Controls */}
+                            <button
+                                onClick={handlePrint}
+                                disabled={isPrintingSilent}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all w-full sm:w-auto disabled:opacity-50"
+                            >
+                                <IconPrinter size={18} />
+                                {isPrintingSilent ? "Mencetak..." : "Cetak Langsung"}
+                            </button>
+
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors w-full sm:w-auto"
+                                title="Pengaturan Printer Bridge"
+                                type="button"
+                            >
+                                <IconSettings size={18} />
+                                <span className="sm:hidden">Setting Printer</span>
+                            </button>
 
                             {printMode === "invoice" && (
                                 <a
@@ -803,6 +933,16 @@ export default function Print({ transaction }) {
                     </div>
                 </div>
             )}
+
+            <PrinterBridgeSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                onSave={(newSettings) => {
+                    if (newSettings.preferred_format && ["invoice", "thermal80", "thermal58", "shipping"].includes(newSettings.preferred_format)) {
+                        setPrintMode(newSettings.preferred_format);
+                    }
+                }}
+            />
         </>
     );
 }

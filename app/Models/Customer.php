@@ -66,4 +66,9 @@ class Customer extends Model
     {
         return $this->hasMany(Receivable::class);
     }
+
+    public function pointRedemptions()
+    {
+        return $this->hasMany(PointRedemption::class);
+    }
 }

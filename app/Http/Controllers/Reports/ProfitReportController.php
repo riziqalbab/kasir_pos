@@ -119,9 +119,9 @@ class ProfitReportController extends Controller
             ->when($filters['end_date'] ?? null, fn ($q, $end) => $q->whereDate('created_at', '<=', $end))
             ->when($filters['item_type'] ?? null, function ($q, $type) {
                 if ($type === 'produk') {
-                    return $q->whereHas('details', fn($query) => $query->whereNotNull('product_id'));
+                    return $q->whereHas('details', fn ($query) => $query->whereNotNull('product_id'));
                 } elseif ($type === 'jasa') {
-                    return $q->whereHas('details', fn($query) => $query->whereNotNull('service_id'));
+                    return $q->whereHas('details', fn ($query) => $query->whereNotNull('service_id'));
                 }
             });
     }

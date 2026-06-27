@@ -9,6 +9,9 @@ use App\Models\Customer;
 use App\Models\CustomerCredit;
 use App\Models\Payable;
 use App\Models\PayablePayment;
+use App\Models\PointPrize;
+use App\Models\PointRedemption;
+use App\Models\PointRedemptionItem;
 use App\Models\Product;
 use App\Models\Profit;
 use App\Models\Receivable;
@@ -42,6 +45,9 @@ class SampleDataSeeder extends Seeder
         SalesReturn::truncate();
         CashierShift::truncate();
         StockMutation::truncate();
+        PointRedemptionItem::truncate();
+        PointRedemption::truncate();
+        PointPrize::truncate();
         ReceivablePayment::truncate();
         PayablePayment::truncate();
         Receivable::truncate();
@@ -62,6 +68,9 @@ class SampleDataSeeder extends Seeder
 
         $this->command->info('Seeding customers...');
         $customers = $this->seedCustomers();
+
+        $this->command->info('Seeding point prizes...');
+        $this->seedPointPrizes();
 
         $this->command->info('Seeding suppliers...');
         $suppliers = $this->seedSuppliers();
@@ -118,14 +127,14 @@ class SampleDataSeeder extends Seeder
     private function seedCustomers(): Collection
     {
         $customers = collect([
-            ['name' => 'Andi Nugraha', 'no_telp' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung'],
-            ['name' => 'Bunga Maharani', 'no_telp' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta'],
-            ['name' => 'Cici Amelia', 'no_telp' => '6281512340000', 'address' => 'Jl. Anggrek No. 17, Surabaya'],
-            ['name' => 'Davin Pradipta', 'no_telp' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta'],
-            ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang'],
-            ['name' => 'Fitri Lestari', 'no_telp' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan'],
-            ['name' => 'Gina Putri', 'no_telp' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang'],
-            ['name' => 'Hendra Wijaya', 'no_telp' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar'],
+            ['name' => 'Andi Nugraha', 'no_telp' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung', 'loyalty_points' => 100, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Bunga Maharani', 'no_telp' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta', 'loyalty_points' => 250, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Cici Amelia', 'no_telp' => '6281512340000', 'address' => 'Jl. Anggrek No. 17, Surabaya', 'loyalty_points' => 50, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Davin Pradipta', 'no_telp' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta', 'loyalty_points' => 0, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang', 'loyalty_points' => 120, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Fitri Lestari', 'no_telp' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan', 'loyalty_points' => 300, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Gina Putri', 'no_telp' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang', 'loyalty_points' => 80, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
+            ['name' => 'Hendra Wijaya', 'no_telp' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar', 'loyalty_points' => 450, 'is_loyalty_member' => true, 'loyalty_member_since' => now()],
         ]);
 
         return $customers
@@ -600,6 +609,19 @@ class SampleDataSeeder extends Seeder
                     'note' => 'Pembayaran hutang supplier',
                 ]);
             }
+        }
+    }
+
+    private function seedPointPrizes(): void
+    {
+        $products = Product::limit(5)->get();
+        $points = [10, 20, 30, 50, 80];
+
+        foreach ($products as $index => $product) {
+            PointPrize::create([
+                'product_id' => $product->id,
+                'points_required' => $points[$index] ?? 20,
+            ]);
         }
     }
 }

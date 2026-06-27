@@ -13,7 +13,7 @@ class UnitSeeder extends Seeder
     public function run(): void
     {
         $units = [
-            '1/4', '1/2', 'bag', 'bal', 'box', 'btl', 'cup', 'dus', 'galon', 'ikat', 'kg', 'lbr', 'ltr', 'lusin', 'pack', 'pcs', 'rim'
+            '1/4', '1/2', 'bag', 'bal', 'box', 'btl', 'cup', 'dus', 'galon', 'ikat', 'kg', 'lbr', 'ltr', 'lusin', 'pack', 'pcs', 'rim',
         ];
 
         foreach ($units as $unit) {

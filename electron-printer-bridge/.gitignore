@@ -1,0 +1,21 @@
+# Dependency directories
+node_modules/
+
+# Build and distribution directories
+dist/
+out/
+build/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local configuration files
+printer-config.json
+*.local

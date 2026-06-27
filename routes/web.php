@@ -9,15 +9,17 @@ use App\Http\Controllers\Apps\CashierShiftController;
 use App\Http\Controllers\Apps\CategoryController;
 use App\Http\Controllers\Apps\CustomerController;
 use App\Http\Controllers\Apps\GoodsReceivingController;
+use App\Http\Controllers\Apps\PointPrizeController;
+use App\Http\Controllers\Apps\PointRedemptionController;
 use App\Http\Controllers\Apps\ProductController;
 use App\Http\Controllers\Apps\PurchaseOrderController;
 use App\Http\Controllers\Apps\SalesReturnController;
+use App\Http\Controllers\Apps\ServiceController;
 use App\Http\Controllers\Apps\StockMutationController;
 use App\Http\Controllers\Apps\StockOpnameController;
 use App\Http\Controllers\Apps\SupplierReturnController;
 use App\Http\Controllers\Apps\TransactionController;
 use App\Http\Controllers\Apps\UnitController;
-use App\Http\Controllers\Apps\ServiceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PermissionController;
@@ -138,6 +140,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // route transaction updateCart
     Route::patch('/transactions/{cart_id}/updateCart', [TransactionController::class, 'updateCart'])->middleware(['permission:transactions-access', 'active_shift'])->name('transactions.updateCart');
     Route::post('/transactions/pricing-preview', [TransactionController::class, 'previewPricing'])->middleware(['permission:transactions-access', 'active_shift'])->name('transactions.pricing-preview');
+    Route::post('/transactions/clear', [TransactionController::class, 'clearCart'])->middleware(['permission:transactions-access', 'active_shift'])->name('transactions.clear');
 
     // route hold transaction
     Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->middleware(['permission:transactions-access', 'active_shift'])->name('transactions.hold');
@@ -252,6 +255,22 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor('store', 'permission:agent-admin-lokets-create')
         ->middlewareFor('update', 'permission:agent-admin-lokets-edit')
         ->middlewareFor('destroy', 'permission:agent-admin-lokets-delete');
+
+    // Point Prizes Master Route
+    Route::resource('point-prizes', PointPrizeController::class)
+        ->except(['show', 'create', 'edit'])
+        ->middlewareFor('index', 'permission:point-prizes-access')
+        ->middlewareFor('store', 'permission:point-prizes-create')
+        ->middlewareFor('update', 'permission:point-prizes-edit')
+        ->middlewareFor('destroy', 'permission:point-prizes-delete');
+
+    // Point Redemption routes
+    Route::post('point-redemptions', [PointRedemptionController::class, 'store'])
+        ->middleware(['permission:point-redemptions-create', 'active_shift'])
+        ->name('point-redemptions.store');
+    Route::get('point-redemptions/{pointRedemption}/print', [PointRedemptionController::class, 'printReceipt'])
+        ->middleware('permission:point-redemptions-access')
+        ->name('point-redemptions.print');
 
     Route::get('agent-transactions', [AgentTransactionController::class, 'index'])->middleware('permission:agent-transactions-access')->name('agent-transactions.index');
     Route::post('agent-transactions', [AgentTransactionController::class, 'store'])->middleware(['permission:agent-transactions-create', 'active_shift'])->name('agent-transactions.store');

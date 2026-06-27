@@ -1,6 +1,4 @@
 @php
-    $line = str_repeat('=', 48);
-    $dash = str_repeat('-', 48);
     $formatPrice = fn($v) => 'Rp ' . number_format($v ?? 0, 0, ',', '.');
 @endphp
 <!DOCTYPE html>
@@ -9,11 +7,18 @@
     <meta charset="UTF-8">
     <style>
         @page { margin: 0; }
-        body { font-family: 'Inter','Helvetica','Arial',sans-serif; width: 80mm; margin: 0; padding: 8px; font-size: 12px; line-height: 1.4; }
+        body { font-family: 'DejaVu Sans Mono','Courier',monospace; width: 80mm; margin: 0; padding: 8px; font-size: 11px; line-height: 1.4; }
         .center { text-align: center; }
         .bold { font-weight: 700; }
         .barcode img { height: 28px; }
         .section { margin: 6px 0; }
+        .hr { border-top: 1px solid #000; margin: 4px 0; }
+        .hr-dash { border-top: 1px dashed #000; margin: 4px 0; }
+        table.row { width: 100%; border-collapse: collapse; }
+        table.row td { padding: 0; vertical-align: top; }
+        td.r { text-align: right; }
+        .item-name { font-weight: 600; }
+        .muted { font-size: 10px; color: #64748b; }
     </style>
 </head>
 <body>
@@ -25,28 +30,16 @@
         @if($store['website'])<div>{{ $store['website'] }}</div>@endif
     </div>
 
-    <pre style="margin:4px 0;">{{ $line }}</pre>
+    <div class="hr"></div>
 
     <div class="section">
-        <div style="display:flex; justify-content:space-between;">
-            <span>No:</span>
-            <span>{{ $transaction->invoice }}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-            <span>Tgl:</span>
-            <span>{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y H:i') }}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-            <span>Kasir:</span>
-            <span>{{ $transaction->cashier->name ?? '-' }}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-            <span>Pelanggan:</span>
-            <span>{{ $transaction->customer->name ?? 'Umum' }}</span>
-        </div>
+        <table class="row"><tr><td>No:</td><td class="r">{{ $transaction->invoice }}</td></tr></table>
+        <table class="row"><tr><td>Tgl:</td><td class="r">{{ \Carbon\Carbon::parse($transaction->created_at)->format('d/m/Y H:i') }}</td></tr></table>
+        <table class="row"><tr><td>Kasir:</td><td class="r">{{ $transaction->cashier->name ?? '-' }}</td></tr></table>
+        <table class="row"><tr><td>Pelanggan:</td><td class="r">{{ $transaction->customer->name ?? 'Umum' }}</td></tr></table>
     </div>
 
-    <pre style="margin:4px 0;">{{ $line }}</pre>
+    <div class="hr"></div>
 
     <div class="section">
         @foreach($transaction->details as $item)
@@ -55,21 +48,15 @@
                 $total = $item->price;
                 $unit = $item->unit_price ?: ($qty ? $total / $qty : $total);
             @endphp
-            <div style="font-weight:600;">{{ $item->product ? $item->product->title : ($item->service ? $item->service->name : 'Item') }}</div>
+            <div class="item-name">{{ $item->product ? $item->product->title : ($item->service ? $item->service->name : 'Item') }}</div>
             @if($item->discount_total > 0 && ($item->pricing_group_label || $item->pricing_rule_name))
-                <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748b;">
-                    <span>Promo: {{ $item->pricing_group_label ?: $item->pricing_rule_name }}</span>
-                    <span>{{ $formatPrice($item->base_unit_price) }}</span>
-                </div>
+                <table class="row muted"><tr><td>Promo: {{ $item->pricing_group_label ?: $item->pricing_rule_name }}</td><td class="r">{{ $formatPrice($item->base_unit_price) }}</td></tr></table>
             @endif
-            <div style="display:flex; justify-content:space-between;">
-                <span>{{ $qty }}x @ {{ $formatPrice($unit) }}</span>
-                <span>{{ $formatPrice($total) }}</span>
-            </div>
+            <table class="row"><tr><td>{{ $qty }}x @ {{ $formatPrice($unit) }}</td><td class="r">{{ $formatPrice($total) }}</td></tr></table>
         @endforeach
     </div>
 
-    <pre style="margin:4px 0;">{{ $dash }}</pre>
+    <div class="hr-dash"></div>
 
     @php
         $promoDiscount = $transaction->details->sum('discount_total');
@@ -85,62 +72,35 @@
     @endphp
 
     <div class="section">
-        <div style="display:flex; justify-content:space-between;">
-            <span>Subtotal</span>
-            <span>{{ $formatPrice($subtotal) }}</span>
-        </div>
+        <table class="row"><tr><td>Subtotal</td><td class="r">{{ $formatPrice($subtotal) }}</td></tr></table>
         @if($promoDiscount > 0)
-            <div style="display:flex; justify-content:space-between;">
-                <span>Promo</span>
-                <span>-{{ $formatPrice($promoDiscount) }}</span>
-            </div>
+            <table class="row"><tr><td>Promo</td><td class="r">-{{ $formatPrice($promoDiscount) }}</td></tr></table>
         @endif
         @if($discount > 0)
-            <div style="display:flex; justify-content:space-between;">
-                <span>Diskon Manual</span>
-                <span>-{{ $formatPrice($discount) }}</span>
-            </div>
+            <table class="row"><tr><td>Diskon Manual</td><td class="r">-{{ $formatPrice($discount) }}</td></tr></table>
         @endif
         @if($voucherDiscount > 0)
-            <div style="display:flex; justify-content:space-between;">
-                <span>Voucher</span>
-                <span>-{{ $formatPrice($voucherDiscount) }}</span>
-            </div>
+            <table class="row"><tr><td>Voucher</td><td class="r">-{{ $formatPrice($voucherDiscount) }}</td></tr></table>
         @endif
         @if($loyaltyDiscount > 0)
-            <div style="display:flex; justify-content:space-between;">
-                <span>Redeem Poin</span>
-                <span>-{{ $formatPrice($loyaltyDiscount) }}</span>
-            </div>
+            <table class="row"><tr><td>Redeem Poin</td><td class="r">-{{ $formatPrice($loyaltyDiscount) }}</td></tr></table>
         @endif
         @if($shipping > 0)
-            <div style="display:flex; justify-content:space-between;">
-                <span>Ongkir</span>
-                <span>{{ $formatPrice($shipping) }}</span>
-            </div>
+            <table class="row"><tr><td>Ongkir</td><td class="r">{{ $formatPrice($shipping) }}</td></tr></table>
         @endif
-        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:13px;">
-            <span>TOTAL</span>
-            <span>{{ $formatPrice($total) }}</span>
-        </div>
+        <table class="row bold" style="font-size:13px;"><tr><td>TOTAL</td><td class="r">{{ $formatPrice($total) }}</td></tr></table>
     </div>
 
-    <pre style="margin:4px 0;">{{ $dash }}</pre>
+    <div class="hr-dash"></div>
 
     <div class="section">
-        <div style="display:flex; justify-content:space-between;">
-            <span>Bayar ({{ $paymentMethod }})</span>
-            <span>{{ $formatPrice($cash) }}</span>
-        </div>
+        <table class="row"><tr><td>Bayar ({{ $paymentMethod }})</td><td class="r">{{ $formatPrice($cash) }}</td></tr></table>
         @if($change > 0)
-            <div style="display:flex; justify-content:space-between; font-weight:700;">
-                <span>Kembali</span>
-                <span>{{ $formatPrice($change) }}</span>
-            </div>
+            <table class="row bold"><tr><td>Kembali</td><td class="r">{{ $formatPrice($change) }}</td></tr></table>
         @endif
     </div>
 
-    <pre style="margin:4px 0;">{{ $line }}</pre>
+    <div class="hr"></div>
 
     <div class="center section" style="margin-bottom:0;">
         <div class="barcode">

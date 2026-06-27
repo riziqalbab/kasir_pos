@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Antigravity Printer Bridge</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --input-bg: #0f172a;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 24px;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 550px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.offline {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+    }
+
+    .status-badge.offline .status-dot {
+      background-color: var(--danger);
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    select, input {
+      width: 100%;
+      background-color: var(--input-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .toggle-group:last-child {
+      border-bottom: none;
+    }
+
+    /* Switch styling */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border-color);
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 24px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--success);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      font-weight: 500;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.error {
+      background-color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Antigravity Print Bridge</h1>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Silent Print Server POS</div>
+      </div>
+      <div class="status-badge" id="server-status">
+        <div class="status-dot"></div>
+        <span>Online: Port 3001</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ Pengaturan Printer</span>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="engine">Mesin Cetak (Engine)</label>
+          <select id="engine">
+            <option value="native">Native HTML Spooler (Failsafe)</option>
+            <option value="escpos">Raw ESC/POS Commands</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="paperWidth">Lebar Kertas</label>
+          <select id="paperWidth">
+            <option value="80mm">80 mm (Default)</option>
+            <option value="58mm">58 mm (Compact)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" id="printer-type-group">
+        <label for="printerType">Tipe Koneksi</label>
+        <select id="printerType">
+          <option value="system">Printer Sistem OS (USB/Bluetooth/Wifi)</option>
+          <option value="network">LAN Network Printer (Direct IP)</option>
+        </select>
+      </div>
+
+      <!-- OS Printer Selection Dropdown -->
+      <div class="form-group" id="system-printer-group">
+        <label for="systemPrinterName">Pilih Printer Sistem</label>
+        <select id="systemPrinterName">
+          <option value="">-- Mencari Printer... --</option>
+        </select>
+      </div>
+
+      <!-- Network LAN Fields -->
+      <div class="row hidden" id="network-printer-group">
+        <div class="form-group">
+          <label for="networkIp">IP Address Printer</label>
+          <input type="text" id="networkIp" placeholder="192.168.1.100">
+        </div>
+        <div class="form-group">
+          <label for="networkPort">Port Printer</label>
+          <input type="number" id="networkPort" placeholder="9100">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>🔧 Fitur Cetak</span>
+      </div>
+      
+      <div class="toggle-group">
+        <div>
+          <div style="font-weight: 500;">Buka Laci Kasir (Drawer Kick)</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Kirim sinyal kick laci uang sebelum mencetak</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="drawerKick">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <div>
+          <div style="font-weight: 500;">Potong Kertas Otomatis (Autocut)</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Kirim perintah potong kertas setelah cetak selesai</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="paperCut">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-top: 16px;">
+        <label for="port">API Server Port</label>
+        <input type="number" id="port" value="3001">
+      </div>
+    </div>
+
+    <button class="btn" id="btn-save">💾 Simpan Pengaturan</button>
+    <button class="btn btn-secondary" id="btn-test">🖨️ Cetak Struk Uji Coba</button>
+
+    <div class="footer-note">
+      Antigravity POS Printer Bridge v1.0.0<br>
+      Aplikasi ini harus tetap aktif di tray untuk mendukung pencetakan otomatis.
+    </div>
+  </div>
+
+  <div class="toast" id="toast-notify">Pengaturan disimpan!</div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let currentConfig = {};
+
+    // Get DOM elements
+    const engineSelect = document.getElementById('engine');
+    const paperWidthSelect = document.getElementById('paperWidth');
+    const printerTypeSelect = document.getElementById('printerType');
+    const systemPrinterSelect = document.getElementById('systemPrinterName');
+    const networkIpInput = document.getElementById('networkIp');
+    const networkPortInput = document.getElementById('networkPort');
+    const drawerKickCheck = document.getElementById('drawerKick');
+    const paperCutCheck = document.getElementById('paperCut');
+    const portInput = document.getElementById('port');
+    const btnSave = document.getElementById('btn-save');
+    const btnTest = document.getElementById('btn-test');
+    const toastNotify = document.getElementById('toast-notify');
+    const serverStatus = document.getElementById('server-status');
+
+    // Show toast message
+    function showToast(message, isError = false) {
+      toastNotify.textContent = message;
+      if (isError) {
+        toastNotify.classList.add('error');
+      } else {
+        toastNotify.classList.remove('error');
+      }
+      toastNotify.classList.add('show');
+      setTimeout(() => {
+        toastNotify.classList.remove('show');
+      }, 3000);
+    }
+
+    // Toggle fields visibility based on selection
+    function toggleFields() {
+      const engine = engineSelect.value;
+      const printerType = printerTypeSelect.value;
+
+      if (engine === 'native') {
+        // Native only supports system printers
+        printerTypeSelect.value = 'system';
+        document.getElementById('printer-type-group').classList.add('hidden');
+        document.getElementById('system-printer-group').classList.remove('hidden');
+        document.getElementById('network-printer-group').classList.add('hidden');
+      } else {
+        // Raw ESC/POS supports system or LAN
+        document.getElementById('printer-type-group').classList.remove('hidden');
+        if (printerType === 'system') {
+          document.getElementById('system-printer-group').classList.remove('hidden');
+          document.getElementById('network-printer-group').classList.add('hidden');
+        } else {
+          document.getElementById('system-printer-group').classList.add('hidden');
+          document.getElementById('network-printer-group').classList.remove('hidden');
+        }
+      }
+    }
+
+    // Fetch and display detected system printers
+    async function loadSystemPrinters(selectedPrinterName) {
+      try {
+        const response = await fetch(`http://localhost:${currentConfig.port || 3001}/printers`);
+        const result = await response.json();
+        
+        if (result.success) {
+          systemPrinterSelect.innerHTML = '';
+          if (result.printers.length === 0) {
+            systemPrinterSelect.innerHTML = '<option value="">-- Tidak ada printer terdeteksi --</option>';
+            return;
+          }
+          
+          result.printers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = `${p.name} ${p.isDefault ? '(Default)' : ''}`;
+            if (p.name === selectedPrinterName) {
+              opt.selected = true;
+            }
+            systemPrinterSelect.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching printers:', err);
+        systemPrinterSelect.innerHTML = '<option value="">-- Gagal memuat list printer --</option>';
+      }
+    }
+
+    // Initialize Page
+    function init() {
+      currentConfig = ipcRenderer.sendSync('get-config');
+      
+      // Populate fields
+      engineSelect.value = currentConfig.engine;
+      paperWidthSelect.value = currentConfig.paperWidth;
+      printerTypeSelect.value = currentConfig.printerType;
+      networkIpInput.value = currentConfig.networkIp;
+      networkPortInput.value = currentConfig.networkPort;
+      drawerKickCheck.checked = currentConfig.drawerKick;
+      paperCutCheck.checked = currentConfig.paperCut;
+      portInput.value = currentConfig.port;
+
+      serverStatus.querySelector('span').textContent = `Online: Port ${currentConfig.port}`;
+
+      toggleFields();
+      loadSystemPrinters(currentConfig.systemPrinterName);
+
+      // Event listeners
+      engineSelect.addEventListener('change', () => {
+        toggleFields();
+      });
+      printerTypeSelect.addEventListener('change', toggleFields);
+
+      // Save action
+      btnSave.addEventListener('click', () => {
+        const newConfig = {
+          engine: engineSelect.value,
+          paperWidth: paperWidthSelect.value,
+          printerType: printerTypeSelect.value,
+          systemPrinterName: systemPrinterSelect.value,
+          networkIp: networkIpInput.value,
+          networkPort: parseInt(networkPortInput.value) || 9100,
+          drawerKick: drawerKickCheck.checked,
+          paperCut: paperCutCheck.checked,
+          port: parseInt(portInput.value) || 3001
+        };
+
+        const result = ipcRenderer.sendSync('save-config', newConfig);
+        if (result.success) {
+          showToast('Pengaturan berhasil disimpan!');
+          currentConfig = result.config;
+          serverStatus.querySelector('span').textContent = `Online: Port ${currentConfig.port}`;
+          // If port changed, trigger a restart
+          ipcRenderer.send('restart-server');
+        } else {
+          showToast('Gagal menyimpan pengaturan!', true);
+        }
+      });
+
+      // Test Print action
+      btnTest.addEventListener('click', async () => {
+        btnTest.disabled = true;
+        btnTest.textContent = '🔄 Mengirim perintah cetak...';
+        
+        try {
+          const response = await fetch(`http://localhost:${currentConfig.port}/test-print`, {
+            method: 'POST'
+          });
+          const result = await response.json();
+          
+          if (result.success) {
+            showToast('Uji cetak berhasil dikirim!');
+          } else {
+            showToast('Gagal mencetak: ' + result.error, true);
+          }
+        } catch (err) {
+          showToast('Gagal menghubungkan ke Server API Bridge!', true);
+        } finally {
+          btnTest.disabled = false;
+          btnTest.textContent = '🖨️ Cetak Struk Uji Coba';
+        }
+      });
+    }
+
+    // Listen for tray test print trigger
+    ipcRenderer.on('test-print-trigger', () => {
+      btnTest.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

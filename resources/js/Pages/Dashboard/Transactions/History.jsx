@@ -364,7 +364,10 @@ const History = ({ transactions, filters }) => {
                                                     <Link
                                                         href={route(
                                                             "transactions.print",
-                                                            transaction.invoice
+                                                            {
+                                                                invoice: transaction.invoice,
+                                                                autoprint: "true"
+                                                            }
                                                         )}
                                                         className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
                                                         title="Cetak Struk"

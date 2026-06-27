@@ -7,9 +7,8 @@ use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Receivable;
-use App\Models\Transaction;
 use App\Models\Service;
-use App\Models\ServicePrice;
+use App\Models\Transaction;
 use App\Services\AuditLogService;
 use App\Services\CashierShiftService;
 use App\Services\PricingService;
@@ -32,7 +31,6 @@ class TransactionController extends Controller
     /**
      * index
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return void
      */
     public function index(Request $request)
@@ -184,6 +182,37 @@ class TransactionController extends Controller
         $agentAdminBanks = \App\Models\AgentAdminBank::oldest('code')->get();
         $agentAdminLokets = \App\Models\AgentAdminLoket::oldest('code')->get();
 
+        // Point Redemption Data
+        $pointFilters = [
+            'search' => $request->input('point_search'),
+            'start_date' => $request->input('point_start_date'),
+            'end_date' => $request->input('point_end_date'),
+        ];
+
+        $pointRedemptionQuery = \App\Models\PointRedemption::query()
+            ->with(['customer', 'cashier:id,name', 'items.pointPrize'])
+            ->when($pointFilters['search'], function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('redemption_code', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($c) use ($search) {
+                            $c->where('name', 'like', "%{$search}%")
+                                ->orWhere('member_code', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($pointFilters['start_date'], function ($query, $startDate) {
+                $query->whereDate('created_at', '>=', $startDate);
+            })
+            ->when($pointFilters['end_date'], function ($query, $endDate) {
+                $query->whereDate('created_at', '<=', $endDate);
+            });
+
+        $pointRedemptions = $pointRedemptionQuery->latest()
+            ->paginate(15, ['*'], 'point_page')
+            ->withQueryString();
+
+        $pointPrizes = \App\Models\PointPrize::with('product')->get()->sortBy('product.title')->values();
+
         return Inertia::render('Dashboard/Transactions/Index', [
             'carts' => $carts,
             'carts_total' => $carts_total,
@@ -209,6 +238,10 @@ class TransactionController extends Controller
             'agentTransactionTypes' => $transactionTypes,
             'agentAdminBanks' => $agentAdminBanks,
             'agentAdminLokets' => $agentAdminLokets,
+            // Point Redemption Props
+            'pointPrizes' => $pointPrizes,
+            'pointRedemptions' => $pointRedemptions,
+            'pointFilters' => $pointFilters,
         ]);
     }
 
@@ -416,6 +449,22 @@ class TransactionController extends Controller
             return back()->withErrors(['message' => 'Cart not found']);
         }
 
+    }
+
+    /**
+     * clearCart - Clear all active items in the cart
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function clearCart()
+    {
+        $userId = auth()->user()->id;
+
+        Cart::where('cashier_id', $userId)
+            ->active()
+            ->delete();
+
+        return back()->with('success', 'Keranjang berhasil dikosongkan.');
     }
 
     /**
@@ -711,7 +760,7 @@ class TransactionController extends Controller
                 ->with('error', 'Pelanggan wajib dipilih jika memilih bayar belakangan (nota barang).');
         }
 
-        if ($paymentGateway && !in_array($paymentGateway, ['bank_transfer', 'debit_credit', 'qris'])) {
+        if ($paymentGateway && ! in_array($paymentGateway, ['bank_transfer', 'debit_credit', 'qris'])) {
             return redirect()
                 ->route('transactions.index')
                 ->with('error', 'Gateway pembayaran tidak valid.');
@@ -884,7 +933,10 @@ class TransactionController extends Controller
             return $transaction->fresh(['customer']);
         });
 
-        return to_route('transactions.print', $transaction->invoice);
+        return to_route('transactions.print', [
+            'invoice' => $transaction->invoice,
+            'autoprint' => 'true',
+        ]);
     }
 
     public function print($invoice)

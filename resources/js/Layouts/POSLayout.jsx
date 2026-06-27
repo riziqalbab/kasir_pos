@@ -12,14 +12,17 @@ import {
     IconX,
     IconUser,
     IconWallet,
+    IconPrinter,
 } from "@tabler/icons-react";
 import Notification from "@/Components/Dashboard/Notification";
+import PrinterBridgeSettingsModal from "@/Components/POS/PrinterBridgeSettingsModal";
 
 export default function POSLayout({ children }) {
     const { auth, storeProfile, activeCashierShift } = usePage().props;
     const { darkMode, themeSwitcher } = useTheme();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [isPrinterSettingsOpen, setIsPrinterSettingsOpen] = useState(false);
 
     // Update time every minute
     useEffect(() => {
@@ -144,6 +147,16 @@ export default function POSLayout({ children }) {
                         )}
                     </button>
 
+                    {/* Printer Settings */}
+                    <button
+                        onClick={() => setIsPrinterSettingsOpen(true)}
+                        className="p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-touch min-h-touch flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400"
+                        title="Pengaturan Printer"
+                        type="button"
+                    >
+                        <IconPrinter size={20} />
+                    </button>
+
                     {/* Notifications (mobile) */}
                     <div className="flex md:hidden">
                         <Notification />
@@ -250,6 +263,11 @@ export default function POSLayout({ children }) {
                 />
                 {children}
             </main>
+            
+            <PrinterBridgeSettingsModal
+                isOpen={isPrinterSettingsOpen}
+                onClose={() => setIsPrinterSettingsOpen(false)}
+            />
         </div>
     );
 }

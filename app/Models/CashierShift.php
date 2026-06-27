@@ -93,6 +93,11 @@ class CashierShift extends Model
         return $this->hasMany(AgentTransaction::class);
     }
 
+    public function pointRedemptions()
+    {
+        return $this->hasMany(PointRedemption::class);
+    }
+
     public function scopeOpen($query)
     {
         return $query->where('status', self::STATUS_OPEN);

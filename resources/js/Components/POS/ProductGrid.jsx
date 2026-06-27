@@ -188,9 +188,24 @@ export default function ProductGrid({
     addingProductId,
     searchInputRef,
     placeholder,
+    activeProductIndex = -1,
 }) {
     const normalizedSelectedCategory =
         selectedCategory === null ? null : Number(selectedCategory);
+
+    const containerRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (activeProductIndex >= 0 && containerRef.current) {
+            const activeRow = containerRef.current.querySelector(`[data-product-index="${activeProductIndex}"]`);
+            if (activeRow) {
+                activeRow.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                });
+            }
+        }
+    }, [activeProductIndex]);
 
     // Filter products by category and search
     const filteredProducts = products.filter((product) => {
@@ -243,7 +258,7 @@ export default function ProductGrid({
             )}
 
             {/* Products Table */}
-            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
+            <div ref={containerRef} className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
                 {filteredProducts.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -267,7 +282,7 @@ export default function ProductGrid({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {filteredProducts.map((product) => {
+                                {filteredProducts.map((product, index) => {
                                     const hasStock = product.stock > 0;
                                     const lowStock = product.stock > 0 && product.stock <= 5;
                                     const promoBadge = product.pricing_badge;
@@ -275,17 +290,20 @@ export default function ProductGrid({
                                     const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
                                     const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
                                     const showBadge = Boolean(promoBadge?.label);
+                                    const isHighlighted = index === activeProductIndex;
 
                                     return (
                                         <tr
                                             key={product.id}
+                                            data-product-index={index}
                                             onClick={() => hasStock && onAddToCart(product)}
                                             className={`
                                                 hover:bg-slate-50/70 dark:hover:bg-slate-80/40 transition-colors cursor-pointer group
+                                                ${isHighlighted ? "bg-primary-50/85 dark:bg-primary-955/40 font-medium" : ""}
                                                 ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}
                                             `}
                                         >
-                                            <td className="px-4 py-3">
+                                            <td className={`px-4 py-3 ${isHighlighted ? "border-l-4 border-primary-500" : ""}`}>
                                                 <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
                                                     {product.title}
                                                 </div>

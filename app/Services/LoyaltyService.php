@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Customer;
-use App\Models\Transaction;
 use App\Models\LoyaltyPointHistory;
 use App\Models\Setting;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
@@ -16,7 +16,7 @@ class LoyaltyService
     public function calculatePoints(int $grandTotal): int
     {
         $enabled = Setting::getBool('loyalty_points_enabled', false);
-        if (!$enabled) {
+        if (! $enabled) {
             return 0;
         }
 
@@ -40,7 +40,7 @@ class LoyaltyService
         }
 
         $customer = $transaction->customer;
-        if (!$customer || !$customer->is_loyalty_member) {
+        if (! $customer || ! $customer->is_loyalty_member) {
             return;
         }
 
@@ -68,7 +68,7 @@ class LoyaltyService
             $customer->increment('loyalty_points', $pointsEarned);
             $customer->increment('loyalty_total_spent', $transaction->grand_total);
             $customer->increment('loyalty_transaction_count', 1);
-            if (!$customer->last_purchase_at || $transaction->created_at->gt($customer->last_purchase_at)) {
+            if (! $customer->last_purchase_at || $transaction->created_at->gt($customer->last_purchase_at)) {
                 $customer->update(['last_purchase_at' => $transaction->created_at]);
             }
 

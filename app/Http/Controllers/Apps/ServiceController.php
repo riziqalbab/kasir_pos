@@ -21,7 +21,7 @@ class ServiceController extends Controller
     {
         $services = Service::with('servicePrices.unit')
             ->when(request()->search, function ($query) {
-                $query->where('name', 'like', '%' . request()->search . '%');
+                $query->where('name', 'like', '%'.request()->search.'%');
             })
             ->latest()
             ->paginate(10)
@@ -38,7 +38,6 @@ class ServiceController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
@@ -72,14 +71,12 @@ class ServiceController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Service  $service
      * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, Service $service)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:services,name,' . $service->id,
+            'name' => 'required|string|max:255|unique:services,name,'.$service->id,
             'description' => 'nullable|string',
             'prices' => 'required|array|min:1',
             'prices.*.unit_id' => 'required|exists:units,id',
@@ -110,7 +107,6 @@ class ServiceController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Service  $service
      * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Service $service)

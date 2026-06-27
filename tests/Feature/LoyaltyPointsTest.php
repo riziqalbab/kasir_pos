@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashierShift;
 use App\Models\Customer;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\User;
-use App\Models\Receivable;
-use App\Models\CashierShift;
 use App\Services\LoyaltyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -19,7 +18,7 @@ class LoyaltyPointsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->artisan('db:seed', ['--class' => 'PermissionSeeder']);
         $this->artisan('db:seed', ['--class' => 'RoleSeeder']);
     }
@@ -59,7 +58,7 @@ class LoyaltyPointsTest extends TestCase
         Setting::set('loyalty_points_threshold', '10000');
         Setting::set('loyalty_points_awarded', '2');
 
-        $loyaltyService = new LoyaltyService();
+        $loyaltyService = new LoyaltyService;
 
         // 25000 / 10000 = 2. 2 * 2 = 4 points.
         $this->assertEquals(4, $loyaltyService->calculatePoints(25000));
@@ -129,7 +128,7 @@ class LoyaltyPointsTest extends TestCase
             'loyalty_points_earned' => 2,
         ]);
 
-        $loyaltyService = new LoyaltyService();
+        $loyaltyService = new LoyaltyService;
         $loyaltyService->awardPointsForTransaction($transaction);
 
         $customer->refresh();
@@ -186,7 +185,7 @@ class LoyaltyPointsTest extends TestCase
             'loyalty_points_earned' => 2,
         ]);
 
-        $loyaltyService = new LoyaltyService();
+        $loyaltyService = new LoyaltyService;
         $loyaltyService->awardPointsForTransaction($transaction);
 
         $customer->refresh();
@@ -216,11 +215,11 @@ class LoyaltyPointsTest extends TestCase
             ]);
 
         $response->assertRedirect(route('customers.index'));
-        
+
         $customer->refresh();
         $this->assertEquals(25, $customer->loyalty_points);
         $this->assertTrue($customer->is_loyalty_member);
-        
+
         $this->assertDatabaseHas('loyalty_point_histories', [
             'customer_id' => $customer->id,
             'type' => 'adjustment',

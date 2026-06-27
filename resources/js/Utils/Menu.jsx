@@ -104,6 +104,13 @@ export default function Menu() {
                     icon: <IconBriefcase size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["services-access"]),
                 },
+                {
+                    title: "Hadiah Poin",
+                    href: route("point-prizes.index"),
+                    active: url === "/dashboard/point-prizes" || url.startsWith("/dashboard/point-prizes"),
+                    icon: <IconGift size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["point-prizes-access"]),
+                },
             ],
         },
         {

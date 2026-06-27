@@ -53,7 +53,7 @@ class PurchaseOrderController extends Controller
             'satuan_jual_dus', 'harga_beli_dus',
             'satuan_jual_pack', 'harga_beli_pack',
             'satuan_jual_pcs', 'harga_beli_pcs',
-            'isi_pcs_dalam_pack', 'isi_pack_dalam_dus', 'isi_pcs_dalam_dus'
+            'isi_pcs_dalam_pack', 'isi_pack_dalam_dus', 'isi_pcs_dalam_dus',
         ]);
 
         return Inertia::render('Dashboard/PurchaseOrders/Create', [

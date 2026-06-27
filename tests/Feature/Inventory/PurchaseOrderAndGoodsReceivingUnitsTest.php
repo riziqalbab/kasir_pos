@@ -4,7 +4,6 @@ namespace Tests\Feature\Inventory;
 
 use App\Models\Category;
 use App\Models\GoodsReceiving;
-use App\Models\GoodsReceivingItem;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -19,7 +18,9 @@ class PurchaseOrderAndGoodsReceivingUnitsTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Supplier $supplier;
+
     protected Product $product;
 
     protected function setUp(): void
@@ -99,12 +100,12 @@ class PurchaseOrderAndGoodsReceivingUnitsTest extends TestCase
                         'unit_price' => 250000,
                         'satuan' => 'Dus',
                         'satuan_key' => 'dus',
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response->assertRedirect();
-        
+
         $order = PurchaseOrder::where('document_number', 'PO-TEST-001')->first();
         $this->assertNotNull($order);
         $this->assertEquals('draft', $order->status);
@@ -153,8 +154,8 @@ class PurchaseOrderAndGoodsReceivingUnitsTest extends TestCase
                         'purchase_order_item_id' => $poItem->id,
                         'qty_received' => 2,
                         'notes' => 'Diterima 2 Dus',
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response->assertRedirect();
@@ -231,8 +232,8 @@ class PurchaseOrderAndGoodsReceivingUnitsTest extends TestCase
                         'purchase_order_item_id' => $poItem->id,
                         'qty_received' => 3,
                         'notes' => 'Diterima 3 Pak',
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response->assertRedirect();

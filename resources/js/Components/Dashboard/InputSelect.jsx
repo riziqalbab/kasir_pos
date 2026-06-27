@@ -21,7 +21,7 @@ export default function InputSelect({ selected, data, setSelected, label, errors
                     )}
                     <IconChevronDown size={20} strokeWidth={1.5} />
                 </Listbox.Button>
-                <Listbox.Options className={'p-4 border rounded-lg flex flex-col gap-2 bg-gray-100 dark:border-gray-900 dark:bg-gray-950'}>
+                <Listbox.Options className={'p-4 border rounded-lg flex flex-col gap-2 bg-gray-100 dark:border-gray-900 dark:bg-gray-950 max-h-60 overflow-y-auto shadow-lg'}>
                     {searchable && (
                         <input
                             type="text"

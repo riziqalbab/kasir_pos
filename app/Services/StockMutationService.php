@@ -285,4 +285,55 @@ class StockMutationService
 
         return $mutation;
     }
+
+    public function recordPointRedemption(
+        Product $product,
+        \App\Models\PointRedemption $redemption,
+        int $qty,
+        int $stockBefore,
+        int $stockAfter,
+        ?int $userId = null
+    ): StockMutation {
+        $mutation = StockMutation::create([
+            'product_id' => $product->id,
+            'reference_type' => 'point_redemption',
+            'reference_id' => $redemption->id,
+            'mutation_type' => 'out',
+            'qty' => $qty,
+            'stock_before' => $stockBefore,
+            'stock_after' => $stockAfter,
+            'notes' => 'Tukar poin dengan hadiah: '.$product->title,
+            'created_by' => $userId,
+        ]);
+
+        $this->auditLogService->log(
+            event: 'stock.adjusted',
+            module: 'stock',
+            auditable: $product,
+            description: 'Stok keluar dari penukaran poin '.$redemption->redemption_code,
+            before: [
+                'product_id' => $product->id,
+                'stock_before' => $stockBefore,
+                'stock_after' => $stockBefore,
+                'difference' => 0,
+                'reference' => $redemption->redemption_code,
+            ],
+            after: [
+                'product_id' => $product->id,
+                'stock_before' => $stockBefore,
+                'stock_after' => $stockAfter,
+                'difference' => $stockAfter - $stockBefore,
+                'reference' => $redemption->redemption_code,
+            ],
+            meta: [
+                'stock_mutation_id' => $mutation->id,
+                'point_redemption_id' => $redemption->id,
+                'redemption_code' => $redemption->redemption_code,
+                'mutation_type' => $mutation->mutation_type,
+                'qty' => $qty,
+            ],
+        );
+
+        return $mutation;
+    }
 }

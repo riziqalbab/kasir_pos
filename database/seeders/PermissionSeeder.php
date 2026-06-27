@@ -140,6 +140,16 @@ class PermissionSeeder extends Seeder
         $create('agent-admin-lokets-edit');
         $create('agent-admin-lokets-delete');
 
+        // point prizes
+        $create('point-prizes-access');
+        $create('point-prizes-create');
+        $create('point-prizes-edit');
+        $create('point-prizes-delete');
+
+        // point redemptions
+        $create('point-redemptions-access');
+        $create('point-redemptions-create');
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

@@ -24,8 +24,12 @@ const formatPrice = (value = 0) =>
 export default function HeldTransactions({
     heldCarts = [],
     hasActiveCart = false,
+    isExpanded: controlledIsExpanded,
+    onToggleExpanded,
 }) {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [localIsExpanded, setLocalIsExpanded] = useState(false);
+    const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : localIsExpanded;
+    const setIsExpanded = onToggleExpanded !== undefined ? onToggleExpanded : setLocalIsExpanded;
     const [resumingId, setResumingId] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
 
@@ -97,8 +101,9 @@ export default function HeldTransactions({
                     <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center text-white text-xs font-bold">
                         {heldCarts.length}
                     </div>
-                    <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-300 flex items-center gap-1">
                         Transaksi Ditahan
+                        <kbd className="bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-450 rounded px-1 border border-amber-200 dark:border-amber-800 font-mono text-[8px] font-bold">Alt+R</kbd>
                     </span>
                     <span className="text-xs text-amber-600 dark:text-amber-400">
                         • {formatPrice(totalHeldAmount)}
@@ -118,8 +123,9 @@ export default function HeldTransactions({
                     <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center text-white text-xs font-bold">
                         {heldCarts.length}
                     </div>
-                    <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-300 flex items-center gap-1">
                         Transaksi Ditahan
+                        <kbd className="bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-450 rounded px-1 border border-amber-200 dark:border-amber-800 font-mono text-[8px] font-bold">Alt+R</kbd>
                     </span>
                 </div>
                 <button
@@ -233,7 +239,8 @@ export function HoldButton({ hasItems = false, onHold, isHolding = false }) {
             className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-lg border border-dashed border-amber-400 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-xs font-medium transition-colors"
         >
             <IconClock size={14} />
-            Tahan
+            <span>Tahan</span>
+            <kbd className="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded px-1 border border-amber-250 dark:border-amber-800/80 font-mono text-[8px] font-bold">Alt+H</kbd>
         </button>
     );
 }

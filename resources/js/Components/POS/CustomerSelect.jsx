@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import {
@@ -11,7 +11,7 @@ import {
 import { CustomerHistoryButton } from "./CustomerHistoryPanel";
 import AddCustomerModal from "./AddCustomerModal";
 
-export default function CustomerSelect({
+const CustomerSelect = forwardRef(function CustomerSelect({
     customers = [],
     selected,
     onSelect,
@@ -19,12 +19,24 @@ export default function CustomerSelect({
     error,
     label,
     onCustomerAdded,
-}) {
+}, ref) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const containerRef = useRef(null);
     const inputRef = useRef(null);
+
+    useImperativeHandle(ref, () => ({
+        focus: () => {
+            setIsOpen(true);
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.select();
+                }
+            }, 0);
+        }
+    }));
 
     // Filter customers by search
     const filteredCustomers = customers.filter(
@@ -297,4 +309,6 @@ export default function CustomerSelect({
                 />
             </>
         );
-}
+});
+
+export default CustomerSelect;

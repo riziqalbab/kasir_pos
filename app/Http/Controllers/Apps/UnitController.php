@@ -17,7 +17,7 @@ class UnitController extends Controller
     public function index()
     {
         $units = Unit::when(request()->search, function ($query) {
-            $query->where('name', 'like', '%' . request()->search . '%');
+            $query->where('name', 'like', '%'.request()->search.'%');
         })->orderBy('name')->paginate(10)->withQueryString();
 
         return Inertia::render('Dashboard/Units/Index', [
@@ -28,7 +28,6 @@ class UnitController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
@@ -45,7 +44,7 @@ class UnitController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Satuan berhasil ditambahkan',
-                'units' => Unit::orderBy('name')->get()
+                'units' => Unit::orderBy('name')->get(),
             ]);
         }
 
@@ -55,7 +54,6 @@ class UnitController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Unit  $unit
      * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Unit $unit)

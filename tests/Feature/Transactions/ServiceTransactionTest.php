@@ -3,8 +3,6 @@
 namespace Tests\Feature\Transactions;
 
 use App\Models\Cart;
-use App\Models\Customer;
-use App\Models\Product;
 use App\Models\Service;
 use App\Models\ServicePrice;
 use App\Models\Transaction;
@@ -29,7 +27,7 @@ class ServiceTransactionTest extends TestCase
         // Create permissions
         foreach ([
             'services-access', 'services-create', 'services-edit', 'services-delete',
-            'transactions-access', 'cashier-shifts-access', 'cashier-shifts-open', 'cashier-shifts-close'
+            'transactions-access', 'cashier-shifts-access', 'cashier-shifts-open', 'cashier-shifts-close',
         ] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }

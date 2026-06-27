@@ -46,6 +46,8 @@ import {
     IconCalendar,
     IconPercentage,
     IconRefresh,
+    IconGift,
+    IconDatabaseOff,
 } from "@tabler/icons-react";
 
 const formatPrice = (value = 0) =>
@@ -74,6 +76,10 @@ export default function Index({
     agentTransactionTypes = [],
     agentAdminBanks = [],
     agentAdminLokets = [],
+    // Point props
+    pointPrizes = [],
+    pointRedemptions = {},
+    pointFilters = {},
 }) {
     const {
         auth,
@@ -90,6 +96,7 @@ export default function Index({
         const mode = urlParams.get("mode");
         if (mode === "jasa") return "jasa";
         if (mode === "agen_link") return "agen_link";
+        if (mode === "tukar_poin") return "tukar_poin";
         return "produk";
     };
     const [transactionMode, setTransactionMode] = useState(getInitialMode());
@@ -135,6 +142,29 @@ export default function Index({
     const [agentBankAccountId, setAgentBankAccountId] = useState(agentFilters?.bank_account_id || "");
     const [agentStatusFilter, setAgentStatusFilter] = useState(agentFilters?.status || "");
 
+    // Point Redemption states
+    const {
+        data: pointData,
+        setData: setPointData,
+        post: postPoint,
+        processing: pointProcessing,
+        errors: pointErrors,
+        reset: resetPoint,
+        clearErrors: clearPointErrors,
+    } = useForm({
+        customer_id: "",
+        items: [],
+        notes: "",
+    });
+
+    const [selectedPrizeId, setSelectedPrizeId] = useState("");
+    const [prizeQty, setPrizeQty] = useState(1);
+
+    // Point Redemption filters
+    const [pointSearch, setPointSearch] = useState(pointFilters?.search || "");
+    const [pointStartDate, setPointStartDate] = useState(pointFilters?.start_date || "");
+    const [pointEndDate, setPointEndDate] = useState(pointFilters?.end_date || "");
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
@@ -172,8 +202,20 @@ export default function Index({
         }, {});
     }, [pricingPreview]);
 
-    // Ref for search input to enable keyboard focus
+    // Refs for various form inputs to enable keyboard shortcut focus
     const searchInputRef = useRef(null);
+    const discountInputRef = useRef(null);
+    const cashInputRef = useRef(null);
+    const customerSelectRef = useRef(null);
+    const agentNominalInputRef = useRef(null);
+    const agentNotesInputRef = useRef(null);
+    const pointPrizeSelectRef = useRef(null);
+    const pointPrizeQtyRef = useRef(null);
+    const pointNotesRef = useRef(null);
+
+    // States for keyboard navigation
+    const [activeProductIndex, setActiveProductIndex] = useState(-1);
+    const [isResumePanelOpen, setIsResumePanelOpen] = useState(false);
 
     // Set default payment method
     useEffect(() => {
@@ -285,7 +327,7 @@ export default function Index({
             .post(route("transactions.pricing-preview"), {
                 customer_id: selectedCustomer?.id ?? null,
                 discount,
-                shipping_cost: shipping,
+                shipping_cost: 0,
                 redeem_points: Number(redeemPointsInput || 0),
                 customer_voucher_id: null,
             })
@@ -407,6 +449,21 @@ export default function Index({
         );
     };
 
+    const handleRemoveFromCart = (cartId) => {
+        setRemovingItemId(cartId);
+
+        router.delete(route("transactions.destroyCart", cartId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setRemovingItemId(null);
+            },
+            onError: (errors) => {
+                toast.error(errors?.message || "Gagal menghapus item");
+                setRemovingItemId(null);
+            },
+        });
+    };
+
     const handleUpdateUnit = (cartId, newSatuanKey) => {
         setUpdatingCartId(cartId);
 
@@ -459,69 +516,271 @@ export default function Index({
         );
     };
 
+    // Handle clear entire cart
+    const handleClearCart = () => {
+        if (confirm("Kosongkan semua item di keranjang belanja?")) {
+            router.post(route("transactions.clear"), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Keranjang belanja dikosongkan");
+                },
+                onError: () => {
+                    toast.error("Gagal mengosongkan keranjang");
+                }
+            });
+        }
+    };
+
+    // Filter products or services based on mode
+    const displayItems = useMemo(() => {
+        if (transactionMode === "jasa") {
+            return services
+                .map((service) => {
+                    const defaultPrice = service.service_prices?.[0]?.price || 0;
+                    return {
+                        id: service.id,
+                        is_service: true,
+                        title: service.name,
+                        description: service.description || "",
+                        sell_price: defaultPrice,
+                        stock: 999999,
+                        stock_breakdown: "Jasa",
+                        category_id: null,
+                        category: null,
+                        service_prices: service.service_prices || [],
+                    };
+                })
+                .filter((item) => {
+                    return (
+                        !searchQuery ||
+                        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                });
+        }
+
+        return products.filter((product) => {
+            const matchesCategory =
+                normalizedSelectedCategory === null ||
+                Number(product.category_id) === normalizedSelectedCategory;
+            const matchesSearch =
+                !searchQuery ||
+                product.title
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                product.barcode
+                    ?.toLowerCase()
+                    .includes(searchQuery.toLowerCase());
+
+            return matchesCategory && matchesSearch;
+        });
+    }, [products, services, transactionMode, normalizedSelectedCategory, searchQuery]);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // Don't trigger if user is typing in an input
-            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
-                return;
+            const isInputActive = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
 
-            switch (e.key) {
-                case "/":
-                case "F5":
+            // 1. Escape key is global, blurs input if active
+            if (e.key === "Escape") {
+                if (isInputActive) e.target.blur();
+                setNumpadOpen(false);
+                setShowShortcuts(false);
+                setIsResumePanelOpen(false);
+                setSearchQuery("");
+                return;
+            }
+
+            // 2. Navigating the search input with Arrow keys & Enter
+            if (isInputActive && e.target === searchInputRef.current) {
+                if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    // Focus search input
-                    if (searchInputRef.current) {
-                        searchInputRef.current.focus();
-                    }
-                    break;
-                case "F1":
-                    e.preventDefault();
-                    setNumpadOpen(true);
-                    break;
-                case "F2":
-                    e.preventDefault();
-                    if (carts.length > 0)
-                        handleSubmitTransaction();
-                    break;
-                case "F3":
-                    e.preventDefault();
-                    setMobileView(
-                        mobileView === "products" ? "cart" : "products"
+                    setActiveProductIndex((prev) =>
+                        prev < displayItems.length - 1 ? prev + 1 : prev
                     );
-                    break;
-                case "F4":
+                    return;
+                } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setShowShortcuts(!showShortcuts);
-                    break;
-                case "Escape":
-                    setNumpadOpen(false);
-                    setShowShortcuts(false);
-                    setSearchQuery("");
-                    break;
+                    setActiveProductIndex((prev) =>
+                        prev > 0 ? prev - 1 : 0
+                    );
+                    return;
+                } else if (e.key === "Enter") {
+                    if (activeProductIndex >= 0 && activeProductIndex < displayItems.length) {
+                        e.preventDefault();
+                        const selectedProduct = displayItems[activeProductIndex];
+                        if (selectedProduct) {
+                            if (selectedProduct.stock > 0) {
+                                handleAddToCart(selectedProduct);
+                                setSearchQuery("");
+                            } else {
+                                toast.error(`${selectedProduct.title} stok habis`);
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // 3. Enter key in Point Redemption fields to add prize to grid
+            if (transactionMode === "tukar_poin" && isInputActive) {
+                if (e.target === pointPrizeSelectRef.current || e.target === pointPrizeQtyRef.current) {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddPrizeToGrid();
+                        return;
+                    }
+                }
+            }
+
+            // 4. If typing normal characters in an input (except Alt combos & F-keys), let the browser handle it!
+            if (isInputActive && !e.altKey && !e.key.startsWith("F")) {
+                return;
+            }
+
+            // 5. Global Hotkeys (Runs whether input is active or not, because e.altKey or F-key is pressed)
+            if (e.key === "/" || e.key === "F5") {
+                // Only focus search with '/' if not already focused on an input
+                if (e.key === "/" && isInputActive) return;
+
+                e.preventDefault();
+                if (searchInputRef.current) {
+                    searchInputRef.current.focus();
+                    searchInputRef.current.select();
+                }
+            } else if (e.key === "F1") {
+                e.preventDefault();
+                setNumpadOpen(true);
+            } else if (e.key === "F2") {
+                e.preventDefault();
+                if (transactionMode === "produk" || transactionMode === "jasa") {
+                    if (carts.length > 0) {
+                        handleSubmitTransaction();
+                    } else {
+                        toast.error("Keranjang masih kosong");
+                    }
+                } else if (transactionMode === "agen_link") {
+                    handleAgentSubmit(e);
+                } else if (transactionMode === "tukar_poin") {
+                    handleSavePointRedemption(e);
+                }
+            } else if (e.key === "F3") {
+                e.preventDefault();
+                setMobileView((prev) => (prev === "products" ? "cart" : "products"));
+            } else if (e.key === "F4") {
+                e.preventDefault();
+                setShowShortcuts((prev) => !prev);
+            } else if (e.key === "F6" || (e.altKey && e.key === "1")) {
+                e.preventDefault();
+                setTransactionMode("produk");
+                toast.success("Mode Produk Aktif");
+            } else if (e.key === "F7" || (e.altKey && e.key === "2")) {
+                e.preventDefault();
+                setTransactionMode("jasa");
+                toast.success("Mode Jasa Aktif");
+            } else if (e.key === "F8" || (e.altKey && e.key === "3")) {
+                e.preventDefault();
+                setTransactionMode("agen_link");
+                toast.success("Mode Agen Link Aktif");
+            } else if (e.key === "F9" || (e.altKey && e.key === "4")) {
+                e.preventDefault();
+                setTransactionMode("tukar_poin");
+                toast.success("Mode Tukar Poin Aktif");
+            } else if (e.altKey && e.key.toLowerCase() === "s") {
+                e.preventDefault();
+                if (customerSelectRef.current) {
+                    customerSelectRef.current.focus();
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "h") {
+                e.preventDefault();
+                if (transactionMode === "produk" || transactionMode === "jasa") {
+                    if (carts.length > 0) {
+                        handleHoldCart();
+                    } else {
+                        toast.error("Keranjang kosong");
+                    }
+                } else if (transactionMode === "tukar_poin") {
+                    if (pointPrizeSelectRef.current) {
+                        pointPrizeSelectRef.current.focus();
+                    }
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "r") {
+                e.preventDefault();
+                if (heldCarts.length > 0) {
+                    setIsResumePanelOpen((prev) => !prev);
+                } else {
+                    toast.error("Tidak ada transaksi ditahan");
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "c") {
+                e.preventDefault();
+                if (carts.length > 0) {
+                    handleClearCart();
+                } else {
+                    toast.error("Keranjang memang kosong");
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "d") {
+                e.preventDefault();
+                if (discountInputRef.current) {
+                    discountInputRef.current.focus();
+                    discountInputRef.current.select();
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "b") {
+                e.preventDefault();
+                if (cashInputRef.current) {
+                    cashInputRef.current.focus();
+                    cashInputRef.current.select();
+                }
+            } else if (e.altKey && e.key.toLowerCase() === "p") {
+                e.preventDefault();
+                if (!payLater) {
+                    setPaymentMethod((prev) => (prev === "cash" ? "bank_transfer" : "cash"));
+                    toast.success(`Metode pembayaran diubah ke: ${paymentMethod === "cash" ? "Transfer Bank" : "Tunai"}`);
+                }
+            } else if (e.altKey && e.key === "ArrowUp") {
+                e.preventDefault();
+                if (carts.length > 0) {
+                    const lastItem = carts[carts.length - 1];
+                    handleUpdateQty(lastItem.id, Number(lastItem.qty) + 1);
+                    toast.success(`Qty ${lastItem.product?.title || lastItem.service?.name} ditambah`);
+                }
+            } else if (e.altKey && e.key === "ArrowDown") {
+                e.preventDefault();
+                if (carts.length > 0) {
+                    const lastItem = carts[carts.length - 1];
+                    if (Number(lastItem.qty) > 1) {
+                        handleUpdateQty(lastItem.id, Number(lastItem.qty) - 1);
+                        toast.success(`Qty ${lastItem.product?.title || lastItem.service?.name} dikurang`);
+                    }
+                }
+            } else if (transactionMode === "agen_link") {
+                if (e.altKey && e.key.toLowerCase() === "n") {
+                    e.preventDefault();
+                    if (agentNominalInputRef.current) {
+                        agentNominalInputRef.current.focus();
+                        agentNominalInputRef.current.select();
+                    }
+                } else if (e.altKey && e.key.toLowerCase() === "k") {
+                    e.preventDefault();
+                    if (agentNotesInputRef.current) {
+                        agentNotesInputRef.current.focus();
+                    }
+                }
+            } else if (transactionMode === "tukar_poin") {
+                if (e.altKey && e.key.toLowerCase() === "q") {
+                    e.preventDefault();
+                    if (pointPrizeQtyRef.current) {
+                        pointPrizeQtyRef.current.focus();
+                        pointPrizeQtyRef.current.select();
+                    }
+                } else if (e.altKey && e.key.toLowerCase() === "a") {
+                    e.preventDefault();
+                    handleAddPrizeToGrid();
+                }
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [carts, selectedCustomer, mobileView, showShortcuts]);
-
-    // Handle remove from cart
-    const handleRemoveFromCart = (cartId) => {
-        setRemovingItemId(cartId);
-
-        router.delete(route("transactions.destroyCart", cartId), {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success("Item dihapus dari keranjang");
-                setRemovingItemId(null);
-            },
-            onError: () => {
-                toast.error("Gagal menghapus item");
-                setRemovingItemId(null);
-            },
-        });
-    };
+    }, [transactionMode, carts, displayItems, activeProductIndex, searchInputRef, customerSelectRef, discountInputRef, cashInputRef, agentNominalInputRef, agentNotesInputRef, pointPrizeSelectRef, pointPrizeQtyRef, selectedCustomer, heldCarts, payLater, paymentMethod]);
 
     // Handle submit transaction
     const handleSubmitTransaction = () => {
@@ -561,7 +820,7 @@ export default function Index({
                 discount,
                 redeem_points: Number(redeemPointsInput || 0),
                 customer_voucher_id: null,
-                shipping_cost: shipping,
+                shipping_cost: 0,
                 grand_total: payable,
                 cash: isCashPayment ? cash : payable,
                 change: isCashPayment ? Math.max(cash - payable, 0) : 0,
@@ -594,6 +853,124 @@ export default function Index({
                 },
             }
         );
+    };
+
+    // Point Redemption Handlers
+    useEffect(() => {
+        setPointData("customer_id", selectedCustomer?.id || "");
+    }, [selectedCustomer]);
+
+    const handlePointFilterSubmit = (e) => {
+        e.preventDefault();
+        router.get(
+            route("transactions.index"),
+            {
+                mode: "tukar_poin",
+                point_search: pointSearch,
+                point_start_date: pointStartDate,
+                point_end_date: pointEndDate,
+            },
+            { preserveState: true }
+        );
+    };
+
+    const handlePointResetFilters = () => {
+        setPointSearch("");
+        setPointStartDate("");
+        setPointEndDate("");
+        router.get(
+            route("transactions.index"),
+            { mode: "tukar_poin" },
+            { preserveState: true }
+        );
+    };
+
+    const handleAddPrizeToGrid = () => {
+        if (!selectedPrizeId) {
+            toast.error("Silakan pilih hadiah terlebih dahulu");
+            return;
+        }
+        const prize = pointPrizes.find(p => p.id === parseInt(selectedPrizeId));
+        if (!prize) return;
+
+        const qty = parseInt(prizeQty) || 1;
+        const prizeStock = prize.product?.stock || 0;
+        const prizeName = prize.product?.title || "Produk";
+        const prizeCode = prize.product?.barcode || prize.product?.sku || "-";
+
+        if (prizeStock < qty) {
+            toast.error(`Stok hadiah '${prizeName}' tidak mencukupi (Stok: ${prizeStock})`);
+            return;
+        }
+
+        const existingItemIdx = pointData.items.findIndex(item => item.point_prize_id === prize.id);
+        let newItems = [...pointData.items];
+
+        if (existingItemIdx > -1) {
+            const newQty = newItems[existingItemIdx].quantity + qty;
+            if (prizeStock < newQty) {
+                toast.error(`Stok hadiah '${prizeName}' tidak mencukupi untuk total quantity ${newQty}`);
+                return;
+            }
+            newItems[existingItemIdx].quantity = newQty;
+        } else {
+            newItems.push({
+                point_prize_id: prize.id,
+                code: prizeCode,
+                name: prizeName,
+                points_required: prize.points_required,
+                quantity: qty,
+            });
+        }
+
+        setPointData("items", newItems);
+        setSelectedPrizeId("");
+        setPrizeQty(1);
+    };
+
+    const handleRemovePrizeFromGrid = (prizeId) => {
+        const newItems = pointData.items.filter(item => item.point_prize_id !== prizeId);
+        setPointData("items", newItems);
+    };
+
+    // Calculate points balance info
+    const saldoAwalPoint = selectedCustomer ? (selectedCustomer.loyalty_points || 0) : 0;
+    const totalBarangPoint = pointData.items.reduce((sum, item) => sum + (item.points_required * item.quantity), 0);
+    const saldoAkhirPoint = saldoAwalPoint - totalBarangPoint;
+
+    const handleSavePointRedemption = (e) => {
+        e.preventDefault();
+        if (!selectedCustomer) {
+            toast.error("Silakan pilih pelanggan terlebih dahulu");
+            return;
+        }
+        if (pointData.items.length === 0) {
+            toast.error("Silakan tambahkan hadiah ke grid terlebih dahulu");
+            return;
+        }
+        if (saldoAkhirPoint < 0) {
+            toast.error("Poin pelanggan tidak mencukupi untuk penukaran ini!");
+            return;
+        }
+
+        postPoint(route("point-redemptions.store"), {
+            onSuccess: () => {
+                toast.success("Penukaran poin berhasil disimpan");
+                resetPoint();
+                setSelectedCustomer(null);
+                setSelectedPrizeId("");
+                setPrizeQty(1);
+            },
+            onError: (err) => {
+                if (err.customer_id) {
+                    toast.error(err.customer_id);
+                } else if (err.items) {
+                    toast.error(err.items);
+                } else {
+                    toast.error("Gagal memproses penukaran poin");
+                }
+            }
+        });
     };
 
     // Agent Transaction Handlers
@@ -751,48 +1128,30 @@ export default function Index({
         ? (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0)
         : (parseInt(agentData.nominal) || 0);
 
-    // Filter products or services based on mode
-    const displayItems = useMemo(() => {
-        if (transactionMode === "jasa") {
-            return services
-                .map((service) => {
-                    const defaultPrice = service.service_prices?.[0]?.price || 0;
-                    return {
-                        id: service.id,
-                        is_service: true,
-                        title: service.name,
-                        description: service.description || "",
-                        sell_price: defaultPrice,
-                        stock: 999999,
-                        stock_breakdown: "Jasa",
-                        category_id: null,
-                        category: null,
-                        service_prices: service.service_prices || [],
-                    };
-                })
-                .filter((item) => {
-                    return (
-                        !searchQuery ||
-                        item.title.toLowerCase().includes(searchQuery.toLowerCase())
-                    );
-                });
-        }
+    // Reset highlighted product index when filtered displayItems changes
+    useEffect(() => {
+        setActiveProductIndex(displayItems.length > 0 ? 0 : -1);
+    }, [searchQuery, transactionMode, selectedCategory, displayItems]);
 
-        return products.filter((product) => {
-            const matchesCategory =
-                normalizedSelectedCategory === null ||
-                Number(product.category_id) === normalizedSelectedCategory;
-            const matchesSearch =
-                !searchQuery ||
-                product.title
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase()) ||
-                product.barcode
-                    ?.toLowerCase()
-                    .includes(searchQuery.toLowerCase());
-            return matchesCategory && matchesSearch;
-        });
-    }, [products, services, transactionMode, normalizedSelectedCategory, searchQuery]);
+    // Auto-add product to cart if search results yield exactly one item (Product/Service mode only)
+    useEffect(() => {
+        if (
+            (transactionMode === "produk" || transactionMode === "jasa") &&
+            searchQuery.trim().length > 0 &&
+            displayItems.length === 1
+        ) {
+            const singleItem = displayItems[0];
+            if (singleItem) {
+                if (singleItem.stock > 0) {
+                    setSearchQuery("");
+                    handleAddToCart(singleItem);
+                } else {
+                    toast.error(`${singleItem.title} stok habis`);
+                    setSearchQuery("");
+                }
+            }
+        }
+    }, [searchQuery, displayItems, transactionMode]);
 
     if (!activeCashierShift) {
         return (
@@ -952,20 +1311,167 @@ export default function Index({
                                 <IconBuildingBank size={16} />
                                 <span>Agen Link</span>
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransactionMode("tukar_poin")}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    transactionMode === "tukar_poin"
+                                        ? "bg-white dark:bg-slate-950/20 dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                }`}
+                            >
+                                <IconGift size={16} />
+                                <span>Tukar Poin</span>
+                            </button>
                         </div>
-                        {transactionMode === "jasa" && (
-                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                                Mode Jasa Aktif
-                            </span>
-                        )}
-                        {transactionMode === "agen_link" && (
-                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                                Mode Agen Link Aktif
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2 self-start sm:self-auto ml-auto">
+                            {transactionMode === "jasa" && (
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                    Mode Jasa Aktif
+                                </span>
+                            )}
+                            {transactionMode === "agen_link" && (
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                    Mode Agen Link Aktif
+                                </span>
+                            )}
+                            {transactionMode === "tukar_poin" && (
+                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                    Mode Tukar Poin Aktif
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowShortcuts(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-xl hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+                            >
+                                <IconKeyboard size={16} />
+                                <span>Pintasan</span>
+                                <kbd className="hidden sm:inline-block px-1 bg-white dark:bg-slate-900 border border-primary-300 dark:border-primary-800 rounded font-mono text-[9px] font-bold">F4</kbd>
+                            </button>
+                        </div>
                     </div>
 
-                    {transactionMode === "agen_link" ? (
+                    {transactionMode === "tukar_poin" ? (
+                        /* Point Redemption History List */
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+                            {/* Search & Date Filters */}
+                            <form onSubmit={handlePointFilterSubmit} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3 shadow-sm">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="relative col-span-1 sm:col-span-3">
+                                        <input
+                                            type="text"
+                                            value={pointSearch}
+                                            onChange={(e) => setPointSearch(e.target.value)}
+                                            placeholder="Cari kode penukaran, nama, kode member..."
+                                            className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                        <IconSearch size={16} className="absolute left-3 top-2.5 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">Mulai Tanggal</label>
+                                        <input
+                                            type="date"
+                                            value={pointStartDate}
+                                            onChange={(e) => setPointStartDate(e.target.value)}
+                                            className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold uppercase text-slate-400 mb-1">Sampai Tanggal</label>
+                                        <input
+                                            type="date"
+                                            value={pointEndDate}
+                                            onChange={(e) => setPointEndDate(e.target.value)}
+                                            className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-end gap-2">
+                                        <button
+                                            type="submit"
+                                            className="flex-1 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-xs font-semibold transition-colors"
+                                        >
+                                            Filter
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handlePointResetFilters}
+                                            className="px-2 py-1.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors"
+                                        >
+                                            Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            {/* List Table Card */}
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                                {pointRedemptions.data && pointRedemptions.data.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead>
+                                                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                                                    <th className="px-3 py-3 text-slate-400 font-bold uppercase">No. Ref / Pelanggan</th>
+                                                    <th className="px-3 py-3 text-slate-400 font-bold uppercase">Waktu</th>
+                                                    <th className="px-3 py-3 text-slate-400 font-bold uppercase text-right">Poin</th>
+                                                    <th className="px-3 py-3 text-slate-400 font-bold uppercase text-right">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {pointRedemptions.data.map((tx) => (
+                                                    <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20 transition-colors">
+                                                        <td className="px-3 py-3">
+                                                            <p className="font-bold text-slate-850 dark:text-white font-mono">{tx.redemption_code}</p>
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                                                {tx.customer?.name} ({tx.customer?.member_code})
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-400">
+                                                            {new Date(tx.created_at).toLocaleString("id-ID", {
+                                                                dateStyle: "short",
+                                                                timeStyle: "short"
+                                                            })}
+                                                        </td>
+                                                        <td className="px-3 py-3 text-right font-bold text-red-650 font-mono">
+                                                            -{tx.total_points} P
+                                                        </td>
+                                                        <td className="px-3 py-3 text-right">
+                                                            <a
+                                                                href={route("point-redemptions.print", tx.id)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-semibold hover:text-slate-900 transition-colors text-[10px]"
+                                                                title="Cetak Struk"
+                                                            >
+                                                                <IconPrinter size={14} />
+                                                                <span>Cetak</span>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 text-slate-400">
+                                            <IconDatabaseOff size={20} />
+                                        </div>
+                                        <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum Ada Histori</h3>
+                                        <p className="text-[10px] text-slate-500 max-w-[200px] mt-0.5">
+                                            Tidak ditemukan data penukaran poin.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {pointRedemptions.data && pointRedemptions.data.length > 0 && (
+                                <div className="mt-2">
+                                    <Pagination links={pointRedemptions.links} />
+                                </div>
+                            )}
+                        </div>
+                    ) : transactionMode === "agen_link" ? (
                         /* Agent Link History List & Stats */
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                             {/* Stats Cards */}
@@ -1219,6 +1725,7 @@ export default function Index({
                             onAddToCart={handleAddToCart}
                             addingProductId={addingProductId}
                             searchInputRef={searchInputRef}
+                            activeProductIndex={activeProductIndex}
                             placeholder={
                                 transactionMode === "produk"
                                     ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
@@ -1235,7 +1742,199 @@ export default function Index({
                     }`}
                     style={{ height: "calc(100vh - 4rem)" }}
                 >
-                    {transactionMode === "agen_link" ? (
+                    {transactionMode === "tukar_poin" ? (
+                        /* Point Redemption Form Panel */
+                        <div className="flex flex-col h-full overflow-hidden">
+                            {/* Form Header */}
+                            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between flex-shrink-0">
+                                <h3 className="text-sm font-semibold text-slate-850 dark:text-white flex items-center gap-2">
+                                    <IconGift size={18} className="text-primary-500" />
+                                    Penukaran Poin (Tukar Point)
+                                </h3>
+                            </div>
+
+                            {/* Form Body - Scrollable */}
+                            <form onSubmit={handleSavePointRedemption} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 flex flex-col">
+                                {/* 1. Pelanggan Selection */}
+                                <div className="p-4 bg-blue-50/50 dark:bg-slate-900 border border-blue-100 dark:border-slate-800 rounded-2xl space-y-3">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                        <span>1. Pelanggan</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+S</kbd>
+                                    </h4>
+                                    <CustomerSelect
+                                        ref={customerSelectRef}
+                                        customers={customers}
+                                        selected={selectedCustomer}
+                                        onSelect={setSelectedCustomer}
+                                        placeholder="Cari pelanggan..."
+                                        error={pointErrors.customer_id}
+                                    />
+                                    {selectedCustomer && (
+                                        <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-blue-100/50 dark:border-slate-850">
+                                            <div>
+                                                <span className="text-slate-400 block">Nama</span>
+                                                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedCustomer.name}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block">Alamat</span>
+                                                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block" title={selectedCustomer.address}>{selectedCustomer.address || "-"}</span>
+                                            </div>
+                                            <div className="col-span-2 pt-1.5 flex justify-between items-center bg-primary-50 dark:bg-primary-950/20 p-2 rounded-lg">
+                                                <span className="text-primary-750 dark:text-primary-300 font-medium">Saldo Poin</span>
+                                                <span className="font-bold text-primary-600 dark:text-primary-400 text-sm">{selectedCustomer.loyalty_points || 0} Poin</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 2. Hadiah Poin Selection */}
+                                <div className="p-4 bg-blue-50/50 dark:bg-slate-900 border border-blue-100 dark:border-slate-800 rounded-2xl space-y-3">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                        <span>2. Hadiah Poin</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+H</kbd>
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="col-span-2">
+                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Pilih Hadiah</label>
+                                            <select
+                                                ref={pointPrizeSelectRef}
+                                                value={selectedPrizeId}
+                                                onChange={(e) => setSelectedPrizeId(e.target.value)}
+                                                className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-955 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            >
+                                                <option value="">-- Pilih Hadiah --</option>
+                                                {pointPrizes.map((p) => (
+                                                    <option key={p.id} value={p.id} disabled={(p.product?.stock || 0) <= 0}>
+                                                        {p.product?.title || "Produk"} ({p.points_required} P) [Stok: {p.product?.stock || 0}]
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+                                                <span>Qty</span>
+                                                <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1 py-0.2 border border-slate-200 dark:border-slate-750 font-mono text-[8px] font-bold">Alt+Q</kbd>
+                                            </label>
+                                            <input
+                                                ref={pointPrizeQtyRef}
+                                                type="number"
+                                                min="1"
+                                                value={prizeQty}
+                                                onChange={(e) => setPrizeQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                                className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddPrizeToGrid}
+                                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 bg-slate-850 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold transition-colors"
+                                    >
+                                        <IconPlus size={14} />
+                                        <span>Masuk Grid</span>
+                                        <kbd className="bg-slate-700 text-slate-300 rounded px-1 border border-slate-600 font-mono text-[8px] font-bold">Alt+A</kbd>
+                                    </button>
+                                </div>
+
+                                {/* 3. Grid Table */}
+                                <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900 flex-1 flex flex-col min-h-[150px]">
+                                    <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider flex-shrink-0">
+                                        Daftar Penukaran (Grid)
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto min-h-0">
+                                        {pointData.items.length > 0 ? (
+                                            <table className="w-full text-left border-collapse text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
+                                                        <th className="px-3 py-2 text-slate-400 font-bold uppercase">Nama</th>
+                                                        <th className="px-3 py-2 text-slate-400 font-bold uppercase text-center">Poin</th>
+                                                        <th className="px-3 py-2 text-slate-400 font-bold uppercase text-center">Qty</th>
+                                                        <th className="px-3 py-2 text-slate-400 font-bold uppercase text-right">Total</th>
+                                                        <th className="px-3 py-2 text-slate-400 font-bold uppercase text-right"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    {pointData.items.map((item) => (
+                                                        <tr key={item.point_prize_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/10">
+                                                            <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-200">{item.name}</td>
+                                                            <td className="px-3 py-2 text-center text-slate-500">{item.points_required} P</td>
+                                                            <td className="px-3 py-2 text-center text-slate-800 dark:text-slate-200 font-mono font-bold">{item.quantity}</td>
+                                                            <td className="px-3 py-2 text-right text-slate-800 dark:text-slate-200 font-mono font-bold">{item.points_required * item.quantity}</td>
+                                                            <td className="px-3 py-2 text-right">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemovePrizeFromGrid(item.point_prize_id)}
+                                                                    className="p-1 rounded bg-red-50 hover:bg-red-100 dark:bg-red-950/20 text-red-650 hover:text-red-700 transition-colors"
+                                                                >
+                                                                    <IconX size={12} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center p-6 text-center h-full text-slate-400">
+                                                <IconGift size={24} className="opacity-45 mb-1" />
+                                                <p className="text-[11px]">Belum ada hadiah yang ditambahkan.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 4. Summary & Notes */}
+                                <div className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl grid grid-cols-3 gap-2 text-xs flex-shrink-0">
+                                    <div className="text-center p-1.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
+                                        <span className="text-[10px] text-slate-400 block mb-0.5">Saldo Awal Poin</span>
+                                        <span className="font-bold text-slate-700 dark:text-slate-350">{saldoAwalPoint}</span>
+                                    </div>
+                                    <div className="text-center p-1.5 bg-red-50/50 dark:bg-red-950/10 rounded-xl border border-red-100 dark:border-red-950/20">
+                                        <span className="text-[10px] text-red-500 block mb-0.5">Total Poin</span>
+                                        <span className="font-bold text-red-650">{totalBarangPoint}</span>
+                                    </div>
+                                    <div className="text-center p-1.5 bg-success-50/50 dark:bg-success-950/10 rounded-xl border border-success-100 dark:border-success-950/20">
+                                        <span className="text-[10px] text-success-500 block mb-0.5">Saldo Akhir Poin</span>
+                                        <span className={`font-bold ${saldoAkhirPoint < 0 ? "text-danger-600" : "text-success-650"}`}>{saldoAkhirPoint}</span>
+                                    </div>
+                                    <div className="col-span-3">
+                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Catatan</label>
+                                        <textarea
+                                            ref={pointNotesRef}
+                                            value={pointData.notes}
+                                            onChange={(e) => setPointData("notes", e.target.value)}
+                                            placeholder="Masukkan catatan penukaran (opsional)..."
+                                            rows="2"
+                                            className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Form Action Buttons */}
+                                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex gap-2 flex-shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            resetPoint();
+                                            setSelectedCustomer(null);
+                                            setSelectedPrizeId("");
+                                            setPrizeQty(1);
+                                        }}
+                                        className="flex-1 py-3 px-4 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors text-center text-xs"
+                                    >
+                                        Keluar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={pointProcessing}
+                                        className="flex-1 py-3 px-4 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 text-center text-xs flex items-center justify-center gap-1.5"
+                                    >
+                                        <span>{pointProcessing ? "Menyimpan..." : "Simpan"}</span>
+                                        {!pointProcessing && <kbd className="bg-primary-650 text-white rounded px-1.5 py-0.5 border border-primary-400 font-mono text-[9px] font-bold">F2</kbd>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    ) : transactionMode === "agen_link" ? (
                         /* Agent Form Panel */
                         <div className="flex flex-col h-full overflow-hidden">
                             {/* Form Header */}
@@ -1258,7 +1957,10 @@ export default function Index({
                             <form onSubmit={handleAgentSubmit} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                                 {/* Bank Account */}
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">EDC / Sumber Rekening Agen</label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center justify-between">
+                                        <span>EDC / Sumber Rekening Agen</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+S</kbd>
+                                    </label>
                                     <select
                                         value={agentData.bank_account_id}
                                         onChange={(e) => setAgentData("bank_account_id", e.target.value)}
@@ -1295,10 +1997,14 @@ export default function Index({
 
                                 {/* Nominal */}
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Transaksi (Rp) *</label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center justify-between">
+                                        <span>Nominal Transaksi (Rp) *</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+N</kbd>
+                                    </label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
                                         <input
+                                            ref={agentNominalInputRef}
                                             type="number"
                                             value={agentData.nominal}
                                             onChange={(e) => setAgentData("nominal", parseInt(e.target.value) || 0)}
@@ -1399,8 +2105,12 @@ export default function Index({
 
                                 {/* Notes */}
                                 <div>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Catatan Tambahan</label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+                                        <span>Catatan Tambahan</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+K</kbd>
+                                    </label>
                                     <textarea
+                                        ref={agentNotesInputRef}
                                         value={agentData.notes}
                                         onChange={(e) => setAgentData("notes", e.target.value)}
                                         placeholder="Catatan..."
@@ -1427,6 +2137,7 @@ export default function Index({
                                         <>
                                             <IconDeviceFloppy size={16} />
                                             <span>{editingAgentTx ? "Simpan Perubahan" : "Catat Transaksi"}</span>
+                                            <kbd className="bg-primary-650 text-white rounded px-1.5 py-0.5 border border-primary-400 font-mono text-[9px] font-bold">F2</kbd>
                                         </>
                                     )}
                                 </button>
@@ -1438,12 +2149,18 @@ export default function Index({
                             {/* Customer Select - Fixed */}
                             <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
                                 <CustomerSelect
+                                    ref={customerSelectRef}
                                     customers={customers}
                                     selected={selectedCustomer}
                                     onSelect={setSelectedCustomer}
                                     placeholder="Pilih pelanggan..."
                                     error={errors?.customer_id}
-                                    label="Pelanggan"
+                                    label={
+                                        <span className="flex justify-between items-center w-full">
+                                            <span>Pelanggan</span>
+                                            <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+S</kbd>
+                                        </span>
+                                    }
                                 />
                             </div>
 
@@ -1453,6 +2170,8 @@ export default function Index({
                                     <HeldTransactions
                                         heldCarts={heldCarts}
                                         hasActiveCart={carts.length > 0}
+                                        isExpanded={isResumePanelOpen}
+                                        onToggleExpanded={setIsResumePanelOpen}
                                     />
                                 </div>
                             )}
@@ -1880,14 +2599,16 @@ export default function Index({
 
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                    Diskon Manual (Rp)
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center justify-between">
+                                    <span>Diskon Manual (Rp)</span>
+                                    <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+D</kbd>
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                                         Rp
                                     </span>
                                     <input
+                                        ref={discountInputRef}
                                         type="text"
                                         inputMode="numeric"
                                         value={discountInput}
@@ -1905,45 +2626,21 @@ export default function Index({
                                 </div>
                             </div>
 
-                            {/* Shipping Cost Input */}
-                            <div>
-                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                    Ongkos Kirim (Rp)
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                                        Rp
-                                    </span>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={shippingInput}
-                                        onChange={(e) =>
-                                            setShippingInput(
-                                                e.target.value.replace(
-                                                    /[^\d]/g,
-                                                    ""
-                                                )
-                                            )
-                                        }
-                                        placeholder="0"
-                                        className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                                    />
-                                </div>
 
-                            </div>
 
                             {/* Cash Input - Only for cash */}
                             {paymentMethod === "cash" && (
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-                                        Jumlah Bayar (Rp)
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center justify-between">
+                                        <span>Jumlah Bayar (Rp)</span>
+                                        <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200 dark:border-slate-700 font-mono text-[9px] font-bold">Alt+B</kbd>
                                     </label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                                             Rp
                                         </span>
                                         <input
+                                            ref={cashInputRef}
                                             type="text"
                                             inputMode="numeric"
                                             value={cashInput}
@@ -2122,35 +2819,88 @@ export default function Index({
                         className="absolute inset-0 bg-slate-900/60"
                         onClick={() => setShowShortcuts(false)}
                     />
-                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-sm w-full">
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                            <IconKeyboard size={24} />
-                            Keyboard Shortcuts
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-md w-full">
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 flex-shrink-0">
+                            <IconKeyboard size={24} className="text-primary-500" />
+                            Panduan Pintasan Keyboard
                         </h3>
-                        <div className="space-y-3">
-                            {[
-                                ["F1", "Buka Numpad"],
-                                ["F2", "Selesaikan Transaksi"],
-                                ["F3", "Toggle Produk/Keranjang"],
-                                ["F4", "Tampilkan Bantuan"],
-                                ["Esc", "Tutup Modal"],
-                            ].map(([key, desc]) => (
-                                <div
-                                    key={key}
-                                    className="flex items-center justify-between"
-                                >
-                                    <span className="text-slate-600 dark:text-slate-400">
-                                        {desc}
-                                    </span>
-                                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-sm font-mono font-bold text-slate-700 dark:text-slate-300">
-                                        {key}
-                                    </kbd>
+                        <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 flex-1 scrollbar-thin">
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1.5">Navigasi & Pencarian</h4>
+                                <div className="space-y-1.5">
+                                    {[
+                                        ["/", "Fokus kolom pencarian"],
+                                        ["↑ / ↓", "Navigasi daftar produk"],
+                                        ["Enter", "Tambah produk ke keranjang"],
+                                        ["Esc", "Tutup modal / batal fokus"],
+                                    ].map(([key, desc]) => (
+                                        <div key={key} className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-600 dark:text-slate-400">{desc}</span>
+                                            <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono font-bold text-slate-700 dark:text-slate-300">{key}</kbd>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1.5">Pilihan Mode</h4>
+                                <div className="space-y-1.5">
+                                    {[
+                                        ["F6 / Alt+1", "Mode Produk"],
+                                        ["F7 / Alt+2", "Mode Jasa"],
+                                        ["F8 / Alt+3", "Mode Agen Link"],
+                                        ["F9 / Alt+4", "Mode Tukar Poin"],
+                                    ].map(([key, desc]) => (
+                                        <div key={key} className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-600 dark:text-slate-400">{desc}</span>
+                                            <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono font-bold text-slate-700 dark:text-slate-300">{key}</kbd>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1.5">Fokus Form & Input</h4>
+                                <div className="space-y-1.5">
+                                    {[
+                                        ["Alt+S", "Pilih Pelanggan / Rekening Bank"],
+                                        ["Alt+D", "Fokus Diskon Manual"],
+                                        ["Alt+B", "Fokus Jumlah Tunai (Bayar)"],
+                                        ["Alt+N", "Fokus Nominal (Agen)"],
+                                        ["Alt+K", "Fokus Catatan (Agen)"],
+                                        ["Alt+H", "Fokus Pilihan Hadiah (Poin)"],
+                                        ["Alt+Q", "Fokus Qty Hadiah (Poin)"],
+                                    ].map(([key, desc]) => (
+                                        <div key={key} className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-600 dark:text-slate-400">{desc}</span>
+                                            <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono font-bold text-slate-700 dark:text-slate-300">{key}</kbd>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1.5">Keranjang & Pembayaran</h4>
+                                <div className="space-y-1.5">
+                                    {[
+                                        ["Alt+H", "Tahan Transaksi (Hold)"],
+                                        ["Alt+R", "Buka Transaksi Ditahan (Resume)"],
+                                        ["Alt+C", "Kosongkan Keranjang"],
+                                        ["Alt+P", "Ganti Metode Tunai/Transfer"],
+                                        ["Alt+↑ / ↓", "Ubah Qty Terakhir (+ / -)"],
+                                        ["F1", "Buka Numpad Bayar"],
+                                        ["F2", "Simpan / Selesaikan Transaksi"],
+                                        ["F3", "Toggle Tab (Mobile)"],
+                                        ["F4", "Panduan Shortcut ini"],
+                                    ].map(([key, desc]) => (
+                                        <div key={key} className="flex items-center justify-between text-xs">
+                                            <span className="text-slate-600 dark:text-slate-400">{desc}</span>
+                                            <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono font-bold text-slate-700 dark:text-slate-300 text-right">{key}</kbd>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                         <button
                             onClick={() => setShowShortcuts(false)}
-                            className="mt-6 w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium"
+                            className="mt-6 w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium flex-shrink-0"
                         >
                             Tutup
                         </button>
