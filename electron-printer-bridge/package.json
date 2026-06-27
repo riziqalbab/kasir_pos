@@ -4,11 +4,37 @@
   "description": "Silent printing bridge for local POS thermal printers",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.antigravity.printerbridge",
+    "productName": "Antigravity Printer Bridge",
+    "files": [
+      "main.js",
+      "index.html",
+      "icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "asar": true
   }
 }
