@@ -7,6 +7,11 @@ import {
     IconReceipt,
     IconRotateClockwise2,
     IconWallet,
+    IconQrcode,
+    IconCreditCard,
+    IconBuildingBank,
+    IconDeviceMobile,
+    IconHourglassLow,
 } from "@tabler/icons-react";
 import { useAuthorization } from "@/Utils/authorization";
 
@@ -24,6 +29,14 @@ const formatDateTime = (value) => {
         dateStyle: "full",
         timeStyle: "short",
     }).format(new Date(value));
+};
+
+const cashierIcons = {
+    cash: IconWallet,
+    qris: IconQrcode,
+    bank_transfer: IconBuildingBank,
+    debit_credit: IconCreditCard,
+    pay_later: IconHourglassLow,
 };
 
 function MetricCard({ title, value, icon: Icon }) {
@@ -126,69 +139,176 @@ export default function Show({ cashierShift, canForceClose = false }) {
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Ringkasan Shift
-                        </h2>
-                        <div className="mt-5 grid gap-4 md:grid-cols-2">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Kasir</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.user?.name || "-"}</p>
+                    <div className="space-y-6">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                Ringkasan Shift
+                            </h2>
+                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Kasir</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.user?.name || "-"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dibuka Oleh</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.opened_by?.name || "-"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Waktu Tutup</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatDateTime(cashierShift.closed_at)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ditutup Oleh</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.closed_by?.name || "-"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Transaksi</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.transactions_count}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Retur</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.sales_returns_count}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Penjualan Non Tunai</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.non_cash_sales_total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Refund Non Tunai</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.non_cash_refund_total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Transaksi Agen</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.agent_transactions_count || 0}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Masuk</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_in_total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Keluar</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_out_total)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Admin Agen Tunai</p>
+                                    <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_fees_cash_in_total)}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dibuka Oleh</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.opened_by?.name || "-"}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Waktu Tutup</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatDateTime(cashierShift.closed_at)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ditutup Oleh</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.closed_by?.name || "-"}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Transaksi</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.transactions_count}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Retur</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.sales_returns_count}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Penjualan Non Tunai</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.non_cash_sales_total)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Refund Non Tunai</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.non_cash_refund_total)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Transaksi Agen</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{cashierShift.agent_transactions_count || 0}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Masuk</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_in_total)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agen Kas Keluar</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_cash_out_total)}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Admin Agen Tunai</p>
-                                <p className="mt-2 text-sm text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_fees_cash_in_total)}</p>
+
+                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                                <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Catatan Shift</p>
+                                    <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{cashierShift.notes || "Tidak ada catatan pembukaan."}</p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Catatan Closing</p>
+                                    <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{cashierShift.close_notes || "Tidak ada catatan penutupan."}</p>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="mt-5 grid gap-4 md:grid-cols-2">
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Catatan Shift</p>
-                                <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{cashierShift.notes || "Tidak ada catatan pembukaan."}</p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Catatan Closing</p>
-                                <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{cashierShift.close_notes || "Tidak ada catatan penutupan."}</p>
+                        {/* Analisis Pembayaran Card */}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 animate-in fade-in slide-in-from-bottom-2 duration-350">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                Analisis Pembayaran Shift
+                            </h2>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                Rincian penerimaan dan pengeluaran selama shift aktif.
+                            </p>
+
+                            <div className="mt-6 grid gap-6 md:grid-cols-2">
+                                {/* Kasir Column */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                        1. Metode Pembayaran Kasir
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {Object.entries(cashierShift.cashier_payment_breakdown || {}).map(([key, item]) => {
+                                            const IconComponent = cashierIcons[key] || IconReceipt;
+                                            return (
+                                                <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 rounded-lg bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
+                                                            <IconComponent size={18} />
+                                                        </div>
+                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.name}</span>
+                                                    </div>
+                                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                                        {formatCurrency(item.amount)}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Agent Column */}
+                                <div className="space-y-6">
+                                    <div>
+                                        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">
+                                            2. Transaksi Agen
+                                        </h3>
+                                        
+                                        {/* Bank Accounts Breakdown */}
+                                        <div className="space-y-3">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                                Berdasarkan Bank / EDC
+                                            </h4>
+                                            {cashierShift.agent_bank_breakdown && cashierShift.agent_bank_breakdown.length > 0 ? (
+                                                cashierShift.agent_bank_breakdown.map((bank) => (
+                                                    <div key={bank.bank_name} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <IconBuildingBank size={16} className="text-primary-500" />
+                                                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{bank.bank_name}</span>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">{bank.count} Transaksi</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                                            <div>
+                                                                <span className="text-slate-500 dark:text-slate-400">Masuk (Debet):</span>
+                                                                <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(bank.cash_in)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-slate-500 dark:text-slate-400">Keluar (Kredit):</span>
+                                                                <p className="font-semibold text-rose-600 dark:text-rose-400">{formatCurrency(bank.cash_out)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 italic">Tidak ada transaksi bank.</p>
+                                            )}
+                                        </div>
+
+                                        {/* Loket Breakdown */}
+                                        <div className="mt-5 space-y-3">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                                Berdasarkan Loket
+                                            </h4>
+                                            {cashierShift.agent_loket_breakdown && cashierShift.agent_loket_breakdown.length > 0 ? (
+                                                cashierShift.agent_loket_breakdown.map((loket) => (
+                                                    <div key={loket.code} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 rounded-lg bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
+                                                                <IconDeviceMobile size={18} className="text-amber-500" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{loket.code}</span>
+                                                                <span className="text-[10px] text-slate-500 dark:text-slate-400">{loket.count} Transaksi</span>
+                                                            </div>
+                                                        </div>
+                                                        <span className="font-semibold text-slate-900 dark:text-white">
+                                                            {formatCurrency(loket.nominal)}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 italic">Tidak ada transaksi loket.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

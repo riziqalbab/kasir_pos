@@ -168,6 +168,7 @@ class CashierShiftController extends Controller
     private function transformShift(CashierShift $shift): array
     {
         $summary = $this->cashierShiftService->calculateSummary($shift);
+        $breakdowns = $this->cashierShiftService->getDetailedBreakdowns($shift);
 
         return [
             'id' => $shift->id,
@@ -204,6 +205,7 @@ class CashierShiftController extends Controller
                 'id' => $shift->closedBy->id,
                 'name' => $shift->closedBy->name,
             ] : null,
+            ...$breakdowns,
         ];
     }
 

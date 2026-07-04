@@ -209,4 +209,107 @@ class CashierShiftService
 
         return $query->where('user_id', $user->id);
     }
+
+    public function getDetailedBreakdowns(CashierShift $shift): array
+    {
+        $transactions = Transaction::query()
+            ->where('cashier_shift_id', $shift->id);
+
+        $cashierBreakdown = [
+            'cash' => [
+                'name' => 'Tunai (Cash)',
+                'amount' => (int) (clone $transactions)
+                    ->where('payment_method', 'cash')
+                    ->where('payment_status', 'paid')
+                    ->sum('grand_total'),
+            ],
+            'qris' => [
+                'name' => 'QRIS',
+                'amount' => (int) (clone $transactions)
+                    ->where('payment_method', 'qris')
+                    ->sum('grand_total'),
+            ],
+            'bank_transfer' => [
+                'name' => 'Transfer Bank (TF)',
+                'amount' => (int) (clone $transactions)
+                    ->where('payment_method', 'bank_transfer')
+                    ->sum('grand_total'),
+            ],
+            'debit_credit' => [
+                'name' => 'Kartu Debit (Debit)',
+                'amount' => (int) (clone $transactions)
+                    ->where('payment_method', 'debit_credit')
+                    ->sum('grand_total'),
+            ],
+            'pay_later' => [
+                'name' => 'Piutang (Pay Later)',
+                'amount' => (int) (clone $transactions)
+                    ->where('payment_method', 'pay_later')
+                    ->sum('grand_total'),
+            ],
+        ];
+
+        $agentTxList = AgentTransaction::query()
+            ->with(['bankAccount', 'agentAdminLoket', 'agentTransactionType'])
+            ->where('cashier_shift_id', $shift->id)
+            ->where('status', 'success')
+            ->get();
+
+        $agentBankBreakdown = [];
+        $agentLoketBreakdown = [];
+
+        foreach ($agentTxList as $tx) {
+            $type = $tx->agentTransactionType->type; // 'debet' or 'kredit'
+
+            $cashIn = 0;
+            $cashOut = 0;
+
+            if ($type === 'debet') {
+                $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+            } else {
+                $cashOut = $tx->nominal;
+                $cashIn = ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+            }
+
+            if ($tx->bankAccount) {
+                $bankName = $tx->bankAccount->bank_name;
+                if (! isset($agentBankBreakdown[$bankName])) {
+                    $agentBankBreakdown[$bankName] = [
+                        'bank_name' => $bankName,
+                        'cash_in' => 0,
+                        'cash_out' => 0,
+                        'nominal' => 0,
+                        'count' => 0,
+                    ];
+                }
+                $agentBankBreakdown[$bankName]['cash_in'] += $cashIn;
+                $agentBankBreakdown[$bankName]['cash_out'] += $cashOut;
+                $agentBankBreakdown[$bankName]['nominal'] += $tx->nominal;
+                $agentBankBreakdown[$bankName]['count'] += 1;
+            }
+
+            if ($tx->agentAdminLoket) {
+                $loketCode = $tx->agentAdminLoket->code;
+                if (! isset($agentLoketBreakdown[$loketCode])) {
+                    $agentLoketBreakdown[$loketCode] = [
+                        'code' => $loketCode,
+                        'cash_in' => 0,
+                        'cash_out' => 0,
+                        'nominal' => 0,
+                        'count' => 0,
+                    ];
+                }
+                $agentLoketBreakdown[$loketCode]['cash_in'] += $cashIn;
+                $agentLoketBreakdown[$loketCode]['cash_out'] += $cashOut;
+                $agentLoketBreakdown[$loketCode]['nominal'] += $tx->nominal;
+                $agentLoketBreakdown[$loketCode]['count'] += 1;
+            }
+        }
+
+        return [
+            'cashier_payment_breakdown' => $cashierBreakdown,
+            'agent_bank_breakdown' => array_values($agentBankBreakdown),
+            'agent_loket_breakdown' => array_values($agentLoketBreakdown),
+        ];
+    }
 }
