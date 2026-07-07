@@ -187,6 +187,82 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(3, $summary['agent_transactions_count']);
     }
 
+    public function test_agent_transactions_correctly_impact_bank_account_balances(): void
+    {
+        $cashier = $this->createUserWithPermissions([
+            'agent-transactions-create',
+            'cashier-shifts-access',
+        ]);
+
+        $shift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 100000,
+            'expected_cash' => 100000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
+        $bank = \App\Models\BankAccount::create([
+            'bank_name' => 'BCA',
+            'account_number' => '123456',
+            'account_name' => 'Test Account',
+            'is_active' => true,
+            'balance' => 10000000,
+        ]);
+
+        $debetType = AgentTransactionType::create([
+            'code' => 'JTA0001',
+            'name' => 'Setor Tunai',
+            'type' => 'debet',
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => 'JTA0002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        // 1. Debet (Setor) - nominal 200,000, bank fee 2,000.
+        // Bank balance decreases by: 200,000 + 2,000 = 202,000
+        $tx1 = AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $debetType->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 200000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
+
+        // 2. Kredit (Tarik) - nominal 100,000, bank fee 2,000, customer fee 5,000 paid via bank
+        // Bank balance increases by: 100,000 - 2,000 + 5,000 = 103,000
+        $tx2 = AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 100000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'bank',
+            'status' => 'success',
+        ]);
+
+        $this->assertEquals(10000000 - 202000 + 103000, $bank->fresh()->balance);
+
+        // 3. Update tx1 status to failed
+        // Reverts its effect: balance increases back by 202,000
+        $tx1->update(['status' => 'failed']);
+        $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
+    }
+
     private function createUserWithPermissions(array $permissions): User
     {
         $user = User::factory()->create();

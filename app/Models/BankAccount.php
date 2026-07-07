@@ -17,11 +17,13 @@ class BankAccount extends Model
         'logo',
         'is_active',
         'sort_order',
+        'balance',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'balance' => 'integer',
     ];
 
     protected $appends = [

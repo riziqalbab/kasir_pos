@@ -62,6 +62,7 @@ class BankAccountController extends Controller
             'account_name' => 'required|string|max:100',
             'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg|max:1024',
             'is_active' => 'nullable|boolean',
+            'balance' => 'nullable|integer',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -103,6 +104,7 @@ class BankAccountController extends Controller
             'account_name' => 'required|string|max:100',
             'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg|max:1024',
             'is_active' => 'nullable|boolean',
+            'balance' => 'nullable|integer',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -235,6 +237,33 @@ class BankAccountController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /**
+     * Update bank account balance directly
+     */
+    public function updateBalance(Request $request, BankAccount $bankAccount)
+    {
+        $validated = $request->validate([
+            'balance' => 'required|integer',
+        ]);
+
+        $before = $this->bankAccountPayload($bankAccount);
+
+        $bankAccount->update([
+            'balance' => $validated['balance'],
+        ]);
+
+        $this->auditLogService->log(
+            event: 'bank_account.balance_updated',
+            module: 'bank_accounts',
+            auditable: $bankAccount,
+            description: "Saldo rekening {$bankAccount->bank_name} diperbarui menjadi " . number_format($validated['balance'], 0, ',', '.') . ".",
+            before: $before,
+            after: $this->bankAccountPayload($bankAccount->fresh())
+        );
+
+        return back()->with('success', 'Saldo rekening berhasil diperbarui.');
+    }
+
     private function bankAccountPayload(BankAccount $bankAccount): array
     {
         return [
@@ -243,6 +272,7 @@ class BankAccountController extends Controller
             'account_name' => $bankAccount->account_name,
             'is_active' => (bool) $bankAccount->is_active,
             'sort_order' => (int) $bankAccount->sort_order,
+            'balance' => (int) $bankAccount->balance,
         ];
     }
 }

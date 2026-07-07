@@ -20,6 +20,7 @@ export default function BankAccountForm({ bankAccount = null }) {
     bank_name: bankAccount?.bank_name || "",
     account_number: bankAccount?.account_number || "",
     account_name: bankAccount?.account_name || "",
+    balance: bankAccount?.balance || 0,
     logo: null,
     is_active: bankAccount?.is_active ?? true,
 });
@@ -96,6 +97,15 @@ export default function BankAccountForm({ bankAccount = null }) {
                         value={data.account_name}
                         onChange={(e) => setData("account_name", e.target.value)}
                         errors={errors.account_name}
+                        disabled={!canUpdatePaymentSettings}
+                    />
+                    <Input
+                        label="Saldo Rekening (Rp)"
+                        type="number"
+                        placeholder="0"
+                        value={data.balance}
+                        onChange={(e) => setData("balance", parseInt(e.target.value) || 0)}
+                        errors={errors.balance}
                         disabled={!canUpdatePaymentSettings}
                     />
 

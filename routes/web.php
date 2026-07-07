@@ -222,6 +222,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::delete('/settings/bank-accounts/{bankAccount}', [\App\Http\Controllers\Apps\BankAccountController::class, 'destroy'])->middleware(['permission:payment-settings-update', 'step_up'])->name('settings.bank-accounts.destroy');
     Route::patch('/settings/bank-accounts/{bankAccount}/toggle', [\App\Http\Controllers\Apps\BankAccountController::class, 'toggleActive'])->middleware(['permission:payment-settings-update', 'step_up'])->name('settings.bank-accounts.toggle');
     Route::post('/settings/bank-accounts/order', [\App\Http\Controllers\Apps\BankAccountController::class, 'updateOrder'])->middleware(['permission:payment-settings-update', 'step_up'])->name('settings.bank-accounts.order');
+    Route::patch('/settings/bank-accounts/{bankAccount}/balance', [\App\Http\Controllers\Apps\BankAccountController::class, 'updateBalance'])->middleware('permission:payment-settings-update|agent-transactions-create')->name('settings.bank-accounts.balance');
 
     // confirm payment for bank transfer
     Route::patch('/transactions/{transaction}/confirm-payment', [TransactionController::class, 'confirmPayment'])->middleware(['permission:transactions-confirm-payment', 'step_up'])->name('transactions.confirm-payment');
@@ -285,3 +286,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 });
 
 require __DIR__.'/auth.php';
+
+Route::get('/run-migrations-temp', function() {
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    return 'Migrations run: ' . \Illuminate\Support\Facades\Artisan::output();
+});

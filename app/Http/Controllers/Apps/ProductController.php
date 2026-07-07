@@ -46,6 +46,12 @@ class ProductController extends Controller
     {
         // get categories
         $categories = Category::all();
+
+        // ensure default units exist
+        foreach (['Dus', 'Pak', 'Pcs'] as $name) {
+            Unit::firstOrCreate(['name' => $name]);
+        }
+
         // get units
         $units = Unit::orderBy('name')->get();
 
@@ -190,6 +196,12 @@ class ProductController extends Controller
     {
         // get categories
         $categories = Category::all();
+
+        // ensure default units exist
+        foreach (['Dus', 'Pak', 'Pcs'] as $name) {
+            Unit::firstOrCreate(['name' => $name]);
+        }
+
         // get units
         $units = Unit::orderBy('name')->get();
 

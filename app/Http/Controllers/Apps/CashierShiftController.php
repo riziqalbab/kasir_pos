@@ -78,6 +78,39 @@ class CashierShiftController extends Controller
             notes: $request->validated('notes'),
         );
 
+        $balances = $request->input('balances', []);
+        foreach ($balances as $bankAccountId => $balance) {
+            $bankAccount = \App\Models\BankAccount::find($bankAccountId);
+            if ($bankAccount) {
+                $before = [
+                    'bank_name' => $bankAccount->bank_name,
+                    'account_number_masked' => $this->auditLogService->maskAccountNumber($bankAccount->account_number),
+                    'account_name' => $bankAccount->account_name,
+                    'is_active' => (bool) $bankAccount->is_active,
+                    'sort_order' => (int) $bankAccount->sort_order,
+                    'balance' => (int) $bankAccount->balance,
+                ];
+
+                $bankAccount->update(['balance' => $balance]);
+
+                $this->auditLogService->log(
+                    event: 'bank_account.balance_updated',
+                    module: 'bank_accounts',
+                    auditable: $bankAccount,
+                    description: "Saldo rekening {$bankAccount->bank_name} diatur saat pembukaan shift menjadi " . number_format($balance, 0, ',', '.') . ".",
+                    before: $before,
+                    after: [
+                        'bank_name' => $bankAccount->bank_name,
+                        'account_number_masked' => $this->auditLogService->maskAccountNumber($bankAccount->account_number),
+                        'account_name' => $bankAccount->account_name,
+                        'is_active' => (bool) $bankAccount->is_active,
+                        'sort_order' => (int) $bankAccount->sort_order,
+                        'balance' => (int) $balance,
+                    ]
+                );
+            }
+        }
+
         $this->auditLogService->log(
             event: 'cashier_shift.opened',
             module: 'cashier_shifts',
@@ -170,6 +203,12 @@ class CashierShiftController extends Controller
         $summary = $this->cashierShiftService->calculateSummary($shift);
         $breakdowns = $this->cashierShiftService->getDetailedBreakdowns($shift);
 
+        $agentTransactions = \App\Models\AgentTransaction::query()
+            ->with(['agentTransactionType', 'bankAccount', 'agentAdminBank', 'agentAdminLoket'])
+            ->where('cashier_shift_id', $shift->id)
+            ->latest('transaction_date')
+            ->get();
+
         return [
             'id' => $shift->id,
             'status' => $shift->status,
@@ -205,6 +244,7 @@ class CashierShiftController extends Controller
                 'id' => $shift->closedBy->id,
                 'name' => $shift->closedBy->name,
             ] : null,
+            'agent_transactions' => $agentTransactions,
             ...$breakdowns,
         ];
     }

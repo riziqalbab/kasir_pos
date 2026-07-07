@@ -63,7 +63,7 @@ export default function Edit({ categories, product, units = [] }) {
             setData((prev) => {
                 const updated = { ...prev, [activeUnitField]: newUnitName };
                 if (activeUnitField === "satuan_beli") {
-                    updated.satuan_jual_dus = newUnitName;
+                    updated.satuan_jual_pcs = newUnitName;
                 }
                 return updated;
             });
@@ -93,25 +93,52 @@ export default function Edit({ categories, product, units = [] }) {
 
     const handleHargaBeliChange = (unitKey, value) => {
         const val = parseInt(value, 10) || 0;
-        if (unitKey === "dus") {
-            const packDus = Number(data.isi_pack_dalam_dus) || 1;
-            const pcsDus = Number(data.isi_pcs_dalam_dus) || 1;
-            setData((prev) => ({
-                ...prev,
-                harga_beli_dus: val,
-                harga_beli_pack: Math.floor(val / packDus),
-                harga_beli_pcs: Math.floor(val / pcsDus),
-            }));
-        } else if (unitKey === "pack") {
-            const pcsPack = Number(data.isi_pcs_dalam_pack) || 1;
-            setData((prev) => ({
-                ...prev,
-                harga_beli_pack: val,
-                harga_beli_pcs: Math.floor(val / pcsPack),
-            }));
-        } else if (unitKey === "pcs") {
-            setData("harga_beli_pcs", val);
-        }
+        setData((prev) => {
+            const updated = { ...prev };
+            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
+            const packDus = Number(prev.isi_pack_dalam_dus) || 0;
+            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
+
+            if (unitKey === "dus") {
+                updated.harga_beli_dus = val;
+                updated.harga_beli_pack = packDus > 0 ? Math.floor(val / packDus) : 0;
+                updated.harga_beli_pcs = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+            } else if (unitKey === "pack") {
+                updated.harga_beli_pack = val;
+                updated.harga_beli_pcs = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
+                updated.harga_beli_dus = val * packDus;
+            } else if (unitKey === "pcs") {
+                updated.harga_beli_pcs = val;
+                updated.harga_beli_pack = val * pcsPack;
+                updated.harga_beli_dus = val * pcsDus;
+            }
+            return updated;
+        });
+    };
+
+    const handleHargaJualChange = (unitKey, value) => {
+        const val = parseInt(value, 10) || 0;
+        setData((prev) => {
+            const updated = { ...prev };
+            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
+            const packDus = Number(prev.isi_pack_dalam_dus) || 0;
+            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
+
+            if (unitKey === "dus") {
+                updated.harga_jual_dus = val;
+                updated.harga_jual_pack = packDus > 0 ? Math.floor(val / packDus) : 0;
+                updated.harga_jual_pcs = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+            } else if (unitKey === "pack") {
+                updated.harga_jual_pack = val;
+                updated.harga_jual_pcs = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
+                updated.harga_jual_dus = val * packDus;
+            } else if (unitKey === "pcs") {
+                updated.harga_jual_pcs = val;
+                updated.harga_jual_pack = val * pcsPack;
+                updated.harga_jual_dus = val * pcsDus;
+            }
+            return updated;
+        });
     };
 
     const handleConversionChange = (field, value) => {
@@ -125,16 +152,15 @@ export default function Edit({ categories, product, units = [] }) {
             const packDus = field === "isi_pack_dalam_dus" ? val : Number(prev.isi_pack_dalam_dus || 0);
             updated.isi_pcs_dalam_dus = pcsPack * packDus;
 
-            // Auto-calculate buy prices if we have a buy price for DUS or PACK
-            if (updated.harga_beli_dus > 0) {
-                const packDusFactor = updated.isi_pack_dalam_dus || 1;
-                const pcsDusFactor = updated.isi_pcs_dalam_dus || 1;
-                updated.harga_beli_pack = Math.floor(updated.harga_beli_dus / packDusFactor);
-                updated.harga_beli_pcs = Math.floor(updated.harga_beli_dus / pcsDusFactor);
-            } else if (updated.harga_beli_pack > 0) {
-                const pcsPackFactor = updated.isi_pcs_dalam_pack || 1;
-                updated.harga_beli_pcs = Math.floor(updated.harga_beli_pack / pcsPackFactor);
-            }
+            // Recalculate prices using pcs as the ground truth
+            const buyPcs = Number(updated.harga_beli_pcs || 0);
+            const sellPcs = Number(updated.harga_jual_pcs || 0);
+
+            updated.harga_beli_pack = buyPcs * pcsPack;
+            updated.harga_beli_dus = buyPcs * updated.isi_pcs_dalam_dus;
+
+            updated.harga_jual_pack = sellPcs * pcsPack;
+            updated.harga_jual_dus = sellPcs * updated.isi_pcs_dalam_dus;
 
             return updated;
         });
@@ -289,7 +315,7 @@ export default function Edit({ categories, product, units = [] }) {
                                          setData((prev) => ({
                                              ...prev,
                                              satuan_beli: e.target.value,
-                                             satuan_jual_dus: e.target.value,
+                                             satuan_jual_pcs: e.target.value,
                                          }))
                                      }
                                      units={units}
@@ -310,7 +336,7 @@ export default function Edit({ categories, product, units = [] }) {
                                 <Input
                                     type="number"
                                     label="Isi [Pcs] dalam se-Pack"
-                                    value={data.isi_pcs_dalam_pack}
+                                    value={data.isi_pcs_dalam_pack === 0 ? "" : data.isi_pcs_dalam_pack}
                                     onChange={(e) =>
                                         handleConversionChange("isi_pcs_dalam_pack", e.target.value)
                                     }
@@ -322,7 +348,7 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Isi [Pack] dalam se-dus"
-                                        value={data.isi_pack_dalam_dus}
+                                        value={data.isi_pack_dalam_dus === 0 ? "" : data.isi_pack_dalam_dus}
                                         onChange={(e) =>
                                             handleConversionChange("isi_pack_dalam_dus", e.target.value)
                                         }
@@ -335,7 +361,7 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Isi [Pcs] dalam se-dus"
-                                        value={data.isi_pcs_dalam_dus}
+                                        value={data.isi_pcs_dalam_dus === 0 ? "" : data.isi_pcs_dalam_dus}
                                         errors={errors.isi_pcs_dalam_dus}
                                         disabled={true}
                                         placeholder="0"
@@ -398,7 +424,7 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Beli (DUS)"
-                                        value={data.harga_beli_dus}
+                                        value={data.harga_beli_dus === 0 ? "" : data.harga_beli_dus}
                                         onChange={(e) => handleHargaBeliChange("dus", e.target.value)}
                                         errors={errors.harga_beli_dus}
                                         placeholder="0"
@@ -406,8 +432,8 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Jual (DUS)"
-                                        value={data.harga_jual_dus}
-                                        onChange={(e) => setData("harga_jual_dus", e.target.value)}
+                                        value={data.harga_jual_dus === 0 ? "" : data.harga_jual_dus}
+                                        onChange={(e) => handleHargaJualChange("dus", e.target.value)}
                                         errors={errors.harga_jual_dus}
                                         placeholder="0"
                                     />
@@ -436,7 +462,7 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Beli (PACK)"
-                                        value={data.harga_beli_pack}
+                                        value={data.harga_beli_pack === 0 ? "" : data.harga_beli_pack}
                                         onChange={(e) => handleHargaBeliChange("pack", e.target.value)}
                                         errors={errors.harga_beli_pack}
                                         placeholder="0"
@@ -444,8 +470,8 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Jual (PACK)"
-                                        value={data.harga_jual_pack}
-                                        onChange={(e) => setData("harga_jual_pack", e.target.value)}
+                                        value={data.harga_jual_pack === 0 ? "" : data.harga_jual_pack}
+                                        onChange={(e) => handleHargaJualChange("pack", e.target.value)}
                                         errors={errors.harga_jual_pack}
                                         placeholder="0"
                                     />
@@ -474,7 +500,7 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Beli (PCS)"
-                                        value={data.harga_beli_pcs}
+                                        value={data.harga_beli_pcs === 0 ? "" : data.harga_beli_pcs}
                                         onChange={(e) => handleHargaBeliChange("pcs", e.target.value)}
                                         errors={errors.harga_beli_pcs}
                                         placeholder="0"
@@ -482,8 +508,8 @@ export default function Edit({ categories, product, units = [] }) {
                                     <Input
                                         type="number"
                                         label="Harga Jual (PCS)"
-                                        value={data.harga_jual_pcs}
-                                        onChange={(e) => setData("harga_jual_pcs", e.target.value)}
+                                        value={data.harga_jual_pcs === 0 ? "" : data.harga_jual_pcs}
+                                        onChange={(e) => handleHargaJualChange("pcs", e.target.value)}
                                         errors={errors.harga_jual_pcs}
                                         placeholder="0"
                                     />

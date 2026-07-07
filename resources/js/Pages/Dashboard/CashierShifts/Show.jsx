@@ -393,6 +393,104 @@ export default function Show({ cashierShift, canForceClose = false }) {
                         )}
                     </div>
                 </div>
+
+                {/* Agent Transactions Details Section */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <IconBuildingBank size={20} className="text-primary-500" />
+                            Rincian Transaksi Agen Link ({cashierShift.agent_transactions?.length || 0} Transaksi)
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            Daftar semua pencatatan transaksi agen link pada shift ini.
+                        </p>
+                    </div>
+
+                    {cashierShift.agent_transactions && cashierShift.agent_transactions.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        <th className="p-3">Waktu</th>
+                                        <th className="p-3">Tipe / Layanan</th>
+                                        <th className="p-3">EDC / Rekening</th>
+                                        <th className="p-3 text-right">Nominal</th>
+                                        <th className="p-3 text-right">Admin Pelanggan</th>
+                                        <th className="p-3 text-right">Admin Bank</th>
+                                        <th className="p-3 text-right">Keuntungan (Net)</th>
+                                        <th className="p-3 text-center">Status</th>
+                                        <th className="p-3">Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                                    {cashierShift.agent_transactions.map((tx) => (
+                                        <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                                            <td className="p-3 whitespace-nowrap text-slate-500">
+                                                {formatDateTime(tx.transaction_date)}
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="font-semibold text-slate-900 dark:text-white">
+                                                    {tx.agent_transaction_type?.name || "-"}
+                                                </div>
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                    tx.agent_transaction_type?.type === 'debet' 
+                                                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400' 
+                                                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
+                                                }`}>
+                                                    {tx.agent_transaction_type?.type === 'debet' ? 'Debet/Masuk' : 'Kredit/Keluar'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                                                {tx.bank_account ? (
+                                                    <div>
+                                                        <p className="font-medium text-slate-800 dark:text-slate-200">{tx.bank_account.bank_name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-mono">{tx.bank_account.account_number}</p>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 font-medium">Cash (Kas Fisik)</span>
+                                                )}
+                                            </td>
+                                            <td className="p-3 text-right font-bold text-slate-900 dark:text-white">
+                                                {formatCurrency(tx.nominal)}
+                                            </td>
+                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400 font-medium">
+                                                {formatCurrency(tx.admin_fee_customer)}
+                                                <span className="block text-[9px] text-slate-400 uppercase font-bold">
+                                                    {tx.admin_fee_payment_method}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400">
+                                                {formatCurrency(tx.admin_fee_bank)}
+                                            </td>
+                                            <td className="p-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                                {formatCurrency(tx.net_profit)}
+                                            </td>
+                                            <td className="p-3 text-center whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                                                    tx.status === "success"
+                                                        ? "bg-success-100 text-success-700 dark:bg-success-950/30 dark:text-success-400"
+                                                        : tx.status === "pending"
+                                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                                        : "bg-danger-100 text-danger-700 dark:bg-danger-950/30 dark:text-danger-400"
+                                                }`}>
+                                                    {tx.status === "success" ? "Berhasil" : tx.status === "pending" ? "Pending" : "Gagal"}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 max-w-[200px] truncate text-xs text-slate-500" title={tx.notes}>
+                                                {tx.notes || "-"}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center bg-slate-50 dark:bg-slate-950 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <IconBuildingBank size={36} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">Tidak ada transaksi agen link selama shift ini.</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </>
     );
