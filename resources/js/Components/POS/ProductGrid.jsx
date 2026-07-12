@@ -4,6 +4,9 @@ import {
     IconPhoto,
     IconMinus,
     IconPlus,
+    IconSearch,
+    IconTools,
+    IconShoppingCart,
 } from "@tabler/icons-react";
 import { getProductImageUrl } from "@/Utils/imageUrl";
 
@@ -189,6 +192,9 @@ export default function ProductGrid({
     searchInputRef,
     placeholder,
     activeProductIndex = -1,
+    compact = false,
+    showAllProducts = false,
+    onShowAllProducts,
 }) {
     const normalizedSelectedCategory =
         selectedCategory === null ? null : Number(selectedCategory);
@@ -257,130 +263,221 @@ export default function ProductGrid({
                 </div>
             )}
 
-            {/* Products Table */}
+            {/* Products Table / Compact List */}
             <div ref={containerRef} className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
-                {filteredProducts.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
-                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
-                                        Produk / Barcode
-                                    </th>
-                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
-                                        Kategori
-                                    </th>
-                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
-                                        Stok
-                                    </th>
-                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
-                                        Harga Jual
-                                    </th>
-                                    <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550 text-right">
-                                        Aksi
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {filteredProducts.map((product, index) => {
-                                    const hasStock = product.stock > 0;
-                                    const lowStock = product.stock > 0 && product.stock <= 5;
-                                    const promoBadge = product.pricing_badge;
-                                    const promoPrice = Number(promoBadge?.promo_price || 0);
-                                    const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
-                                    const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
-                                    const showBadge = Boolean(promoBadge?.label);
-                                    const isHighlighted = index === activeProductIndex;
-
-                                    return (
-                                        <tr
-                                            key={product.id}
-                                            data-product-index={index}
-                                            onClick={() => hasStock && onAddToCart(product)}
-                                            className={`
-                                                hover:bg-slate-50/70 dark:hover:bg-slate-80/40 transition-colors cursor-pointer group
-                                                ${isHighlighted ? "bg-primary-50/85 dark:bg-primary-955/40 font-medium" : ""}
-                                                ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}
-                                            `}
-                                        >
-                                            <td className={`px-4 py-3 ${isHighlighted ? "border-l-4 border-primary-500" : ""}`}>
-                                                <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                                                    {product.title}
-                                                </div>
-                                                {product.is_service ? (
-                                                    product.description && (
-                                                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">
-                                                            {product.description}
-                                                        </div>
-                                                    )
-                                                ) : (
-                                                    <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-2 mt-0.5">
-                                                        {product.barcode && <span>Code: {product.barcode}</span>}
-                                                        {product.sku && <span>SKU: {product.sku}</span>}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                                                <span className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
-                                                    {product.is_service ? "Jasa" : (product.category?.name || "Umum")}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm font-medium">
-                                                {product.is_service ? (
-                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-full">
-                                                        Jasa
-                                                    </span>
-                                                ) : !hasStock ? (
-                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400 rounded-full">
-                                                        Habis
-                                                    </span>
-                                                ) : lowStock ? (
-                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400 rounded-full">
-                                                        Sisa: {product.stock_breakdown || `${product.stock} Pcs`}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-700 dark:text-slate-300">
-                                                        {product.stock_breakdown || `${product.stock} Pcs`}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm">
-                                                {showPromo && (
-                                                    <span className="text-xs text-slate-400 line-through mr-1.5">
-                                                        {formatPrice(basePrice)}
-                                                    </span>
-                                                )}
-                                                <span className="font-bold text-primary-600 dark:text-primary-400">
-                                                    {formatPrice(showPromo ? promoPrice : product.sell_price)}
-                                                </span>
-                                                {showBadge && (
-                                                    <span className="ml-1.5 rounded-full bg-rose-100 dark:bg-rose-950/30 px-2 py-0.5 text-[10px] font-semibold text-rose-650 dark:text-rose-400">
-                                                        {promoBadge.label}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <button
-                                                    type="button"
-                                                    disabled={!hasStock || addingProductId === product.id}
-                                                    className={`
-                                                        px-3 py-1.5 rounded-xl font-medium text-xs transition-colors
-                                                        ${
-                                                            hasStock
-                                                                ? "bg-primary-500 hover:bg-primary-600 text-white shadow-sm"
-                                                                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
-                                                        }
-                                                    `}
-                                                >
-                                                    {addingProductId === product.id ? "..." : "+ Pilih"}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                {!searchQuery && !showAllProducts ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 dark:text-slate-600">
+                        <IconSearch size={48} className="text-slate-305 dark:text-slate-700 mb-3 animate-pulse" />
+                        <h3 className="text-sm font-semibold text-slate-750 dark:text-slate-300 mb-1">Cari Produk / Scan Barcode</h3>
+                        <p className="text-xs text-slate-500 max-w-[240px] mb-4">
+                            Ketik nama produk atau scan barcode untuk mencari produk.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={onShowAllProducts}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-xs font-semibold shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                        >
+                            Tampilkan Semua Produk
+                        </button>
                     </div>
+                ) : filteredProducts.length > 0 ? (
+                    compact ? (
+                        <div className="space-y-2">
+                            {filteredProducts.map((product, index) => {
+                                const hasStock = product.stock > 0;
+                                const lowStock = product.stock > 0 && product.stock <= 5;
+                                const promoBadge = product.pricing_badge;
+                                const promoPrice = Number(promoBadge?.promo_price || 0);
+                                const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
+                                const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
+                                const showBadge = Boolean(promoBadge?.label);
+                                const isHighlighted = index === activeProductIndex;
+
+                                return (
+                                    <div
+                                        key={product.id}
+                                        data-product-index={index}
+                                        onClick={() => hasStock && onAddToCart(product)}
+                                        className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                                            isHighlighted
+                                                ? "border-primary-500 ring-2 ring-primary-500/20 bg-primary-50/10 dark:bg-primary-955/10"
+                                                : "border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-white dark:hover:bg-slate-900"
+                                        } ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}`}
+                                    >
+                                        <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                                            {product.image ? (
+                                                <img src={getProductImageUrl(product.image)} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400">
+                                                    {product.is_service ? <IconTools size={18} /> : <IconShoppingCart size={18} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs sm:text-sm truncate">
+                                                {product.title}
+                                            </div>
+                                            <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-550 flex items-center gap-1.5 mt-0.5">
+                                                {product.is_service ? (
+                                                    <span className="text-primary-600 font-medium">Jasa</span>
+                                                ) : (
+                                                    <>
+                                                        <span className={lowStock ? "text-warning-600 font-medium" : ""}>
+                                                            Stok: {product.stock_breakdown || `${product.stock} Pcs`}
+                                                        </span>
+                                                        {product.barcode && <span className="truncate">| {product.barcode}</span>}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0 flex flex-col items-end">
+                                            <div className="font-bold text-primary-600 dark:text-primary-400 text-xs sm:text-sm">
+                                                {formatPrice(showPromo ? promoPrice : product.sell_price)}
+                                            </div>
+                                            {showPromo && (
+                                                <div className="text-[9px] sm:text-[10px] text-slate-400 line-through">
+                                                    {formatPrice(basePrice)}
+                                                </div>
+                                            )}
+                                            <button
+                                                type="button"
+                                                disabled={!hasStock || addingProductId === product.id}
+                                                className={`mt-1 px-2 py-0.5 rounded-lg font-medium text-[10px] transition-colors ${
+                                                    hasStock
+                                                        ? "bg-primary-500 text-white hover:bg-primary-600 shadow-sm"
+                                                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-650 cursor-not-allowed"
+                                                }`}
+                                            >
+                                                {addingProductId === product.id ? "..." : "+ Pilih"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+                                        <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                            Produk / Barcode
+                                        </th>
+                                        <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                            Kategori
+                                        </th>
+                                        <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                            Stok
+                                        </th>
+                                        <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">
+                                            Harga Jual
+                                        </th>
+                                        <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550 text-right">
+                                            Aksi
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {filteredProducts.map((product, index) => {
+                                        const hasStock = product.stock > 0;
+                                        const lowStock = product.stock > 0 && product.stock <= 5;
+                                        const promoBadge = product.pricing_badge;
+                                        const promoPrice = Number(promoBadge?.promo_price || 0);
+                                        const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
+                                        const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
+                                        const showBadge = Boolean(promoBadge?.label);
+                                        const isHighlighted = index === activeProductIndex;
+
+                                        return (
+                                            <tr
+                                                key={product.id}
+                                                data-product-index={index}
+                                                onClick={() => hasStock && onAddToCart(product)}
+                                                className={`
+                                                    hover:bg-slate-50/70 dark:hover:bg-slate-80/40 transition-colors cursor-pointer group
+                                                    ${isHighlighted ? "bg-primary-50/85 dark:bg-primary-955/40 font-medium" : ""}
+                                                    ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}
+                                                `}
+                                            >
+                                                <td className={`px-4 py-3 ${isHighlighted ? "border-l-4 border-primary-500" : ""}`}>
+                                                    <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                                                        {product.title}
+                                                    </div>
+                                                    {product.is_service ? (
+                                                        product.description && (
+                                                            <div className="text-xs text-slate-400 dark:text-slate-550 mt-0.5 line-clamp-1">
+                                                                {product.description}
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <div className="text-xs text-slate-400 dark:text-slate-550 flex items-center gap-2 mt-0.5">
+                                                            {product.barcode && <span>Code: {product.barcode}</span>}
+                                                            {product.sku && <span>SKU: {product.sku}</span>}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                                    <span className="px-2 py-0.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
+                                                        {product.is_service ? "Jasa" : (product.category?.name || "Umum")}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm font-medium">
+                                                    {product.is_service ? (
+                                                        <span className="px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-full">
+                                                            Jasa
+                                                        </span>
+                                                    ) : !hasStock ? (
+                                                        <span className="px-2 py-0.5 text-xs font-semibold bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400 rounded-full">
+                                                            Habis
+                                                        </span>
+                                                    ) : lowStock ? (
+                                                        <span className="px-2 py-0.5 text-xs font-semibold bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400 rounded-full">
+                                                            Sisa: {product.stock_breakdown || `${product.stock} Pcs`}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-700 dark:text-slate-300">
+                                                            {product.stock_breakdown || `${product.stock} Pcs`}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm">
+                                                    {showPromo && (
+                                                        <span className="text-xs text-slate-400 line-through mr-1.5">
+                                                            {formatPrice(basePrice)}
+                                                        </span>
+                                                    )}
+                                                    <span className="font-bold text-primary-600 dark:text-primary-400">
+                                                        {formatPrice(showPromo ? promoPrice : product.sell_price)}
+                                                    </span>
+                                                    {showBadge && (
+                                                        <span className="ml-1.5 rounded-full bg-rose-100 dark:bg-rose-950/30 px-2 py-0.5 text-[10px] font-semibold text-rose-650 dark:text-rose-400">
+                                                            {promoBadge.label}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!hasStock || addingProductId === product.id}
+                                                        className={`
+                                                            px-3 py-1.5 rounded-xl font-medium text-xs transition-colors
+                                                            ${
+                                                                hasStock
+                                                                    ? "bg-primary-500 hover:bg-primary-600 text-white shadow-sm"
+                                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                                                            }
+                                                        `}
+                                                    >
+                                                        {addingProductId === product.id ? "..." : "+ Pilih"}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-650">
                         <IconShoppingBag
