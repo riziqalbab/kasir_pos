@@ -203,6 +203,8 @@ export default function Index({
     const [pointEndDate, setPointEndDate] = useState(pointFilters?.end_date || "");
 
     const [searchQuery, setSearchQuery] = useState("");
+    const [searchFocused, setSearchFocused] = useState(false);
+    const dropdownRef = useRef(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [showAllProducts, setShowAllProducts] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -243,7 +245,9 @@ export default function Index({
     useEffect(() => {
         setShowAllProducts(false);
         setSearchQuery("");
+        setSearchFocused(false);
     }, [transactionMode]);
+
 
     const normalizedSelectedCategory =
         selectedCategory === null ? null : Number(selectedCategory);
@@ -271,6 +275,18 @@ export default function Index({
     // States for keyboard navigation
     const [activeProductIndex, setActiveProductIndex] = useState(-1);
     const [isResumePanelOpen, setIsResumePanelOpen] = useState(false);
+
+    useEffect(() => {
+        if (activeProductIndex >= 0 && dropdownRef.current) {
+            const activeRow = dropdownRef.current.querySelector(`[data-product-index="${activeProductIndex}"]`);
+            if (activeRow) {
+                activeRow.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                });
+            }
+        }
+    }, [activeProductIndex]);
 
     // Set default payment method
     useEffect(() => {
@@ -1329,42 +1345,46 @@ export default function Index({
 
             <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
                 {/* Mobile Tab Switcher */}
-                <div className="lg:hidden flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <button
-                        onClick={() => setMobileView("products")}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
-                            mobileView === "products"
-                                ? "text-primary-600 border-b-2 border-primary-500"
-                                : "text-slate-500"
-                        }`}
-                    >
-                        <IconSearch size={18} />
-                        <span>Cari Produk</span>
-                    </button>
-                    <button
-                        onClick={() => setMobileView("cart")}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors relative ${
-                            mobileView === "cart"
-                                ? "text-primary-600 border-b-2 border-primary-500"
-                                : "text-slate-500"
-                        }`}
-                    >
-                        <IconShoppingCart size={18} />
-                        <span className="relative inline-flex items-center gap-1">
-                            Keranjang
-                            {cartCount > 0 && (
-                                <span className="inline-flex items-center justify-center px-1.5 min-w-[20px] h-5 text-[11px] font-bold bg-primary-500 text-white rounded-full">
-                                    {cartCount}
-                                </span>
-                            )}
-                        </span>
-                    </button>
-                </div>
+                {(transactionMode === "tukar_poin" || transactionMode === "agen_link") && (
+                    <div className="lg:hidden flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <button
+                            onClick={() => setMobileView("products")}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+                                mobileView === "products"
+                                    ? "text-primary-600 border-b-2 border-primary-500"
+                                    : "text-slate-500"
+                            }`}
+                        >
+                            <IconSearch size={18} />
+                            <span>Cari Produk</span>
+                        </button>
+                        <button
+                            onClick={() => setMobileView("cart")}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors relative ${
+                                mobileView === "cart"
+                                    ? "text-primary-600 border-b-2 border-primary-500"
+                                    : "text-slate-500"
+                            }`}
+                        >
+                            <IconShoppingCart size={18} />
+                            <span className="relative inline-flex items-center gap-1">
+                                Keranjang
+                                {cartCount > 0 && (
+                                    <span className="inline-flex items-center justify-center px-1.5 min-w-[20px] h-5 text-[11px] font-bold bg-primary-500 text-white rounded-full">
+                                        {cartCount}
+                                    </span>
+                                )}
+                            </span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Left Panel - Cart & Payments (Standard POS) or Agent Link History */}
                 <div
                     className={`flex-1 bg-slate-100 dark:bg-slate-950 overflow-hidden ${
-                        mobileView !== "cart"
+                        (transactionMode === "produk" || transactionMode === "jasa")
+                            ? "flex flex-col"
+                            : mobileView !== "cart"
                             ? "hidden lg:flex lg:flex-col"
                             : "flex flex-col"
                     }`}
@@ -1422,6 +1442,116 @@ export default function Index({
                             </button>
                         </div>
                         <div className="flex items-center gap-2 self-start sm:self-auto ml-auto">
+                            {(transactionMode === "produk" || transactionMode === "jasa") && (
+                                <div className="relative w-full sm:w-80 md:w-96">
+                                    <div className="relative">
+                                        <input
+                                            ref={searchInputRef}
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onFocus={() => setSearchFocused(true)}
+                                            onBlur={() => setSearchFocused(false)}
+                                            placeholder={
+                                                transactionMode === "produk"
+                                                    ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
+                                                    : "Cari jasa / layanan... (tekan / untuk fokus)"
+                                            }
+                                            className="w-full h-10 pl-3 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-550 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-xs"
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            {isSearching ? (
+                                                <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <IconSearch size={16} className="text-slate-400" />
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Floating Search Results Dropdown */}
+                                    {searchFocused && searchQuery.length > 0 && (
+                                        <div 
+                                            ref={dropdownRef}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            className="absolute top-full right-0 z-50 mt-1 w-full sm:w-[480px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden max-h-[360px] overflow-y-auto"
+                                        >
+                                            {displayItems.length > 0 ? (
+                                                <div className="p-2 space-y-1">
+                                                    {displayItems.map((product, index) => {
+                                                        const hasStock = product.stock > 0;
+                                                        const lowStock = product.stock > 0 && product.stock <= 5;
+                                                        const promoBadge = product.pricing_badge;
+                                                        const promoPrice = Number(promoBadge?.promo_price || 0);
+                                                        const basePrice = Number(promoBadge?.base_price || product.sell_price || 0);
+                                                        const showPromo = promoBadge && promoPrice > 0 && promoPrice < basePrice;
+                                                        const isHighlighted = index === activeProductIndex;
+
+                                                        return (
+                                                            <div
+                                                                key={product.id}
+                                                                data-product-index={index}
+                                                                onClick={() => {
+                                                                    if (hasStock) {
+                                                                        handleAddToCart(product);
+                                                                        setSearchQuery("");
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group ${
+                                                                    isHighlighted
+                                                                        ? "border-primary-500 ring-2 ring-primary-500/20 bg-primary-50/10 dark:bg-primary-955/10"
+                                                                        : "border-slate-50 dark:border-slate-900/50 bg-slate-50/30 dark:bg-slate-900/10 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-white dark:hover:bg-slate-850"
+                                                                } ${!hasStock ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                            >
+                                                                <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 overflow-hidden flex-shrink-0">
+                                                                    {product.image ? (
+                                                                        <img src={getProductImageUrl(product.image)} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400">
+                                                                            {product.is_service ? <IconTools size={14} /> : <IconShoppingCart size={14} />}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs truncate">
+                                                                        {product.title}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-slate-400 dark:text-slate-550 flex items-center gap-1.5 mt-0.5">
+                                                                        {product.is_service ? (
+                                                                            <span className="text-primary-600 font-medium">Jasa</span>
+                                                                        ) : (
+                                                                            <>
+                                                                                <span className={lowStock ? "text-warning-600 font-medium" : ""}>
+                                                                                    Stok: {product.stock_breakdown || `${product.stock} Pcs`}
+                                                                                </span>
+                                                                                {product.barcode && <span className="truncate">| {product.barcode}</span>}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right flex-shrink-0 flex flex-col items-end">
+                                                                    <div className="font-bold text-primary-600 dark:text-primary-400 text-xs">
+                                                                        {formatPrice(showPromo ? promoPrice : product.sell_price)}
+                                                                    </div>
+                                                                    {showPromo && (
+                                                                        <div className="text-[9px] text-slate-400 line-through">
+                                                                            {formatPrice(basePrice)}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="p-6 text-center text-slate-400 dark:text-slate-600 text-xs">
+                                                    <IconShoppingCart size={32} className="mx-auto mb-2 opacity-50" />
+                                                    <p>Produk tidak ditemukan</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {transactionMode === "jasa" && (
                                 <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
                                     Mode Jasa Aktif
@@ -2302,12 +2432,13 @@ export default function Index({
                 </div>
 
                 {/* Right Panel - Product Search or Forms */}
-                <div
-                    className={`w-full lg:w-[420px] xl:w-[480px] flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 min-h-0 overflow-hidden ${
-                        mobileView !== "products" ? "hidden lg:flex" : "flex"
-                    }`}
-                    style={{ height: "calc(100vh - 4rem)" }}
-                >
+                {(transactionMode === "tukar_poin" || transactionMode === "agen_link") && (
+                    <div
+                        className={`w-full lg:w-[420px] xl:w-[480px] flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 min-h-0 overflow-hidden ${
+                            mobileView !== "products" ? "hidden lg:flex" : "flex"
+                        }`}
+                        style={{ height: "calc(100vh - 4rem)" }}
+                    >
                     {transactionMode === "tukar_poin" ? (
                         /* Point Redemption Form Panel */
                         <div className="flex flex-col h-full overflow-hidden">
@@ -2500,7 +2631,7 @@ export default function Index({
                                 </div>
                             </form>
                         </div>
-                    ) : transactionMode === "agen_link" ? (
+                    ) : (
                         /* Agent Form Panel */
                         <div className="flex flex-col h-full overflow-hidden">
                             {/* Form Header */}
@@ -2702,36 +2833,9 @@ export default function Index({
                                 </button>
                             </div>
                         </div>
-                    ) : (
-                        /* Standard POS Product Grid */
-                        <ProductGrid
-                            products={displayItems}
-                            categories={transactionMode === "produk" ? categories : []}
-                            selectedCategory={transactionMode === "produk" ? selectedCategory : null}
-                            onCategoryChange={(categoryId) => {
-                                setSelectedCategory(
-                                    categoryId === null ? null : Number(categoryId)
-                                );
-                                setShowAllProducts(true);
-                            }}
-                            searchQuery={searchQuery}
-                            onSearchChange={setSearchQuery}
-                            isSearching={isSearching}
-                            onAddToCart={handleAddToCart}
-                            addingProductId={addingProductId}
-                            searchInputRef={searchInputRef}
-                            activeProductIndex={activeProductIndex}
-                            placeholder={
-                                transactionMode === "produk"
-                                    ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
-                                    : "Cari jasa / layanan... (tekan / untuk fokus)"
-                            }
-                            compact={true}
-                            showAllProducts={showAllProducts}
-                            onShowAllProducts={() => setShowAllProducts(true)}
-                        />
                     )}
                 </div>
+            )}
             </div>
 
             {/* Numpad Modal */}

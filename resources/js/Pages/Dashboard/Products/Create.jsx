@@ -65,7 +65,7 @@ export default function Create({ categories, units = [] }) {
             setData((prev) => {
                 const updated = { ...prev, [activeUnitField]: newUnitName };
                 if (activeUnitField === "satuan_beli") {
-                    updated.satuan_jual_pcs = newUnitName;
+                    updated.satuan_jual_dus = newUnitName;
                 }
                 return updated;
             });
@@ -334,7 +334,7 @@ export default function Create({ categories, units = [] }) {
                                         setData((prev) => ({
                                             ...prev,
                                             satuan_beli: e.target.value,
-                                            satuan_jual_pcs: e.target.value,
+                                            satuan_jual_dus: e.target.value,
                                         }))
                                     }
                                     units={units}

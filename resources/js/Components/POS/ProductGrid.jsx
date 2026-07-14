@@ -240,7 +240,7 @@ export default function ProductGrid({
             </div>
 
             {/* Category Tabs */}
-            {categories && categories.length > 0 && (
+            {!compact && categories && categories.length > 0 && (
                 <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-hide">
                     <div className="flex gap-2">
                         <CategoryTab
@@ -264,7 +264,8 @@ export default function ProductGrid({
             )}
 
             {/* Products Table / Compact List */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
+            {(!compact || searchQuery) && (
+                <div ref={containerRef} className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl m-4 mt-0">
                 {!searchQuery && !showAllProducts ? (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 dark:text-slate-600">
                         <IconSearch size={48} className="text-slate-305 dark:text-slate-700 mb-3 animate-pulse" />
@@ -492,7 +493,8 @@ export default function ProductGrid({
                         </p>
                     </div>
                 )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }
