@@ -340,11 +340,13 @@ class TransactionController extends Controller
                 ->where('cashier_id', auth()->user()->id)
                 ->first();
 
-            $qty = $request->input('qty', 1);
+            $qty = (int) $request->input('qty', 1);
+            $discount = (int) $request->input('discount', 0);
 
             if ($cart) {
-                $cart->increment('qty', $qty);
+                $cart->qty += $qty;
                 $cart->price = $servicePrice->price * $cart->qty;
+                $cart->discount = $discount;
                 $cart->save();
             } else {
                 Cart::create([
@@ -352,6 +354,7 @@ class TransactionController extends Controller
                     'service_id' => $service->id,
                     'qty' => $qty,
                     'price' => $servicePrice->price * $qty,
+                    'discount' => $discount,
                     'satuan' => $servicePrice->unit->name,
                     'satuan_key' => (string) $unitId,
                 ]);
@@ -368,6 +371,8 @@ class TransactionController extends Controller
             return redirect()->back()->with('error', 'Product not found.');
         }
 
+        $qty = (int) $request->input('qty', 1);
+        $discount = (int) $request->input('discount', 0);
         $satuanKey = $request->input('satuan_key', 'pcs');
         $satuan = $product->getUnitNameForKey($satuanKey);
         $sellPrice = $product->getSellPriceForUnit($satuanKey);
@@ -378,7 +383,7 @@ class TransactionController extends Controller
         } elseif ($satuanKey === 'pack') {
             $conversion = $product->isi_pcs_dalam_pack ?: 1;
         }
-        $requestedBaseQty = $request->qty * $conversion;
+        $requestedBaseQty = $qty * $conversion;
 
         // Calculate total base qty of this product already in cart
         $totalCartBaseQty = $requestedBaseQty;
@@ -409,10 +414,11 @@ class TransactionController extends Controller
 
         if ($cart) {
             // Tingkatkan qty
-            $cart->increment('qty', $request->qty);
+            $cart->qty += $qty;
 
             // Jumlahkan harga * kuantitas
             $cart->price = $sellPrice * $cart->qty;
+            $cart->discount = $discount;
 
             $cart->save();
         } else {
@@ -420,8 +426,9 @@ class TransactionController extends Controller
             Cart::create([
                 'cashier_id' => auth()->user()->id,
                 'product_id' => $request->product_id,
-                'qty' => $request->qty,
-                'price' => $sellPrice * $request->qty,
+                'qty' => $qty,
+                'price' => $sellPrice * $qty,
+                'discount' => $discount,
                 'satuan' => $satuan,
                 'satuan_key' => $satuanKey,
             ]);

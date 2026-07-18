@@ -75,6 +75,7 @@ class CashierShiftController extends Controller
             cashier: $request->user(),
             actor: $request->user(),
             openingCash: (int) $request->validated('opening_cash'),
+            agentOpeningCash: (int) $request->validated('agent_opening_cash', 0),
             notes: $request->validated('notes'),
         );
 
@@ -167,6 +168,7 @@ class CashierShiftController extends Controller
             shift: $cashierShift,
             actor: $request->user(),
             actualCash: (int) $request->validated('actual_cash'),
+            agentActualCash: (int) $request->validated('agent_actual_cash', 0),
             closeNotes: $request->validated('close_notes'),
             forceClose: $forceClose,
         );
@@ -215,11 +217,17 @@ class CashierShiftController extends Controller
             'opened_at' => optional($shift->opened_at)?->toISOString(),
             'closed_at' => optional($shift->closed_at)?->toISOString(),
             'opening_cash' => (int) $shift->opening_cash,
+            'agent_opening_cash' => (int) $shift->agent_opening_cash,
             'expected_cash' => $shift->isOpen() ? $summary['expected_cash'] : (int) $shift->expected_cash,
+            'agent_expected_cash' => $shift->isOpen() ? $summary['agent_expected_cash'] : (int) $shift->agent_expected_cash,
             'actual_cash' => $shift->actual_cash !== null ? (int) $shift->actual_cash : null,
+            'agent_actual_cash' => $shift->agent_actual_cash !== null ? (int) $shift->agent_actual_cash : null,
             'cash_difference' => $shift->isOpen()
                 ? null
                 : ($shift->cash_difference !== null ? (int) $shift->cash_difference : null),
+            'agent_cash_difference' => $shift->isOpen()
+                ? null
+                : ($shift->agent_cash_difference !== null ? (int) $shift->agent_cash_difference : null),
             'cash_sales_total' => $shift->isOpen() ? $summary['cash_sales_total'] : (int) $shift->cash_sales_total,
             'non_cash_sales_total' => $shift->isOpen() ? $summary['non_cash_sales_total'] : (int) $shift->non_cash_sales_total,
             'cash_refund_total' => $shift->isOpen() ? $summary['cash_refund_total'] : (int) $shift->cash_refund_total,
@@ -254,9 +262,13 @@ class CashierShiftController extends Controller
         return [
             'status' => $shift->status,
             'opening_cash' => (int) $shift->opening_cash,
+            'agent_opening_cash' => (int) $shift->agent_opening_cash,
             'expected_cash' => (int) ($shift->expected_cash ?? $shift->opening_cash),
+            'agent_expected_cash' => (int) ($shift->agent_expected_cash ?? $shift->agent_opening_cash),
             'actual_cash' => $shift->actual_cash !== null ? (int) $shift->actual_cash : null,
+            'agent_actual_cash' => $shift->agent_actual_cash !== null ? (int) $shift->agent_actual_cash : null,
             'cash_difference' => $shift->cash_difference !== null ? (int) $shift->cash_difference : null,
+            'agent_cash_difference' => $shift->agent_cash_difference !== null ? (int) $shift->agent_cash_difference : null,
             'transactions_count' => (int) ($shift->transactions_count ?? 0),
             'sales_returns_count' => (int) ($shift->sales_returns_count ?? 0),
             'agent_transactions_count' => (int) ($shift->agent_transactions_count ?? 0),

@@ -203,6 +203,7 @@ class CashierShiftTest extends TestCase
             ->actingAs($cashier)
             ->post(route('cashier-shifts.close', $shift), [
                 'actual_cash' => 155000,
+                'agent_actual_cash' => 0,
                 'close_notes' => 'Cash count final',
             ]);
 
@@ -213,6 +214,8 @@ class CashierShiftTest extends TestCase
             'expected_cash' => 150000,
             'actual_cash' => 155000,
             'cash_difference' => 5000,
+            'agent_actual_cash' => 0,
+            'agent_cash_difference' => 0,
             'cash_sales_total' => 60000,
             'non_cash_sales_total' => 50000,
             'cash_refund_total' => 10000,
@@ -244,6 +247,7 @@ class CashierShiftTest extends TestCase
             ->actingAs($admin)
             ->post(route('cashier-shifts.close', $shift), [
                 'actual_cash' => 80000,
+                'agent_actual_cash' => 0,
             ]);
 
         $response->assertRedirect(route('cashier-shifts.show', $shift));
@@ -276,6 +280,7 @@ class CashierShiftTest extends TestCase
             ->from(route('cashier-shifts.show', $shift))
             ->post(route('cashier-shifts.close', $shift), [
                 'actual_cash' => 80000,
+                'agent_actual_cash' => 0,
             ])
             ->assertRedirect(route('password.confirm'));
     }

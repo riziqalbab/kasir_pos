@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
 import Table from "@/Components/Dashboard/Table";
 import { useAuthorization } from "@/Utils/authorization";
@@ -11,6 +11,7 @@ import {
     IconPackage,
     IconShoppingCart,
     IconTruckDelivery,
+    IconPrinter,
 } from "@tabler/icons-react";
 import toast from "react-hot-toast";
 
@@ -49,9 +50,16 @@ const statusBadge = (status) => {
 };
 
 export default function Show({ order }) {
+    const { flash = {} } = usePage().props || {};
     const { can } = useAuthorization();
     const canEdit = can("purchase-orders-update");
     const canCreateReceiving = can("goods-receivings-create");
+
+    useEffect(() => {
+        if (flash?.download_pdf) {
+            window.open(flash.download_pdf, "_blank");
+        }
+    }, [flash?.download_pdf]);
 
     const placeOrder = () => {
         router.post(route("purchase-orders.place", order.id), {}, {
@@ -126,6 +134,15 @@ export default function Show({ order }) {
                                 label="Terima Barang"
                             />
                         )}
+                        <a
+                            href={route("pdf.purchase-orders.show", order.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                        >
+                            <IconPrinter size={18} />
+                            <span>Cetak PDF</span>
+                        </a>
                     </div>
                 </div>
             </div>

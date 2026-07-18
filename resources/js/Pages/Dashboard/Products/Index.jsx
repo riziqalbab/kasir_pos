@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, usePage, Link } from "@inertiajs/react";
+import { Head, usePage, Link, router } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
 import {
     IconCirclePlus,
@@ -174,7 +174,7 @@ function ProductCard({
     );
 }
 
-export default function Index({ products }) {
+export default function Index({ products, categories = [], filters = {} }) {
     const { can } = useAuthorization();
     const [viewMode, setViewMode] = useState("list"); // 'grid' | 'list'
     const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -183,6 +183,20 @@ export default function Index({ products }) {
     const canCreateProducts = can("products-create");
     const canEditProducts = can("products-edit");
     const canDeleteProducts = can("products-delete");
+
+    const updateFilter = (key, value) => {
+        router.get(
+            route("products.index"),
+            {
+                ...filters,
+                [key]: value,
+            },
+            {
+                preserveState: true,
+                replace: true,
+            }
+        );
+    };
 
     const handlePrintSingleBarcode = (product) => {
         setSingleProductBarcode(product);
@@ -269,13 +283,37 @@ export default function Index({ products }) {
 
             {/* Toolbar */}
             <div className="mb-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="w-full sm:w-80">
-                        <Search
-                            url={route("products.index")}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+                    <div className="relative w-full sm:w-80">
+                        <input
+                            type="text"
+                            defaultValue={filters.search || ""}
+                            onBlur={(e) => updateFilter("search", e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    updateFilter("search", e.target.value);
+                                }
+                            }}
+                            className="w-full h-10 px-4 pr-11 block rounded-xl text-xs sm:text-sm border focus:outline-none focus:ring-0 focus:ring-slate-400 text-slate-700 bg-white border-slate-200 focus:border-slate-200 dark:focus:ring-slate-500 dark:focus:border-slate-800 dark:text-slate-200 dark:bg-slate-950 dark:border-slate-900"
                             placeholder="Cari produk..."
                         />
+                        <div className="absolute inset-y-0 right-0 flex items-center pointer-events-none pr-4">
+                            <IconSearch className="text-slate-400 dark:text-slate-600 w-5 h-5" />
+                        </div>
                     </div>
+
+                    <select
+                        value={filters.category_id || ""}
+                        onChange={(e) => updateFilter("category_id", e.target.value)}
+                        className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs sm:text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                    >
+                        <option value="">Semua Kategori</option>
+                        {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                                {category.name}
+                            </option>
+                        ))}
+                    </select>
                     {/* Select All Checkbox */}
                     <label className="flex items-center gap-2 cursor-pointer">
                         <input

@@ -37,6 +37,7 @@ export default function Index({
     const { auth, errors } = usePage().props;
     const { can } = useAuthorization();
     const [openingCash, setOpeningCash] = useState("");
+    const [agentOpeningCash, setAgentOpeningCash] = useState("");
     const [notes, setNotes] = useState("");
     const canOpenShift = can("cashier-shifts-open");
 
@@ -69,6 +70,7 @@ export default function Index({
 
         router.post(route("cashier-shifts.store"), {
             opening_cash: Number(openingCash || 0),
+            agent_opening_cash: Number(agentOpeningCash || 0),
             notes,
         });
     };
@@ -110,10 +112,10 @@ export default function Index({
                             </p>
                         </div>
 
-                        <form onSubmit={handleOpenShift} className="grid gap-4 md:grid-cols-3">
+                        <form onSubmit={handleOpenShift} className="grid gap-4 md:grid-cols-4">
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Modal Awal
+                                    Modal Awal POS (Toko)
                                 </label>
                                 <input
                                     type="number"
@@ -125,6 +127,22 @@ export default function Index({
                                 />
                                 {errors?.opening_cash && (
                                     <p className="mt-2 text-xs text-rose-500">{errors.opening_cash}</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    Modal Awal Cash Agen
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={agentOpeningCash}
+                                    onChange={(event) => setAgentOpeningCash(event.target.value)}
+                                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    placeholder="0"
+                                />
+                                {errors?.agent_opening_cash && (
+                                    <p className="mt-2 text-xs text-rose-500">{errors.agent_opening_cash}</p>
                                 )}
                             </div>
                             <div className="md:col-span-2">
@@ -139,7 +157,7 @@ export default function Index({
                                     placeholder="Opsional"
                                 />
                             </div>
-                            <div className="md:col-span-3">
+                            <div className="md:col-span-4">
                                 <button
                                     type="submit"
                                     className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-600"

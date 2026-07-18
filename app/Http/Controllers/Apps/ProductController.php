@@ -29,11 +29,19 @@ class ProductController extends Controller
         // get products
         $products = Product::when(request()->search, function ($products) {
             $products = $products->where('title', 'like', '%'.request()->search.'%');
-        })->with('category')->latest()->paginate(5);
+        })
+        ->when(request()->category_id, function ($products) {
+            $products = $products->where('category_id', request()->category_id);
+        })
+        ->with('category')->latest()->paginate(10)->withQueryString();
+
+        $categories = Category::all();
 
         // return inertia
         return Inertia::render('Dashboard/Products/Index', [
             'products' => $products,
+            'categories' => $categories,
+            'filters' => request()->all(['search', 'category_id']),
         ]);
     }
 
@@ -238,19 +246,23 @@ class ProductController extends Controller
             'satuan_jual_dus' => 'nullable|string',
             'harga_beli_dus' => 'nullable|integer|min:0',
             'harga_jual_dus' => 'nullable|integer|min:0',
+            'stok_dus' => 'nullable|integer|min:0',
 
             'satuan_jual_pack' => 'nullable|string',
             'harga_beli_pack' => 'nullable|integer|min:0',
             'harga_jual_pack' => 'nullable|integer|min:0',
+            'stok_pack' => 'nullable|integer|min:0',
 
             'satuan_jual_pcs' => 'nullable|string',
             'harga_beli_pcs' => 'nullable|integer|min:0',
             'harga_jual_pcs' => 'nullable|integer|min:0',
+            'stok_pcs' => 'nullable|integer|min:0',
 
             // Fallback inputs for backward compatibility
             'buy_price' => 'nullable|integer|min:0',
             'sell_price' => 'nullable|integer|min:0',
             'stock' => 'nullable|integer|min:0',
+            'is_stock_synced' => 'nullable|boolean',
         ]);
 
         $isiPcsDalamPack = (int) $request->input('isi_pcs_dalam_pack', 0);
@@ -265,6 +277,30 @@ class ProductController extends Controller
 
         $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
         $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
+
+        $stokPcs = (int) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
+        $stokDus = (int) $request->input('stok_dus', $product->stok_dus);
+        $stokPack = (int) $request->input('stok_pack', $product->stok_pack);
+
+        if ($request->input('is_stock_synced')) {
+            $computedStock = (int) $request->input('stock', $stokPcs);
+        } else {
+            $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+        }
+
+        if ($computedStock !== (int) $product->stock) {
+            \App\Models\StockMutation::create([
+                'product_id' => $product->id,
+                'reference_type' => 'product_update',
+                'reference_id' => $product->id,
+                'mutation_type' => $computedStock > $product->stock ? 'in' : 'out',
+                'qty' => abs($computedStock - $product->stock),
+                'stock_before' => $product->stock,
+                'stock_after' => $computedStock,
+                'notes' => 'Penyesuaian stok saat update produk.',
+                'created_by' => $request->user()?->id,
+            ]);
+        }
 
         $sku = $request->input('sku');
         if (empty($sku)) {
@@ -281,6 +317,7 @@ class ProductController extends Controller
             'category_id' => $request->category_id,
             'buy_price' => $buyPricePcs,
             'sell_price' => $sellPricePcs,
+            'stock' => $computedStock,
             'satuan_beli' => $satuanBeli,
             'isi_pcs_dalam_pack' => $isiPcsDalamPack,
             'isi_pack_dalam_dus' => $isiPackDalamDus,
@@ -288,12 +325,15 @@ class ProductController extends Controller
             'satuan_jual_dus' => $request->satuan_jual_dus,
             'harga_beli_dus' => (int) $request->input('harga_beli_dus', 0),
             'harga_jual_dus' => (int) $request->input('harga_jual_dus', 0),
+            'stok_dus' => $stokDus,
             'satuan_jual_pack' => $request->satuan_jual_pack,
             'harga_beli_pack' => (int) $request->input('harga_beli_pack', 0),
             'harga_jual_pack' => (int) $request->input('harga_jual_pack', 0),
+            'stok_pack' => $stokPack,
             'satuan_jual_pcs' => $satuanJualPcs,
             'harga_beli_pcs' => $buyPricePcs,
             'harga_jual_pcs' => $sellPricePcs,
+            'stok_pcs' => $stokPcs,
         ];
 
         // check image update

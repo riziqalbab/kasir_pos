@@ -175,12 +175,13 @@ class AgentTransactionTest extends TestCase
         $summary = $service->calculateSummary($shift);
 
         // Expected cash calculation:
-        // Start: 100,000
-        // + Debet setoran: 205,000 (nominal 200,000 + fee 5,000)
-        // - Kredit tarik cash fee: 95,000 (nominal 100,000 - fee 5,000)
-        // - Kredit tarik bank fee: 50,000 (nominal 50,000)
-        // Total expected = 100,000 + 205,000 - 95,000 - 50,000 = 160,000
-        $this->assertSame(160000, $summary['expected_cash']);
+        // POS Store Expected Cash: remains 100,000 (no store sales, unaffected by agent transactions)
+        $this->assertSame(100000, $summary['expected_cash']);
+
+        // Agent Expected Cash:
+        // agent_opening_cash (0) + agentCashInTotal (205,000) - agentCashOutTotal (150,000) + agentFeesCashInTotal (5,000) = 60,000
+        $this->assertSame(60000, $summary['agent_expected_cash']);
+
         $this->assertSame(205000, $summary['agent_cash_in_total']);
         $this->assertSame(150000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
@@ -259,7 +260,7 @@ class AgentTransactionTest extends TestCase
 
         // 3. Update tx1 status to failed
         // Reverts its effect: balance increases back by 202,000
-        $tx1->update(['status' => 'failed']);
+        AgentTransaction::find($tx1->id)->update(['status' => 'failed']);
         $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
     }
 

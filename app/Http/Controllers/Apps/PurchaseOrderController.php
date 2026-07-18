@@ -80,7 +80,8 @@ class PurchaseOrderController extends Controller
 
         return redirect()
             ->route('purchase-orders.show', $order)
-            ->with('success', 'Purchase order berhasil dibuat.');
+            ->with('success', 'Purchase order berhasil dibuat.')
+            ->with('download_pdf', route('pdf.purchase-orders.show', $order));
     }
 
     public function show(PurchaseOrder $purchaseOrder)

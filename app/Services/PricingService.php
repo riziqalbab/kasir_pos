@@ -72,6 +72,10 @@ class PricingService
                     ->where('unit_id', $cart->satuan_key)
                     ->first();
                 $baseUnitPrice = $servicePrice ? (int) $servicePrice->price : 0;
+                $manualDiscount = (int) ($cart->discount ?? 0);
+                $lineDiscountTotal = $manualDiscount * (int) $cart->qty;
+                $lineTotal = max(0, ($baseUnitPrice * (int) $cart->qty) - $lineDiscountTotal);
+                $effectiveUnitPrice = (int) round($lineTotal / max(1, (int) $cart->qty));
 
                 return [
                     'cart_id' => $cart->id,
@@ -80,10 +84,10 @@ class PricingService
                     'product_title' => $cart->service?->name,
                     'qty' => (int) $cart->qty,
                     'base_unit_price' => $baseUnitPrice,
-                    'effective_unit_price' => $baseUnitPrice,
+                    'effective_unit_price' => $effectiveUnitPrice,
                     'line_base_total' => $baseUnitPrice * (int) $cart->qty,
-                    'line_total' => $baseUnitPrice * (int) $cart->qty,
-                    'line_discount_total' => 0,
+                    'line_total' => $lineTotal,
+                    'line_discount_total' => $lineDiscountTotal,
                     'pricing_rule' => null,
                     'pricing_group_key' => null,
                     'pricing_group_label' => null,
@@ -92,6 +96,10 @@ class PricingService
             }
 
             $baseUnitPrice = (int) $cart->product->getSellPriceForUnit($cart->satuan_key);
+            $manualDiscount = (int) ($cart->discount ?? 0);
+            $lineDiscountTotal = $manualDiscount * (int) $cart->qty;
+            $lineTotal = max(0, ($baseUnitPrice * (int) $cart->qty) - $lineDiscountTotal);
+            $effectiveUnitPrice = (int) round($lineTotal / max(1, (int) $cart->qty));
 
             return [
                 'cart_id' => $cart->id,
@@ -99,10 +107,10 @@ class PricingService
                 'product_title' => $cart->product?->title,
                 'qty' => (int) $cart->qty,
                 'base_unit_price' => $baseUnitPrice,
-                'effective_unit_price' => $baseUnitPrice,
+                'effective_unit_price' => $effectiveUnitPrice,
                 'line_base_total' => $baseUnitPrice * (int) $cart->qty,
-                'line_total' => $baseUnitPrice * (int) $cart->qty,
-                'line_discount_total' => 0,
+                'line_total' => $lineTotal,
+                'line_discount_total' => $lineDiscountTotal,
                 'pricing_rule' => null,
                 'pricing_group_key' => null,
                 'pricing_group_label' => null,
@@ -111,6 +119,8 @@ class PricingService
         })->keyBy('cart_id');
 
         $baseSubtotal = $items->sum('line_base_total');
+        $promoDiscountTotal = $items->sum('line_discount_total');
+        $subtotalAfterPromo = max(0, $baseSubtotal - $promoDiscountTotal);
 
         return [
             'items' => $items->values()->all(),
@@ -119,8 +129,8 @@ class PricingService
             'unmatched_items' => [],
             'summary' => [
                 'base_subtotal' => $baseSubtotal,
-                'promo_discount_total' => 0,
-                'subtotal_after_promo' => $baseSubtotal,
+                'promo_discount_total' => $promoDiscountTotal,
+                'subtotal_after_promo' => $subtotalAfterPromo,
             ],
         ];
     }

@@ -76,7 +76,7 @@ class TransactionFlowTest extends TestCase
         $transaction = Transaction::with(['details', 'profits'])->latest('id')->first();
 
         $this->assertNotNull($transaction, 'Transaction record should exist after checkout.');
-        $response->assertRedirect(route('transactions.print', $transaction->invoice));
+        $response->assertRedirect(route('transactions.print', $transaction->invoice) . '?autoprint=true');
         $this->assertStringStartsWith('TRX-', $transaction->invoice);
         $this->assertSame($cashier->id, $transaction->cashier_id);
         $this->assertSame($shift->id, $transaction->cashier_shift_id);
@@ -256,7 +256,7 @@ class TransactionFlowTest extends TestCase
 
         $transaction = Transaction::latest('id')->first();
         $this->assertNotNull($transaction);
-        $response->assertRedirect(route('transactions.print', $transaction->invoice));
+        $response->assertRedirect(route('transactions.print', $transaction->invoice) . '?autoprint=true');
         $this->assertNull($transaction->customer_id);
     }
 

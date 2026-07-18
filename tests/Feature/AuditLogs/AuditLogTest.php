@@ -180,6 +180,7 @@ class AuditLogTest extends TestCase
 
         $this->actingAs($user)->post(route('cashier-shifts.close', $shift), [
             'actual_cash' => 120000,
+            'agent_actual_cash' => 0,
             'close_notes' => 'Tutup normal',
         ]);
 

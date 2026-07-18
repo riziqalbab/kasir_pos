@@ -235,7 +235,7 @@ class StockOpnameTest extends TestCase
         $this->assertNull($item->fresh()->physical_stock);
     }
 
-    public function test_product_update_does_not_change_stock_directly(): void
+    public function test_product_update_can_change_stock_directly(): void
     {
         $user = $this->createUserWithPermissions(['products-edit']);
         $product = $this->createProduct(20);
@@ -251,13 +251,14 @@ class StockOpnameTest extends TestCase
                 'buy_price' => $product->buy_price,
                 'sell_price' => $product->sell_price,
                 'stock' => 999,
+                'is_stock_synced' => true,
             ]);
 
         $response->assertRedirect(route('products.index'));
         $product->refresh();
 
         $this->assertSame('Produk Revisi', $product->title);
-        $this->assertSame(20, $product->stock);
+        $this->assertSame(999, (int) $product->stock);
     }
 
     public function test_product_create_generates_initial_stock_mutation(): void

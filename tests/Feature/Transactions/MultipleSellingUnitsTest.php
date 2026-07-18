@@ -159,7 +159,7 @@ class MultipleSellingUnitsTest extends TestCase
 
         $transaction = Transaction::latest('id')->first();
         $this->assertNotNull($transaction);
-        $response->assertRedirect(route('transactions.print', $transaction->invoice));
+        $response->assertRedirect(route('transactions.print', $transaction->invoice) . '?autoprint=true');
 
         // Deducted stock check: Initial stock is 260 Pcs
         // Checkout includes: 1 Dus (100 Pcs) + 2 Pak (20 Pcs) = 120 Pcs
@@ -369,4 +369,41 @@ class MultipleSellingUnitsTest extends TestCase
         $this->assertEquals(50, $product->stok_pack);
         $this->assertEquals(500, $product->stok_pcs);
     }
+
+    public function test_cashier_can_add_product_to_cart_with_manual_discount(): void
+    {
+        $cashier = $this->createCashier();
+        $this->openShiftFor($cashier);
+
+        $product = $this->createMultiUnitProduct();
+
+        // Add to cart with a manual discount of 500 per unit
+        $response = $this
+            ->actingAs($cashier)
+            ->post(route('transactions.addToCart'), [
+                'product_id' => $product->id,
+                'qty' => 3,
+                'satuan_key' => 'pcs',
+                'discount' => 500,
+            ]);
+
+        $response->assertRedirect(route('transactions.index'));
+        $this->assertDatabaseHas('carts', [
+            'cashier_id' => $cashier->id,
+            'product_id' => $product->id,
+            'qty' => 3,
+            'satuan_key' => 'pcs',
+            'discount' => 500,
+        ]);
+
+        // Retrieve cart and check PricingService preview output
+        $cartItem = Cart::where('cashier_id', $cashier->id)->first();
+        $pricingService = app(\App\Services\PricingService::class);
+        $preview = $pricingService->previewCart([$cartItem]);
+
+        $this->assertEquals(3200 * 3, $preview['summary']['base_subtotal']);
+        $this->assertEquals(1500, $preview['summary']['promo_discount_total']);
+        $this->assertEquals(8100, $preview['summary']['subtotal_after_promo']);
+    }
 }
+

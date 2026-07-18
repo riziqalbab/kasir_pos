@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Payable;
 use App\Models\Receivable;
 use App\Models\Transaction;
+use App\Models\PurchaseOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 
@@ -151,5 +152,20 @@ class DocumentController extends Controller
         ])->setPaper('a5', 'portrait');
 
         return $pdf->stream("hutang-{$payable->document_number}.pdf");
+    }
+
+    public function purchaseOrder(PurchaseOrder $purchaseOrder)
+    {
+        $this->ensureFontDirectory();
+
+        $purchaseOrder->load(['supplier', 'items.product', 'creator']);
+
+        $pdf = Pdf::loadView('pdf.purchase_order', [
+            'order' => $purchaseOrder,
+            'store' => $this->storeProfile(),
+            'barcode' => $this->barcode($purchaseOrder->document_number),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream("po-{$purchaseOrder->document_number}.pdf");
     }
 }

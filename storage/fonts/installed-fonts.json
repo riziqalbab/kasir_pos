@@ -1,8 +1,8 @@
 {
     "inter": {
-        "normal": "\/home\/asus\/projects\/private\/point-of-sales\/storage\/fonts\/inter_normal_76a6ce47b692f00079a5059fccc33797",
-        "500": "\/home\/asus\/projects\/private\/point-of-sales\/storage\/fonts\/inter_500_814a80c37781a30786593376d836ca54",
-        "600": "\/home\/asus\/projects\/private\/point-of-sales\/storage\/fonts\/inter_600_25ae247f8a0a9076464691b22839f5a1",
-        "bold": "inter_bold_75a03e9ae5fab46708979dd65723f085"
+        "normal": "\/Users\/riziq\/Code\/some_projects\/point-of-sales\/storage\/fonts\/inter_normal_8f1d3677dce04abb0b7c23ef65adf800",
+        "500": "\/Users\/riziq\/Code\/some_projects\/point-of-sales\/storage\/fonts\/inter_500_3d03820a6e9a3766844c2326f058d501",
+        "600": "\/Users\/riziq\/Code\/some_projects\/point-of-sales\/storage\/fonts\/inter_600_a8fa209418940fe945860339db36df64",
+        "bold": "inter_bold_228518f7ff6703dbbb7327c9e5fa0908"
     }
 }

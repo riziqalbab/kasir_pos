@@ -34,12 +34,16 @@ export default function Edit({ categories, product, units = [] }) {
         satuan_jual_dus: product.satuan_jual_dus || "Dus",
         harga_beli_dus: product.harga_beli_dus || 0,
         harga_jual_dus: product.harga_jual_dus || 0,
+        stok_dus: product.stok_dus || 0,
         satuan_jual_pack: product.satuan_jual_pack || "Pak",
         harga_beli_pack: product.harga_beli_pack || 0,
         harga_jual_pack: product.harga_jual_pack || 0,
+        stok_pack: product.stok_pack || 0,
         satuan_jual_pcs: product.satuan_jual_pcs || "Pcs",
         harga_beli_pcs: product.harga_beli_pcs || 0,
         harga_jual_pcs: product.harga_jual_pcs || 0,
+        stok_pcs: product.stok_pcs || 0,
+        stock: product.stock || 0,
         _method: "PUT",
     });
 
@@ -120,23 +124,39 @@ export default function Edit({ categories, product, units = [] }) {
         const val = parseInt(value, 10) || 0;
         setData((prev) => {
             const updated = { ...prev };
+            if (unitKey === "dus") {
+                updated.harga_jual_dus = val;
+            } else if (unitKey === "pack") {
+                updated.harga_jual_pack = val;
+            } else if (unitKey === "pcs") {
+                updated.harga_jual_pcs = val;
+            }
+            return updated;
+        });
+    };
+
+    const handleStockChange = (unitKey, value) => {
+        const val = parseInt(value, 10) || 0;
+        
+        setData((prev) => {
+            const updated = { ...prev };
             const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
-            const packDus = Number(prev.isi_pack_dalam_dus) || 0;
             const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
 
             if (unitKey === "dus") {
-                updated.harga_jual_dus = val;
-                updated.harga_jual_pack = packDus > 0 ? Math.floor(val / packDus) : 0;
-                updated.harga_jual_pcs = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+                updated.stok_dus = val;
+                updated.stok_pack = pcsPack > 0 ? Math.floor((val * pcsDus) / pcsPack) : 0;
+                updated.stok_pcs = val * pcsDus;
             } else if (unitKey === "pack") {
-                updated.harga_jual_pack = val;
-                updated.harga_jual_pcs = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
-                updated.harga_jual_dus = val * packDus;
+                updated.stok_pack = val;
+                updated.stok_dus = pcsDus > 0 ? Math.floor((val * pcsPack) / pcsDus) : 0;
+                updated.stok_pcs = val * pcsPack;
             } else if (unitKey === "pcs") {
-                updated.harga_jual_pcs = val;
-                updated.harga_jual_pack = val * pcsPack;
-                updated.harga_jual_dus = val * pcsDus;
+                updated.stok_pcs = val;
+                updated.stok_dus = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+                updated.stok_pack = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
             }
+            updated.stock = updated.stok_pcs;
             return updated;
         });
     };
@@ -154,13 +174,18 @@ export default function Edit({ categories, product, units = [] }) {
 
             // Recalculate prices using pcs as the ground truth
             const buyPcs = Number(updated.harga_beli_pcs || 0);
-            const sellPcs = Number(updated.harga_jual_pcs || 0);
 
             updated.harga_beli_pack = buyPcs * pcsPack;
             updated.harga_beli_dus = buyPcs * updated.isi_pcs_dalam_dus;
 
-            updated.harga_jual_pack = sellPcs * pcsPack;
-            updated.harga_jual_dus = sellPcs * updated.isi_pcs_dalam_dus;
+            // Recalculate stock fields to stay in sync using updated.stok_pcs as the ground truth
+            const totalPcs = Number(updated.stok_pcs || 0);
+            const newPcsPack = pcsPack;
+            const newPcsDus = updated.isi_pcs_dalam_dus;
+
+            updated.stok_dus = newPcsDus > 0 ? Math.floor(totalPcs / newPcsDus) : 0;
+            updated.stok_pack = newPcsPack > 0 ? Math.floor(totalPcs / newPcsPack) : 0;
+            updated.stock = totalPcs;
 
             return updated;
         });
@@ -413,14 +438,14 @@ export default function Edit({ categories, product, units = [] }) {
                                         placeholder="Dus"
                                         onAddClick={() => openQuickAddModal("satuan_jual_dus")}
                                     />
-                                    <div className="flex flex-col justify-end">
-                                        <label className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                            Stok Saat Ini (DUS)
-                                        </label>
-                                        <div className="py-2.5 px-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm">
-                                            {getStockForUnit("dus")} {data.satuan_jual_dus}
-                                        </div>
-                                    </div>
+                                    <Input
+                                        type="number"
+                                        label="Stok Saat Ini (DUS)"
+                                        value={data.stok_dus === 0 ? "" : data.stok_dus}
+                                        onChange={(e) => handleStockChange("dus", e.target.value)}
+                                        errors={errors.stok_dus}
+                                        placeholder="0"
+                                    />
                                     <Input
                                         type="number"
                                         label="Harga Beli (DUS)"
@@ -451,14 +476,14 @@ export default function Edit({ categories, product, units = [] }) {
                                         placeholder="Pak"
                                         onAddClick={() => openQuickAddModal("satuan_jual_pack")}
                                     />
-                                    <div className="flex flex-col justify-end">
-                                        <label className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                            Stok Saat Ini (PACK)
-                                        </label>
-                                        <div className="py-2.5 px-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm">
-                                            {getStockForUnit("pack")} {data.satuan_jual_pack}
-                                        </div>
-                                    </div>
+                                    <Input
+                                        type="number"
+                                        label="Stok Saat Ini (PACK)"
+                                        value={data.stok_pack === 0 ? "" : data.stok_pack}
+                                        onChange={(e) => handleStockChange("pack", e.target.value)}
+                                        errors={errors.stok_pack}
+                                        placeholder="0"
+                                    />
                                     <Input
                                         type="number"
                                         label="Harga Beli (PACK)"
@@ -489,14 +514,14 @@ export default function Edit({ categories, product, units = [] }) {
                                         placeholder="Pcs"
                                         onAddClick={() => openQuickAddModal("satuan_jual_pcs")}
                                     />
-                                    <div className="flex flex-col justify-end">
-                                        <label className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                            Stok Saat Ini (PCS)
-                                        </label>
-                                        <div className="py-2.5 px-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm">
-                                            {getStockForUnit("pcs")} {data.satuan_jual_pcs}
-                                        </div>
-                                    </div>
+                                    <Input
+                                        type="number"
+                                        label="Stok Saat Ini (PCS)"
+                                        value={data.stok_pcs === 0 ? "" : data.stok_pcs}
+                                        onChange={(e) => handleStockChange("pcs", e.target.value)}
+                                        errors={errors.stok_pcs}
+                                        placeholder="0"
+                                    />
                                     <Input
                                         type="number"
                                         label="Harga Beli (PCS)"
@@ -522,10 +547,21 @@ export default function Edit({ categories, product, units = [] }) {
                                     Stok Saat Ini (Keseluruhan)
                                 </p>
                                 <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {product.stock} Pcs ({product.stock_breakdown})
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    Perubahan stok dilakukan melalui transaksi atau stock opname.
+                                    {activeTab === "dus" && (
+                                        <>
+                                            {data.stok_dus} {data.satuan_jual_dus || "Dus"} ({data.stock} Pcs)
+                                        </>
+                                    )}
+                                    {activeTab === "pack" && (
+                                        <>
+                                            {data.stok_pack} {data.satuan_jual_pack || "Pak"} ({data.stock} Pcs)
+                                        </>
+                                    )}
+                                    {activeTab === "pcs" && (
+                                        <>
+                                            {data.stock} {data.satuan_jual_pcs || "Pcs"}
+                                        </>
+                                    )}
                                 </p>
                             </div>
 

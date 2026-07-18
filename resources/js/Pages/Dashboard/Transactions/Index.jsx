@@ -229,8 +229,80 @@ export default function Index({
     const [showShortcuts, setShowShortcuts] = useState(false);
     const [selectedBankAccount, setSelectedBankAccount] = useState(null);
     const [openingCashInput, setOpeningCashInput] = useState("");
+    const [agentOpeningCashInput, setAgentOpeningCashInput] = useState("");
     const [shiftNotesInput, setShiftNotesInput] = useState("");
     const [openingBankBalances, setOpeningBankBalances] = useState({});
+
+    // Modal states for item selection (Qty, Satuan, Diskon)
+    const [selectedItemForCart, setSelectedItemForCart] = useState(null);
+    const [modalQty, setModalQty] = useState(1);
+    const [modalUnitKey, setModalUnitKey] = useState("pcs");
+    const [modalDiscount, setModalDiscount] = useState("0");
+
+    const getAvailableUnitsForItem = (item) => {
+        const units = [];
+        if (!item) return units;
+        
+        if (item.is_service) {
+            if (item.service_prices) {
+                item.service_prices.forEach((sp) => {
+                    units.push({
+                        key: String(sp.unit_id),
+                        label: sp.unit?.name || "Unit",
+                        price: Number(sp.price || 0),
+                    });
+                });
+            } else if (item.service?.service_prices) {
+                item.service.service_prices.forEach((sp) => {
+                    units.push({
+                        key: String(sp.unit_id),
+                        label: sp.unit?.name || "Unit",
+                        price: Number(sp.price || 0),
+                    });
+                });
+            }
+            if (units.length === 0) {
+                units.push({ key: "pcs", label: "Pcs", price: Number(item.sell_price || 0) });
+            }
+        } else {
+            if (item.satuan_jual_pcs) {
+                units.push({ key: "pcs", label: item.satuan_jual_pcs, price: Number(item.harga_jual_pcs || item.sell_price || 0) });
+            } else {
+                units.push({ key: "pcs", label: "Pcs", price: Number(item.sell_price || 0) });
+            }
+            if (item.isi_pcs_dalam_pack > 0) {
+                units.push({ key: "pack", label: item.satuan_jual_pack || "Pak", price: Number(item.harga_jual_pack || 0) });
+            }
+            if (item.isi_pcs_dalam_dus > 0) {
+                units.push({ key: "dus", label: item.satuan_jual_dus || "Dus", price: Number(item.harga_jual_dus || 0) });
+            }
+        }
+        return units;
+    };
+
+    const openCartModal = (item) => {
+        setSelectedItemForCart(item);
+        setModalQty(1);
+        const units = getAvailableUnitsForItem(item);
+        setModalUnitKey(units.length > 0 ? units[0].key : "pcs");
+        setModalDiscount("0");
+    };
+
+    const modalQtyInputRef = useRef(null);
+    const modalDiscountInputRef = useRef(null);
+    const modalUnitSelectRef = useRef(null);
+
+    useEffect(() => {
+        if (selectedItemForCart) {
+            // Wait for modal to render before focusing
+            setTimeout(() => {
+                if (modalQtyInputRef.current) {
+                    modalQtyInputRef.current.focus();
+                    modalQtyInputRef.current.select();
+                }
+            }, 50);
+        }
+    }, [selectedItemForCart]);
 
     useEffect(() => {
         if (bankAccounts && bankAccounts.length > 0) {
@@ -271,6 +343,7 @@ export default function Index({
     const pointPrizeSelectRef = useRef(null);
     const pointPrizeQtyRef = useRef(null);
     const pointNotesRef = useRef(null);
+    const submitButtonRef = useRef(null);
 
     // States for keyboard navigation
     const [activeProductIndex, setActiveProductIndex] = useState(-1);
@@ -312,8 +385,8 @@ export default function Index({
 
             if (product) {
                 if (product.stock > 0) {
-                    handleAddToCart(product);
-                    toast.success(`${product.title} ditambahkan (barcode)`);
+                    openCartModal(product);
+                    toast.success(`${product.title} terpilih (barcode)`);
                 } else {
                     toast.error(`${product.title} stok habis`);
                 }
@@ -321,7 +394,7 @@ export default function Index({
                 toast.error(`Produk tidak ditemukan: ${barcode}`);
             }
         },
-        [products]
+        [products, openCartModal]
     );
 
     const { isScanning } = useBarcodeScanner(handleBarcodeScan, {
@@ -331,11 +404,7 @@ export default function Index({
 
     const LowStockAlerts = () => null;
 
-    // Calculations
-    const discount = useMemo(
-        () => Math.max(0, Number(discountInput) || 0),
-        [discountInput]
-    );
+    const discount = 0;
     const shipping = useMemo(
         () => Math.max(0, Number(shippingInput) || 0),
         [shippingInput]
@@ -465,6 +534,7 @@ export default function Index({
     const handleOpenShift = () => {
         router.post(route("cashier-shifts.store"), {
             opening_cash: Number(openingCashInput || 0),
+            agent_opening_cash: Number(agentOpeningCashInput || 0),
             notes: shiftNotesInput,
             balances: openingBankBalances,
             redirect_to: "transactions",
@@ -472,14 +542,14 @@ export default function Index({
     };
 
     // Handle add product to cart
-    const handleAddToCart = async (item) => {
+    const handleAddToCart = async (item, qty = 1, satuanKey = "pcs", discount = 0) => {
         if (!item?.id) return;
 
         setAddingProductId(item.id);
 
         const payload = item.is_service
-            ? { service_id: item.id, qty: 1 }
-            : { product_id: item.id, sell_price: item.sell_price, qty: 1 };
+            ? { service_id: item.id, qty, satuan_key: satuanKey, discount }
+            : { product_id: item.id, sell_price: item.sell_price, qty, satuan_key: satuanKey, discount };
 
         router.post(
             route("transactions.addToCart"),
@@ -489,6 +559,7 @@ export default function Index({
                 onSuccess: () => {
                     toast.success(`${item.title} ditambahkan`);
                     setAddingProductId(null);
+                    setSelectedItemForCart(null);
                 },
                 onError: () => {
                     toast.error("Gagal menambahkan item");
@@ -686,7 +757,7 @@ export default function Index({
                         const selectedProduct = displayItems[activeProductIndex];
                         if (selectedProduct) {
                             if (selectedProduct.stock > 0) {
-                                handleAddToCart(selectedProduct);
+                                openCartModal(selectedProduct);
                                 setSearchQuery("");
                             } else {
                                 toast.error(`${selectedProduct.title} stok habis`);
@@ -748,7 +819,7 @@ export default function Index({
             } else if (e.key === "F6" || (e.altKey && e.key === "1")) {
                 e.preventDefault();
                 setTransactionMode("produk");
-                toast.success("Mode Produk Aktif");
+                toast.success("Mode POS Kasir Aktif");
             } else if (e.key === "F7" || (e.altKey && e.key === "2")) {
                 e.preventDefault();
                 setTransactionMode("jasa");
@@ -795,7 +866,10 @@ export default function Index({
                 }
             } else if (e.altKey && e.key.toLowerCase() === "d") {
                 e.preventDefault();
-                if (discountInputRef.current) {
+                if (selectedItemForCart && modalDiscountInputRef.current) {
+                    modalDiscountInputRef.current.focus();
+                    modalDiscountInputRef.current.select();
+                } else if (discountInputRef.current) {
                     discountInputRef.current.focus();
                     discountInputRef.current.select();
                 }
@@ -856,7 +930,7 @@ export default function Index({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [transactionMode, carts, displayItems, activeProductIndex, searchInputRef, customerSelectRef, discountInputRef, cashInputRef, agentNominalInputRef, agentNotesInputRef, pointPrizeSelectRef, pointPrizeQtyRef, selectedCustomer, heldCarts, payLater, paymentMethod]);
+    }, [transactionMode, carts, displayItems, activeProductIndex, searchInputRef, customerSelectRef, discountInputRef, cashInputRef, agentNominalInputRef, agentNotesInputRef, pointPrizeSelectRef, pointPrizeQtyRef, selectedCustomer, heldCarts, payLater, paymentMethod, selectedItemForCart, modalDiscountInputRef]);
 
     // Handle submit transaction
     const handleSubmitTransaction = () => {
@@ -1209,25 +1283,6 @@ export default function Index({
         setActiveProductIndex(displayItems.length > 0 ? 0 : -1);
     }, [searchQuery, transactionMode, selectedCategory, displayItems]);
 
-    // Auto-add product to cart if search results yield exactly one item (Product/Service mode only)
-    useEffect(() => {
-        if (
-            (transactionMode === "produk" || transactionMode === "jasa") &&
-            searchQuery.trim().length > 0 &&
-            displayItems.length === 1
-        ) {
-            const singleItem = displayItems[0];
-            if (singleItem) {
-                if (singleItem.stock > 0) {
-                    setSearchQuery("");
-                    handleAddToCart(singleItem);
-                } else {
-                    toast.error(`${singleItem.title} stok habis`);
-                    setSearchQuery("");
-                }
-            }
-        }
-    }, [searchQuery, displayItems, transactionMode]);
 
     if (!activeCashierShift) {
         return (
@@ -1246,10 +1301,10 @@ export default function Index({
                             Buka shift terlebih dulu untuk mengaktifkan transaksi, keranjang, dan cash closing.
                         </p>
 
-                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                        <div className="mt-6 grid gap-4 sm:grid-cols-3">
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                    Modal Awal
+                                    Modal Awal POS Kasir (Toko)
                                 </label>
                                 <input
                                     type="number"
@@ -1264,6 +1319,25 @@ export default function Index({
                                 />
                                 {errors?.opening_cash && (
                                     <p className="mt-2 text-xs text-rose-500">{errors.opening_cash}</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    Modal Awal Cash Agen
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={agentOpeningCashInput === 0 || agentOpeningCashInput === "0" ? "" : agentOpeningCashInput}
+                                    onChange={(event) => {
+                                        const val = event.target.value;
+                                        setAgentOpeningCashInput(val === "" ? "" : String(parseInt(val, 10) || 0));
+                                    }}
+                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                    placeholder="0"
+                                />
+                                {errors?.agent_opening_cash && (
+                                    <p className="mt-2 text-xs text-rose-500">{errors.agent_opening_cash}</p>
                                 )}
                             </div>
                             <div>
@@ -1402,7 +1476,7 @@ export default function Index({
                                 }`}
                             >
                                 <IconShoppingCart size={16} />
-                                <span>Produk</span>
+                                <span>POS Kasir</span>
                             </button>
                             <button
                                 type="button"
@@ -1492,7 +1566,7 @@ export default function Index({
                                                                 data-product-index={index}
                                                                 onClick={() => {
                                                                     if (hasStock) {
-                                                                        handleAddToCart(product);
+                                                                        openCartModal(product);
                                                                         setSearchQuery("");
                                                                     }
                                                                 }}
@@ -1722,14 +1796,30 @@ export default function Index({
                             </div>
 
                             {/* Bank Accounts Balance Grid */}
-                            {bankAccounts && bankAccounts.length > 0 && (
+                            {((bankAccounts && bankAccounts.length > 0) || activeCashierShift) && (
                                 <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                                     <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                                         <IconBuildingBank size={15} className="text-primary-500" />
-                                        Saldo Rekening Bank (EDC)
+                                        Saldo Rekening Bank (EDC) & Kas Agen
                                     </h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                                        {bankAccounts.map((bank) => (
+                                        {/* Kas Fisik Agen Card */}
+                                        {activeCashierShift && (
+                                            <div className="p-3 rounded-xl border border-emerald-100 dark:border-emerald-950/40 bg-emerald-50/20 dark:bg-emerald-950/10 flex items-center justify-between group">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-450 truncate">Kas Fisik Agen (Cash)</p>
+                                                    <p className="text-[9px] text-slate-450 font-mono truncate">Kas Fisik Terpisah Toko</p>
+                                                    <p className="text-xs font-bold text-slate-850 dark:text-white mt-1">
+                                                        {formatPrice(activeCashierShift?.agent_expected_cash || 0)}
+                                                    </p>
+                                                </div>
+                                                <div className="p-1.5 text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg flex-shrink-0">
+                                                    <IconWallet size={16} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {bankAccounts && bankAccounts.map((bank) => (
                                             <div key={bank.id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 flex items-center justify-between group">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-semibold text-slate-700 dark:text-slate-350 truncate">{bank.bank_name}</p>
@@ -2010,6 +2100,7 @@ export default function Index({
                                                         <th className="px-3 py-2 font-bold uppercase tracking-wider">Satuan</th>
                                                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-center">Qty</th>
                                                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-right">Harga</th>
+                                                        <th className="px-3 py-2 font-bold uppercase tracking-wider text-right">Diskon</th>
                                                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-right">Total</th>
                                                         <th className="px-3 py-2 font-bold uppercase tracking-wider text-right"></th>
                                                     </tr>
@@ -2018,7 +2109,6 @@ export default function Index({
                                                     {carts.map((item) => {
                                                         const pricingItem = pricingItemsByCartId[item.id];
                                                         const effectiveLineTotal = Number(pricingItem?.line_total ?? item.price ?? 0);
-                                                        const effectiveUnitPrice = Number(pricingItem?.effective_unit_price ?? item.product?.sell_price ?? 0);
                                                         const pricingRule = pricingItem?.pricing_rule;
 
                                                         const availableUnits = [];
@@ -2044,6 +2134,9 @@ export default function Index({
                                                             });
                                                         }
 
+                                                        const selectedUnit = availableUnits.find(u => u.key === item.satuan_key) || availableUnits[0];
+                                                        const baseUnitPrice = selectedUnit ? Number(selectedUnit.price) : Number(item.product?.sell_price || 0);
+
                                                         return (
                                                             <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/10">
                                                                 <td className="px-3 py-3">
@@ -2058,7 +2151,7 @@ export default function Index({
                                                                             )}
                                                                         </div>
                                                                         <div className="min-w-0">
-                                                                            <h4 className="font-semibold text-slate-850 dark:text-slate-200 text-xs sm:text-sm truncate max-w-[150px] sm:max-w-[200px]" title={item.product?.title || item.service?.name}>
+                                                                            <h4 className="font-semibold text-slate-855 dark:text-slate-200 text-xs sm:text-sm truncate max-w-[150px] sm:max-w-[200px]" title={item.product?.title || item.service?.name}>
                                                                                 {item.product?.title || item.service?.name}
                                                                             </h4>
                                                                         </div>
@@ -2104,7 +2197,10 @@ export default function Index({
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-3 py-3 text-right text-slate-655 dark:text-slate-300 font-mono font-medium">
-                                                                    {formatPrice(effectiveUnitPrice)}
+                                                                    {formatPrice(baseUnitPrice)}
+                                                                </td>
+                                                                <td className="px-3 py-3 text-right text-rose-600 dark:text-rose-400 font-mono font-medium">
+                                                                    {Number(item.discount) > 0 ? `-${formatPrice(Number(item.discount))}` : "-"}
                                                                 </td>
                                                                 <td className="px-3 py-3 text-right text-slate-855 dark:text-slate-200 font-mono font-bold">
                                                                     {formatPrice(effectiveLineTotal)}
@@ -2301,6 +2397,14 @@ export default function Index({
                                                 type="text"
                                                 value={paymentReference}
                                                 onChange={(e) => setPaymentReference(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        if (submitButtonRef.current) {
+                                                            submitButtonRef.current.focus();
+                                                        }
+                                                    }
+                                                }}
                                                 placeholder="Kode Ref / Trace / ID Transaksi..."
                                                 className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                                             />
@@ -2314,25 +2418,6 @@ export default function Index({
                                             <span className="font-bold">-{formatPrice(promoDiscount)}</span>
                                         </div>
                                     )}
-
-                                    <div>
-                                        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 flex items-center justify-between">
-                                            <span>Diskon Manual (Rp)</span>
-                                            <kbd className="bg-slate-105 dark:bg-slate-800 text-slate-500 rounded px-1 border border-slate-200 dark:border-slate-700 font-mono text-[8px] font-bold">Alt+D</kbd>
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
-                                            <input
-                                                ref={discountInputRef}
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={discountInput}
-                                                onChange={(e) => setDiscountInput(e.target.value.replace(/[^\d]/g, ""))}
-                                                placeholder="0"
-                                                className="w-full h-8 pl-8 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs focus:ring-2 focus:ring-primary-500/20"
-                                            />
-                                        </div>
-                                    </div>
 
                                     {/* Cash Input - Only for cash */}
                                     {paymentMethod === "cash" && (
@@ -2349,6 +2434,14 @@ export default function Index({
                                                     inputMode="numeric"
                                                     value={cashInput}
                                                     onChange={(e) => setCashInput(e.target.value.replace(/[^\d]/g, ""))}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            e.preventDefault();
+                                                            if (submitButtonRef.current) {
+                                                                submitButtonRef.current.focus();
+                                                            }
+                                                        }
+                                                    }}
                                                     placeholder="0"
                                                     className="w-full h-8 pl-8 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:ring-2 focus:ring-primary-500/20"
                                                 />
@@ -2365,14 +2458,8 @@ export default function Index({
                                     </div>
                                     {promoDiscount > 0 && (
                                         <div className="flex justify-between items-center mb-1 text-emerald-600">
-                                            <span>Promo Otomatis</span>
+                                            <span>Total Diskon</span>
                                             <span>-{formatPrice(promoDiscount)}</span>
-                                        </div>
-                                    )}
-                                    {discount > 0 && (
-                                        <div className="flex justify-between items-center mb-1 text-danger-500">
-                                            <span>Diskon Manual</span>
-                                            <span>-{formatPrice(discount)}</span>
                                         </div>
                                     )}
                                     {shipping > 0 && (
@@ -2394,6 +2481,7 @@ export default function Index({
                                     )}
 
                                     <button
+                                        ref={submitButtonRef}
                                         onClick={handleSubmitTransaction}
                                         disabled={
                                             !carts.length ||
@@ -2848,6 +2936,190 @@ export default function Index({
                 isCurrency={true}
             />
 
+            {/* Item Selection Modal (Qty, Satuan, Diskon) */}
+            {selectedItemForCart && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/60"
+                        onClick={() => setSelectedItemForCart(null)}
+                    />
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-md w-full border border-slate-100 dark:border-slate-800">
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 flex-shrink-0">
+                            <IconShoppingCart size={24} className="text-primary-500" />
+                            Tambah ke Keranjang
+                        </h3>
+                        <div className="mb-4">
+                            <div className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Nama Barang</div>
+                            <div className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-0.5">
+                                {selectedItemForCart.title}
+                            </div>
+                            {!selectedItemForCart.is_service && (
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    Stok Tersedia: {selectedItemForCart.stock_breakdown || `${selectedItemForCart.stock} Pcs`}
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            {/* Quantity Input */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                                    Jumlah (Qty)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalQty(prev => Math.max(1, prev - 1))}
+                                        className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-850 cursor-pointer"
+                                    >
+                                        -
+                                    </button>
+                                    <input
+                                        ref={modalQtyInputRef}
+                                        type="number"
+                                        min="1"
+                                        value={modalQty}
+                                        onChange={(e) => setModalQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                if (modalUnitSelectRef.current) {
+                                                    modalUnitSelectRef.current.focus();
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 h-10 text-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalQty(prev => prev + 1)}
+                                        className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-855 cursor-pointer"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Unit (Satuan) Select */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                                    Satuan
+                                </label>
+                                <select
+                                    ref={modalUnitSelectRef}
+                                    value={modalUnitKey}
+                                    onChange={(e) => setModalUnitKey(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            if (modalDiscountInputRef.current) {
+                                                modalDiscountInputRef.current.focus();
+                                                modalDiscountInputRef.current.select();
+                                            }
+                                        }
+                                    }}
+                                    className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                                >
+                                    {getAvailableUnitsForItem(selectedItemForCart).map((unit) => (
+                                        <option key={unit.key} value={unit.key}>
+                                            {unit.label} ({formatPrice(unit.price)})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Discount Input */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                                    Diskon Manual (Rp per Unit)
+                                </label>
+                                <input
+                                    ref={modalDiscountInputRef}
+                                    type="text"
+                                    value={modalDiscount}
+                                    onChange={(e) => setModalDiscount(e.target.value.replace(/[^\d]/g, ""))}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleAddToCart(
+                                                selectedItemForCart,
+                                                modalQty,
+                                                modalUnitKey,
+                                                Number(modalDiscount) || 0
+                                            );
+                                        }
+                                    }}
+                                    className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none text-right font-mono font-semibold"
+                                    placeholder="0"
+                                />
+                            </div>
+
+                            {/* Pricing Preview inside Modal */}
+                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-850 space-y-1.5 text-xs">
+                                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                                    <span>Harga Satuan:</span>
+                                    <span className="font-mono font-medium">
+                                        {formatPrice(
+                                            getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || 0
+                                        )}
+                                    </span>
+                                </div>
+                                {Number(modalDiscount) > 0 && (
+                                    <div className="flex justify-between text-rose-600 dark:text-rose-400">
+                                        <span>Diskon per Unit:</span>
+                                        <span className="font-mono font-medium">
+                                            -{formatPrice(Number(modalDiscount))}
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between font-bold text-slate-800 dark:text-slate-200 border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5 mt-1.5">
+                                    <span>Subtotal Item:</span>
+                                    <span className="font-mono text-primary-600 dark:text-primary-400">
+                                        {formatPrice(
+                                            Math.max(
+                                                0,
+                                                ((getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || 0) - Number(modalDiscount)) * modalQty
+                                            )
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedItemForCart(null)}
+                                className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                disabled={addingProductId !== null}
+                                onClick={() => {
+                                    handleAddToCart(
+                                        selectedItemForCart,
+                                        modalQty,
+                                        modalUnitKey,
+                                        Number(modalDiscount) || 0
+                                    );
+                                }}
+                                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-md shadow-primary-500/20 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                                {addingProductId !== null ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <IconShoppingCart size={16} />
+                                        <span>Tambah ke Keranjang</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Keyboard Shortcuts Help */}
             {showShortcuts && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -2881,7 +3153,7 @@ export default function Index({
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-primary-500 mb-1.5">Pilihan Mode</h4>
                                 <div className="space-y-1.5">
                                     {[
-                                        ["F6 / Alt+1", "Mode Produk"],
+                                        ["F6 / Alt+1", "Mode POS Kasir"],
                                         ["F7 / Alt+2", "Mode Jasa"],
                                         ["F8 / Alt+3", "Mode Agen Link"],
                                         ["F9 / Alt+4", "Mode Tukar Poin"],

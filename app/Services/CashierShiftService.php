@@ -45,7 +45,7 @@ class CashierShiftService
         return $shift;
     }
 
-    public function openShift(User $cashier, User $actor, int $openingCash, ?string $notes = null): CashierShift
+    public function openShift(User $cashier, User $actor, int $openingCash, int $agentOpeningCash = 0, ?string $notes = null): CashierShift
     {
         $existing = CashierShift::query()
             ->open()
@@ -63,7 +63,9 @@ class CashierShiftService
             'opened_by' => $actor->id,
             'opened_at' => now(),
             'opening_cash' => $openingCash,
+            'agent_opening_cash' => $agentOpeningCash,
             'expected_cash' => $openingCash,
+            'agent_expected_cash' => $agentOpeningCash,
             'notes' => $notes,
             'status' => CashierShift::STATUS_OPEN,
         ]);
@@ -121,7 +123,8 @@ class CashierShiftService
         $transactionsCount = (int) (clone $transactions)->count();
         $salesReturnsCount = (int) (clone $salesReturns)->count();
         $agentTransactionsCount = (int) (clone $agentTransactions)->count();
-        $expectedCash = (int) $shift->opening_cash + $cashSalesTotal - $cashRefundTotal + $agentCashInTotal - $agentCashOutTotal + $agentFeesCashInTotal;
+        $expectedCash = (int) $shift->opening_cash + $cashSalesTotal - $cashRefundTotal;
+        $agentExpectedCash = (int) $shift->agent_opening_cash + $agentCashInTotal - $agentCashOutTotal + $agentFeesCashInTotal;
 
         return [
             'cash_sales_total' => $cashSalesTotal,
@@ -135,6 +138,7 @@ class CashierShiftService
             'sales_returns_count' => $salesReturnsCount,
             'agent_transactions_count' => $agentTransactionsCount,
             'expected_cash' => $expectedCash,
+            'agent_expected_cash' => $agentExpectedCash,
         ];
     }
 
@@ -142,6 +146,7 @@ class CashierShiftService
         CashierShift $shift,
         User $actor,
         int $actualCash,
+        int $agentActualCash = 0,
         ?string $closeNotes = null,
         bool $forceClose = false
     ): CashierShift {
@@ -151,7 +156,7 @@ class CashierShiftService
             ]);
         }
 
-        return DB::transaction(function () use ($shift, $actor, $actualCash, $closeNotes, $forceClose) {
+        return DB::transaction(function () use ($shift, $actor, $actualCash, $agentActualCash, $closeNotes, $forceClose) {
             $lockedShift = CashierShift::query()->lockForUpdate()->findOrFail($shift->id);
 
             if (! $lockedShift->isOpen()) {
@@ -162,11 +167,14 @@ class CashierShiftService
 
             $summary = $this->calculateSummary($lockedShift);
             $cashDifference = $actualCash - $summary['expected_cash'];
+            $agentCashDifference = $agentActualCash - $summary['agent_expected_cash'];
 
             $lockedShift->update([
                 ...$summary,
                 'actual_cash' => $actualCash,
                 'cash_difference' => $cashDifference,
+                'agent_actual_cash' => $agentActualCash,
+                'agent_cash_difference' => $agentCashDifference,
                 'closed_at' => now(),
                 'closed_by' => $actor->id,
                 'close_notes' => $closeNotes,
@@ -191,6 +199,7 @@ class CashierShiftService
             'id' => $shift->id,
             'status' => $shift->status,
             'opening_cash' => (int) $shift->opening_cash,
+            'agent_opening_cash' => (int) $shift->agent_opening_cash,
             'opened_at' => optional($shift->opened_at)?->toISOString(),
             'notes' => $shift->notes,
             'user' => $shift->user ? [

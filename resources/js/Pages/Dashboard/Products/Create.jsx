@@ -114,22 +114,12 @@ export default function Create({ categories, units = [] }) {
         const val = parseInt(value, 10) || 0;
         setData((prev) => {
             const updated = { ...prev };
-            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
-            const packDus = Number(prev.isi_pack_dalam_dus) || 0;
-            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
-
             if (unitKey === "dus") {
                 updated.harga_jual_dus = val;
-                updated.harga_jual_pack = packDus > 0 ? Math.floor(val / packDus) : 0;
-                updated.harga_jual_pcs = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
             } else if (unitKey === "pack") {
                 updated.harga_jual_pack = val;
-                updated.harga_jual_pcs = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
-                updated.harga_jual_dus = val * packDus;
             } else if (unitKey === "pcs") {
                 updated.harga_jual_pcs = val;
-                updated.harga_jual_pack = val * pcsPack;
-                updated.harga_jual_dus = val * pcsDus;
             }
             return updated;
         });
@@ -148,13 +138,9 @@ export default function Create({ categories, units = [] }) {
 
             // Recalculate prices using pcs as the ground truth
             const buyPcs = Number(updated.harga_beli_pcs || 0);
-            const sellPcs = Number(updated.harga_jual_pcs || 0);
 
             updated.harga_beli_pack = buyPcs * pcsPack;
             updated.harga_beli_dus = buyPcs * updated.isi_pcs_dalam_dus;
-
-            updated.harga_jual_pack = sellPcs * pcsPack;
-            updated.harga_jual_dus = sellPcs * updated.isi_pcs_dalam_dus;
 
             // Recalculate stock fields to stay in sync using updated.stok_pcs as the ground truth
             const totalPcs = Number(updated.stok_pcs || 0);

@@ -59,6 +59,9 @@ export default function Show({ cashierShift, canForceClose = false }) {
     const [actualCash, setActualCash] = useState(
         cashierShift.actual_cash !== null ? String(cashierShift.actual_cash) : ""
     );
+    const [agentActualCash, setAgentActualCash] = useState(
+        cashierShift.agent_actual_cash !== null ? String(cashierShift.agent_actual_cash) : ""
+    );
     const [closeNotes, setCloseNotes] = useState(cashierShift.close_notes || "");
 
     const canCloseShift = useMemo(() => {
@@ -84,11 +87,17 @@ export default function Show({ cashierShift, canForceClose = false }) {
         ? null
         : actualCashNumber - Number(cashierShift.expected_cash || 0);
 
+    const agentActualCashNumber = Number(agentActualCash || 0);
+    const agentDifference = agentActualCash === ""
+        ? null
+        : agentActualCashNumber - Number(cashierShift.agent_expected_cash || 0);
+
     const handleCloseShift = (event) => {
         event.preventDefault();
 
         router.post(route("cashier-shifts.close", cashierShift.id), {
             actual_cash: actualCashNumber,
+            agent_actual_cash: agentActualCashNumber,
             close_notes: closeNotes,
         });
     };
@@ -315,25 +324,50 @@ export default function Show({ cashierShift, canForceClose = false }) {
 
                     <div className="space-y-6">
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                Cash Closing
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                                Cash Closing Summary
                             </h2>
-                            <div className="mt-4 space-y-3">
-                                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
-                                    <span className="text-sm text-slate-500 dark:text-slate-400">Expected Cash</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(cashierShift.expected_cash)}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Kas POS Toko */}
+                                <div className="space-y-3 bg-slate-50/50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Kas POS Toko</h3>
+                                    <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-slate-500 dark:text-slate-400">Expected Cash</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(cashierShift.expected_cash)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-slate-500 dark:text-slate-400">Actual Cash</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white">
+                                            {cashierShift.actual_cash === null ? "-" : formatCurrency(cashierShift.actual_cash)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm py-1.5">
+                                        <span className="text-slate-500 dark:text-slate-400">Selisih</span>
+                                        <span className={`font-bold ${cashierShift.cash_difference === null ? "text-slate-900 dark:text-white" : cashierShift.cash_difference < 0 ? "text-rose-600 dark:text-rose-450" : cashierShift.cash_difference > 0 ? "text-emerald-600 dark:text-emerald-450" : "text-emerald-650"}`}>
+                                            {cashierShift.cash_difference === null ? "-" : formatCurrency(cashierShift.cash_difference)}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
-                                    <span className="text-sm text-slate-500 dark:text-slate-400">Actual Cash</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">
-                                        {cashierShift.actual_cash === null ? "-" : formatCurrency(cashierShift.actual_cash)}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
-                                    <span className="text-sm text-slate-500 dark:text-slate-400">Selisih</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">
-                                        {cashierShift.cash_difference === null ? "-" : formatCurrency(cashierShift.cash_difference)}
-                                    </span>
+
+                                {/* Kas Agen BRILink */}
+                                <div className="space-y-3 bg-slate-50/50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Kas Agen (Cash BRILink)</h3>
+                                    <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-slate-500 dark:text-slate-400">Expected Cash</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(cashierShift.agent_expected_cash || 0)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                        <span className="text-slate-500 dark:text-slate-400">Actual Cash</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white">
+                                            {cashierShift.agent_actual_cash === null ? "-" : formatCurrency(cashierShift.agent_actual_cash)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm py-1.5">
+                                        <span className="text-slate-500 dark:text-slate-400">Selisih</span>
+                                        <span className={`font-bold ${cashierShift.agent_cash_difference === null ? "text-slate-900 dark:text-white" : cashierShift.agent_cash_difference < 0 ? "text-rose-600 dark:text-rose-450" : cashierShift.agent_cash_difference > 0 ? "text-emerald-600 dark:text-emerald-450" : "text-emerald-650"}`}>
+                                            {cashierShift.agent_cash_difference === null ? "-" : formatCurrency(cashierShift.agent_cash_difference)}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -344,21 +378,36 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                     Tutup Shift
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    Input kas fisik akhir untuk finalisasi cash closing.
+                                    Input kas fisik akhir untuk finalisasi cash closing toko dan kas fisik agen.
                                 </p>
                                 <form onSubmit={handleCloseShift} className="mt-4 space-y-4">
-                                    <div>
-                                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kas Fisik Aktual</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={actualCash}
-                                            onChange={(event) => setActualCash(event.target.value)}
-                                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                        />
-                                        {errors?.actual_cash && (
-                                            <p className="mt-2 text-xs text-rose-500">{errors.actual_cash}</p>
-                                        )}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kas Fisik Toko Aktual</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={actualCash}
+                                                onChange={(event) => setActualCash(event.target.value)}
+                                                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                            />
+                                            {errors?.actual_cash && (
+                                                <p className="mt-2 text-xs text-rose-500">{errors.actual_cash}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Kas Fisik Agen Aktual</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={agentActualCash}
+                                                onChange={(event) => setAgentActualCash(event.target.value)}
+                                                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                            />
+                                            {errors?.agent_actual_cash && (
+                                                <p className="mt-2 text-xs text-rose-500">{errors.agent_actual_cash}</p>
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Catatan Closing</label>
@@ -370,15 +419,30 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                             placeholder="Opsional"
                                         />
                                     </div>
-                                    {difference !== null && (
-                                        <div
-                                            className={`rounded-xl px-4 py-3 text-sm ${
-                                                difference === 0
-                                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
-                                            }`}
-                                        >
-                                            Selisih closing: {formatCurrency(difference)}
+                                    {(difference !== null || agentDifference !== null) && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {difference !== null && (
+                                                <div
+                                                    className={`rounded-xl px-4 py-3 text-sm ${
+                                                        difference === 0
+                                                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                                            : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+                                                    }`}
+                                                >
+                                                    Selisih Toko: {formatCurrency(difference)}
+                                                </div>
+                                            )}
+                                            {agentDifference !== null && (
+                                                <div
+                                                    className={`rounded-xl px-4 py-3 text-sm ${
+                                                        agentDifference === 0
+                                                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                                            : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+                                                    }`}
+                                                >
+                                                    Selisih Agen: {formatCurrency(agentDifference)}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                     <button
