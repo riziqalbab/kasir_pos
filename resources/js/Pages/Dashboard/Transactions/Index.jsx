@@ -404,7 +404,14 @@ export default function Index({
 
     const LowStockAlerts = () => null;
 
-    const discount = 0;
+    const discount = useMemo(
+        () => Math.max(0, Number(discountInput) || 0),
+        [discountInput]
+    );
+    const manualDiscountTotal = useMemo(
+        () => Number(pricingPreview?.summary?.manual_discount_total ?? 0),
+        [pricingPreview]
+    );
     const shipping = useMemo(
         () => Math.max(0, Number(shippingInput) || 0),
         [shippingInput]
@@ -2419,6 +2426,37 @@ export default function Index({
                                         </div>
                                     )}
 
+                                    {/* Diskon Belanja Input */}
+                                    <div>
+                                        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 flex items-center justify-between">
+                                            <span>Diskon Belanja (Rp)</span>
+                                            <kbd className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded px-1 border border-slate-200 dark:border-slate-700 font-mono text-[8px] font-bold">Alt+D</kbd>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
+                                            <input
+                                                ref={discountInputRef}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={discountInput}
+                                                onChange={(e) => setDiscountInput(e.target.value.replace(/[^\d]/g, ""))}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        if (paymentMethod === "cash" && cashInputRef.current) {
+                                                            cashInputRef.current.focus();
+                                                            cashInputRef.current.select();
+                                                        } else if (submitButtonRef.current) {
+                                                            submitButtonRef.current.focus();
+                                                        }
+                                                    }
+                                                }}
+                                                placeholder="0"
+                                                className="w-full h-8 pl-8 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold focus:ring-2 focus:ring-primary-500/20 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
                                     {/* Cash Input - Only for cash */}
                                     {paymentMethod === "cash" && (
                                         <div>
@@ -2458,8 +2496,14 @@ export default function Index({
                                     </div>
                                     {promoDiscount > 0 && (
                                         <div className="flex justify-between items-center mb-1 text-emerald-600">
-                                            <span>Total Diskon</span>
+                                            <span>Diskon Promo</span>
                                             <span>-{formatPrice(promoDiscount)}</span>
+                                        </div>
+                                    )}
+                                    {manualDiscountTotal > 0 && (
+                                        <div className="flex justify-between items-center mb-1 text-rose-600">
+                                            <span>Diskon Belanja</span>
+                                            <span>-{formatPrice(manualDiscountTotal)}</span>
                                         </div>
                                     )}
                                     {shipping > 0 && (
