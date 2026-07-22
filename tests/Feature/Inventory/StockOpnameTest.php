@@ -168,7 +168,7 @@ class StockOpnameTest extends TestCase
         ]);
     }
 
-    public function test_finalize_rejects_difference_without_reason(): void
+    public function test_finalize_allows_difference_without_reason(): void
     {
         $user = $this->createUserWithPermissions([
             'stock-opnames-access',
@@ -196,9 +196,9 @@ class StockOpnameTest extends TestCase
             ->actingAs($user)
             ->post(route('stock-opnames.finalize', $stockOpname));
 
-        $response->assertInvalid(['finalize']);
-        $this->assertSame(12, $product->fresh()->stock);
-        $this->assertDatabaseMissing('stock_mutations', [
+        $response->assertRedirect(route('stock-opnames.show', $stockOpname));
+        $this->assertSame(10, $product->fresh()->stock);
+        $this->assertDatabaseHas('stock_mutations', [
             'reference_type' => 'stock_opname',
             'reference_id' => $stockOpname->id,
         ]);

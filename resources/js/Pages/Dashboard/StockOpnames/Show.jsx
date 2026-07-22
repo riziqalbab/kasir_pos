@@ -15,6 +15,7 @@ import {
 } from "@tabler/icons-react";
 import toast from "react-hot-toast";
 import { useAuthorization } from "@/Utils/authorization";
+import BarcodeCameraScanner from "@/Components/Dashboard/BarcodeCameraScanner";
 
 const formatDateTime = (value) =>
     value
@@ -57,9 +58,16 @@ export default function Show({
     const [localItems, setLocalItems] = useState(stockOpname.items);
     const [savingItemId, setSavingItemId] = useState(null);
     const [showProductModal, setShowProductModal] = useState(false);
+    const [isScanningCamera, setIsScanningCamera] = useState(false);
     const [productSearchInput, setProductSearchInput] = useState(
         productFilters.search || ""
     );
+
+    const handleCameraScan = (scannedText) => {
+        setProductSearchInput(scannedText);
+        updateFilter("product_search", scannedText);
+        toast.success(`Barcode ter-scan: ${scannedText}`);
+    };
 
     const notesForm = useForm({
         notes: stockOpname.notes || "",
@@ -105,9 +113,6 @@ export default function Show({
             matchedItems: matchedItems.length,
             differentItems: differentItems.length,
             totalAdjustment,
-            hasMissingReasons: differentItems.some(
-                (item) => !item.adjustment_reason
-            ),
         };
     }, [localItems]);
 
@@ -122,7 +127,7 @@ export default function Show({
             }
 
             updateFilter("product_search", productSearchInput);
-        }, 1200);
+        }, 500);
 
         return () => clearTimeout(timeoutId);
     }, [productSearchInput, showProductModal, filters.product_search]);
@@ -287,7 +292,7 @@ export default function Show({
                             label="Finalize Stock Opname"
                             onClick={finalize}
                             disabled={
-                                localItems.length === 0 || summary.hasMissingReasons
+                                localItems.length === 0
                             }
                         />
                     )}
@@ -342,7 +347,6 @@ export default function Show({
                                     <Table.Th>Stok Sistem</Table.Th>
                                     <Table.Th>Stok Fisik</Table.Th>
                                     <Table.Th>Selisih</Table.Th>
-                                    <Table.Th>Alasan</Table.Th>
                                     <Table.Th className="w-24 text-center">Simpan</Table.Th>
                                 </tr>
                             </Table.Thead>
@@ -405,26 +409,7 @@ export default function Show({
                                                               : difference}
                                                     </span>
                                                 </Table.Td>
-                                                <Table.Td>
-                                                    <input
-                                                        type="text"
-                                                        value={item.adjustment_reason || ""}
-                                                        disabled={!canManageDraft}
-                                                        onChange={(event) =>
-                                                            setItemField(
-                                                                item.id,
-                                                                "adjustment_reason",
-                                                                event.target.value
-                                                            )
-                                                        }
-                                                        placeholder={
-                                                            isDifferent
-                                                                ? "Wajib isi alasan"
-                                                                : "Tidak perlu"
-                                                        }
-                                                        className="h-10 w-full min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                                    />
-                                                </Table.Td>
+
                                                 <Table.Td className="text-center">
                                                     {canManageDraft ? (
                                                         <button
@@ -444,7 +429,7 @@ export default function Show({
                                     })
                                 ) : (
                                     <Table.Empty
-                                        colSpan={6}
+                                        colSpan={5}
                                         message={
                                             <div className="text-slate-500 dark:text-slate-400">
                                                 Belum ada produk pada sesi ini.
@@ -514,7 +499,10 @@ export default function Show({
 
             <Modal
                 show={showProductModal && canManageDraft}
-                onClose={() => setShowProductModal(false)}
+                onClose={() => {
+                    setShowProductModal(false);
+                    setIsScanningCamera(false);
+                }}
                 title={
                     <div className="flex items-center gap-2">
                         <IconClipboardCheck size={18} />
@@ -524,6 +512,12 @@ export default function Show({
                 maxWidth="2xl"
             >
                 <div className="space-y-4">
+                    <BarcodeCameraScanner
+                        isScanning={isScanningCamera}
+                        onToggle={() => setIsScanningCamera((prev) => !prev)}
+                        onScan={handleCameraScan}
+                    />
+
                     <div className="relative">
                         <input
                             type="text"
@@ -542,7 +536,7 @@ export default function Show({
 
                     {isWaitingSearch ? (
                         <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                            Menunggu input selesai, pencarian akan dijalankan dalam 1-2 detik.
+                            Menunggu input selesai, pencarian akan dijalankan dalam 0.5 detik.
                         </div>
                     ) : filters.product_search ? (
                         availableProducts.length > 0 ? (

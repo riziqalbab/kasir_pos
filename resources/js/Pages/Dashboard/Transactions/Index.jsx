@@ -1633,21 +1633,7 @@ export default function Index({
                                     )}
                                 </div>
                             )}
-                            {transactionMode === "jasa" && (
-                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                                    Mode Jasa Aktif
-                                </span>
-                            )}
-                            {transactionMode === "agen_link" && (
-                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                                    Mode Agen Link Aktif
-                                </span>
-                            )}
-                            {transactionMode === "tukar_poin" && (
-                                <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                                    Mode Tukar Poin Aktif
-                                </span>
-                            )}
+
                             <button
                                 type="button"
                                 onClick={() => setShowShortcuts(true)}

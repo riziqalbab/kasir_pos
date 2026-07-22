@@ -150,18 +150,11 @@ class StockOpnameController extends Controller
         $this->ensureItemBelongsToOpname($stockOpname, $item);
 
         $validated = $request->validated();
-        $physicalStock = $validated['physical_stock'] ?? null;
+        $physicalStock = array_key_exists('physical_stock', $validated) ? $validated['physical_stock'] : $item->physical_stock;
+        $adjustmentReason = $validated['adjustment_reason'] ?? $item->adjustment_reason;
         $difference = $physicalStock !== null
             ? $physicalStock - $item->system_stock
             : null;
-
-        $adjustmentReason = $validated['adjustment_reason'] ?? null;
-
-        if ($difference !== null && $difference !== 0 && blank($adjustmentReason)) {
-            throw ValidationException::withMessages([
-                'adjustment_reason' => 'Alasan adjustment wajib diisi jika ada selisih stok.',
-            ]);
-        }
 
         if ($difference === 0) {
             $adjustmentReason = null;
@@ -182,14 +175,6 @@ class StockOpnameController extends Controller
 
         $stockOpname->load('items.product');
         $beforeStatus = $stockOpname->status;
-
-        foreach ($stockOpname->items as $item) {
-            if ($item->difference !== null && $item->difference !== 0 && blank($item->adjustment_reason)) {
-                throw ValidationException::withMessages([
-                    'finalize' => 'Masih ada item selisih yang belum memiliki alasan adjustment.',
-                ]);
-            }
-        }
 
         DB::transaction(function () use ($request, $stockOpname) {
             foreach ($stockOpname->items as $item) {
