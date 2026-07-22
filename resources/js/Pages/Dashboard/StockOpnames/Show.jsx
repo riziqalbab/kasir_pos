@@ -9,6 +9,7 @@ import {
     IconCheck,
     IconDeviceFloppy,
     IconClipboardCheck,
+    IconMinus,
     IconPackage,
     IconPlus,
     IconSearch,
@@ -207,6 +208,30 @@ export default function Show({
         );
     };
 
+    const adjustPhysicalStock = (itemId, delta) => {
+        setLocalItems((currentItems) =>
+            currentItems.map((item) => {
+                if (item.id !== itemId) {
+                    return item;
+                }
+
+                const currentVal =
+                    item.physical_stock === null
+                        ? Number(item.system_stock || 0)
+                        : Number(item.physical_stock);
+                const nextPhysicalStock = Math.max(0, currentVal + delta);
+                const nextDifference =
+                    nextPhysicalStock - Number(item.system_stock);
+
+                return {
+                    ...item,
+                    physical_stock: nextPhysicalStock,
+                    difference: nextDifference,
+                };
+            })
+        );
+    };
+
     const persistItem = (item) => {
         if (!canManageDraft) {
             return;
@@ -378,20 +403,40 @@ export default function Show({
                                                     </Table.Td>
                                                     <Table.Td className="p-3 sm:p-4 text-center sm:text-left">{item.system_stock}</Table.Td>
                                                     <Table.Td className="p-3 sm:p-4">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            value={item.physical_stock ?? ""}
-                                                            disabled={!canManageDraft}
-                                                            onChange={(event) =>
-                                                                setItemField(
-                                                                    item.id,
-                                                                    "physical_stock",
-                                                                    event.target.value
-                                                                )
-                                                            }
-                                                            className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                                        />
+                                                        <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!canManageDraft}
+                                                                onClick={() => adjustPhysicalStock(item.id, -1)}
+                                                                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-40 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                                title="Kurangi stok (-1)"
+                                                            >
+                                                                <IconMinus size={14} />
+                                                            </button>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={item.physical_stock ?? ""}
+                                                                disabled={!canManageDraft}
+                                                                onChange={(event) =>
+                                                                    setItemField(
+                                                                        item.id,
+                                                                        "physical_stock",
+                                                                        event.target.value
+                                                                    )
+                                                                }
+                                                                className="h-8 w-14 bg-transparent px-1 text-center text-sm font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={!canManageDraft}
+                                                                onClick={() => adjustPhysicalStock(item.id, 1)}
+                                                                className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-40 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                                title="Tambah stok (+1)"
+                                                            >
+                                                                <IconPlus size={14} />
+                                                            </button>
+                                                        </div>
                                                     </Table.Td>
                                                     <Table.Td className="p-3 sm:p-4 text-center sm:text-left">
                                                         <span
