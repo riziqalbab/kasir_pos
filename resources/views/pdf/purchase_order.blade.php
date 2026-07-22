@@ -4,82 +4,217 @@
     <meta charset="UTF-8">
     <title>Purchase Order - {{ $order->document_number }}</title>
     <style>
-        @page { margin: 10mm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; margin:0; background:#ffffff; color:#0f172a; font-size:12px; }
-        .sheet { max-width: 900px; margin: 0 auto; background:white; padding:10px; }
-        .header { display: table; width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
-        .store-logo-cell { display: table-cell; width: 65px; vertical-align: middle; }
-        .store-info-cell { display: table-cell; vertical-align: middle; }
-        .doc-info-cell { display: table-cell; text-align: right; vertical-align: middle; }
-        .logo { width: 55px; height: 55px; line-height: 55px; background: #f1f5f9; text-align: center; border-radius: 8px; font-weight: bold; font-size: 20px; color: #475569; }
-        .logo img { max-width: 100%; max-height: 100%; object-fit: contain; vertical-align: middle; }
-        .store-name { font-weight: bold; font-size: 16px; margin: 0 0 3px 0; }
-        .muted { color: #475569; font-size: 11px; margin: 0; }
-        .doc-title { font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
-        .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        @page {
+            margin: 12mm 12mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .header-table td {
+            vertical-align: top;
+        }
+        .logo {
+            width: 52px;
+            height: 52px;
+            line-height: 52px;
+            background: #f1f5f9;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #475569;
+        }
+        .logo img {
+            max-width: 100%;
+            max-height: 100%;
+            vertical-align: middle;
+        }
+        .store-name {
+            font-weight: bold;
+            font-size: 15px;
+            margin: 0 0 2px 0;
+            color: #0f172a;
+        }
+        .muted {
+            color: #475569;
+            font-size: 10px;
+            margin: 0;
+        }
+        .doc-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+            margin: 0 0 4px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
         .badge-draft { background-color: #fef3c7; color: #d97706; }
         .badge-ordered { background-color: #dbeafe; color: #2563eb; }
         .badge-partial_received { background-color: #fae8ff; color: #d946ef; }
         .badge-completed { background-color: #dcfce7; color: #16a34a; }
         .badge-cancelled { background-color: #fee2e2; color: #dc2626; }
-        
-        .section-table { width: 100%; display: table; margin-bottom: 20px; }
-        .section-cell { display: table-cell; width: 50%; vertical-align: top; }
-        .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-right: 5px; background-color: #f8fafc; }
-        .card-last { margin-right: 0; margin-left: 5px; }
-        .card-title { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px; }
-        .card-content { font-size: 12px; line-height: 1.5; }
-        .font-bold { font-weight: bold; }
 
-        table.items-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px; }
-        table.items-table th { background: #f1f5f9; color: #475569; font-weight: bold; font-size: 10px; text-transform: uppercase; border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
-        table.items-table td { border: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: middle; }
-        table.items-table tr:nth-child(even) { background-color: #f8fafc; }
+        .info-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 8px 0;
+            margin-left: -8px;
+            margin-right: -8px;
+            margin-bottom: 16px;
+        }
+        .info-table td {
+            vertical-align: top;
+            width: 50%;
+        }
+        .card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background-color: #f8fafc;
+        }
+        .card-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: bold;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+        .card-content {
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .font-bold {
+            font-weight: bold;
+        }
+
+        table.items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        table.items-table th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: bold;
+            font-size: 9px;
+            text-transform: uppercase;
+            border: 1px solid #e2e8f0;
+            padding: 7px 9px;
+            text-align: left;
+        }
+        table.items-table td {
+            border: 1px solid #e2e8f0;
+            padding: 7px 9px;
+            vertical-align: middle;
+            font-size: 10.5px;
+        }
+        table.items-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
         
         .text-right { text-align: right !important; }
         .text-center { text-align: center !important; }
         
-        .total-box { float: right; width: 280px; margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background-color: #f8fafc; }
-        .total-row { display: table; width: 100%; margin-bottom: 4px; }
-        .total-label { display: table-cell; font-size: 11px; color: #64748b; }
-        .total-val { display: table-cell; text-align: right; font-size: 13px; font-weight: bold; color: #0f172a; }
-        
-        .notes-section { margin-top: 20px; width: 60%; float: left; }
-        .notes-title { font-weight: bold; font-size: 11px; color: #475569; margin-bottom: 5px; }
-        .notes-body { font-size: 11px; color: #64748b; line-height: 1.4; }
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        .notes-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background-color: #f8fafc;
+            font-size: 10px;
+        }
+        .notes-title {
+            font-weight: bold;
+            color: #475569;
+            margin-bottom: 3px;
+        }
+        .notes-body {
+            color: #64748b;
+        }
+        .total-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background-color: #f8fafc;
+        }
+        .total-row-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .total-row-table td {
+            padding: 2px 0;
+        }
 
-        .footer { clear: both; margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-        .footer-table { width: 100%; display: table; }
-        .footer-left { display: table-cell; vertical-align: middle; color: #64748b; font-size: 10px; }
-        .footer-right { display: table-cell; text-align: right; vertical-align: middle; }
-        .barcode img { height: 35px; margin-bottom: 4px; }
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            margin-top: 20px;
+        }
+        .footer-table td {
+            vertical-align: middle;
+        }
+        .barcode img {
+            height: 32px;
+            margin-bottom: 2px;
+        }
     </style>
 </head>
 <body>
-    <div class="sheet">
-        <!-- Header -->
-        <div class="header">
-            <div class="store-logo-cell">
+    <!-- Header -->
+    <table class="header-table">
+        <tr>
+            <td style="width: 58px;">
                 <div class="logo">
-                    @if($store['logo_data'])
+                    @if(!empty($store['logo_data']))
                         <img src="{{ $store['logo_data'] }}" alt="{{ $store['name'] }}">
                     @else
                         {{ substr($store['name'], 0, 2) }}
                     @endif
                 </div>
-            </div>
-            <div class="store-info-cell">
+            </td>
+            <td>
                 <h1 class="store-name">{{ $store['name'] }}</h1>
-                @if($store['address'])
+                @if(!empty($store['address']))
                     <p class="muted">{{ $store['address'] }}</p>
                 @endif
                 <p class="muted">
-                    {{ $store['phone'] ? 'Telp: '.$store['phone'].' • ' : '' }}{{ $store['email'] }}
+                    {{ !empty($store['phone']) ? 'Telp: '.$store['phone'].' • ' : '' }}{{ $store['email'] ?? '' }}
                 </p>
-            </div>
-            <div class="doc-info-cell">
-                <h2 class="doc-title">Purchase Order</h2>
-                <div style="margin-bottom: 8px;">
+            </td>
+            <td style="width: 220px;" class="text-right">
+                <h2 class="doc-title">PURCHASE ORDER</h2>
+                <div style="margin-bottom: 4px;">
                     @php
                         $statusClass = 'badge-draft';
                         if ($order->status === 'ordered') $statusClass = 'badge-ordered';
@@ -99,12 +234,14 @@
                 </div>
                 <p class="muted">No: <span class="font-bold">{{ $order->document_number }}</span></p>
                 <p class="muted">Tanggal: {{ \Carbon\Carbon::parse($order->created_at)->format('d M Y') }}</p>
-            </div>
-        </div>
+            </td>
+        </tr>
+    </table>
 
-        <!-- Supplier & PO Details -->
-        <div class="section-table">
-            <div class="section-cell">
+    <!-- Supplier & Order Details -->
+    <table class="info-table">
+        <tr>
+            <td>
                 <div class="card">
                     <div class="card-title">Supplier</div>
                     <div class="card-content">
@@ -124,9 +261,9 @@
                         @endif
                     </div>
                 </div>
-            </div>
-            <div class="section-cell">
-                <div class="card card-last">
+            </td>
+            <td>
+                <div class="card">
                     <div class="card-title">Informasi Pesanan</div>
                     <div class="card-content">
                         <div>Dibuat Oleh: <span class="font-bold">{{ $order->creator->name ?? '-' }}</span></div>
@@ -135,76 +272,83 @@
                         @endif
                     </div>
                 </div>
-            </div>
-        </div>
+            </td>
+        </tr>
+    </table>
 
-        <!-- Items Table -->
-        <table class="items-table">
-            <thead>
+    <!-- Items Table -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 6%" class="text-center">NO</th>
+                <th style="width: 44%">NAMA PRODUK</th>
+                <th style="width: 15%" class="text-center">QTY DIPESAN</th>
+                <th style="width: 15%" class="text-right">HARGA SATUAN</th>
+                <th style="width: 20%" class="text-right">SUBTOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php $grandTotal = 0; @endphp
+            @foreach($order->items as $index => $item)
+                @php
+                    $itemSubtotal = $item->qty_ordered * $item->unit_price;
+                    $grandTotal += $itemSubtotal;
+                @endphp
                 <tr>
-                    <th style="width: 5%">No</th>
-                    <th style="width: 45%">Nama Produk</th>
-                    <th style="width: 15%" class="text-center">Qty Dipesan</th>
-                    <th style="width: 15%" class="text-right">Harga Satuan</th>
-                    <th style="width: 20%" class="text-right">Subtotal</th>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td>
+                        <div class="font-bold">{{ $item->product->title ?? '-' }}</div>
+                        <div class="muted">{{ $item->product->sku ?? '-' }}</div>
+                    </td>
+                    <td class="text-center">{{ $item->qty_ordered }} {{ $item->satuan ?? 'Pcs' }}</td>
+                    <td class="text-right">{{ number_format($item->unit_price, 0, ',', '.') }}</td>
+                    <td class="text-right font-bold">{{ number_format($itemSubtotal, 0, ',', '.') }}</td>
                 </tr>
-            </thead>
-            <tbody>
-                @php $grandTotal = 0; @endphp
-                @foreach($order->items as $index => $item)
-                    @php
-                        $itemSubtotal = $item->qty_ordered * $item->unit_price;
-                        $grandTotal += $itemSubtotal;
-                    @endphp
-                    <tr>
-                        <td class="text-center">{{ $index + 1 }}</td>
-                        <td>
-                            <div class="font-bold">{{ $item->product->title ?? '-' }}</div>
-                            <div class="muted">{{ $item->product->sku ?? '-' }}</div>
-                        </td>
-                        <td class="text-center">{{ $item->qty_ordered }} {{ $item->satuan ?? 'Pcs' }}</td>
-                        <td class="text-right">{{ number_format($item->unit_price, 0, ',', '.') }}</td>
-                        <td class="text-right font-bold">{{ number_format($itemSubtotal, 0, ',', '.') }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+            @endforeach
+        </tbody>
+    </table>
 
-        <!-- Totals & Notes -->
-        <div>
-            @if($order->notes)
-                <div class="notes-section">
-                    <div class="notes-title">Keterangan / Catatan:</div>
-                    <div class="notes-body">{{ $order->notes }}</div>
-                </div>
-            @endif
-
-            <div class="total-box">
-                <div class="total-row">
-                    <div class="total-label">Total Item:</div>
-                    <div class="total-val text-right">{{ $order->items->sum('qty_ordered') }}</div>
-                </div>
-                <div class="total-row" style="border-top: 1px solid #e2e8f0; padding-top: 4px; margin-top: 4px;">
-                    <div class="total-label" style="font-size: 12px; font-weight: bold; color: #0f172a;">Total Nilai PO:</div>
-                    <div class="total-val text-right" style="font-size: 14px; color: #2563eb;">Rp {{ number_format($grandTotal, 0, ',', '.') }}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <div class="footer-table">
-                <div class="footer-left">
-                    Dicetak secara otomatis pada {{ now()->format('d M Y H:i:s') }}
-                </div>
-                <div class="footer-right">
-                    <div class="barcode">
-                        <img src="{{ $barcode }}" alt="barcode">
+    <!-- Totals & Notes -->
+    <table class="totals-table">
+        <tr>
+            <td style="vertical-align: top; width: 55%; padding-right: 10px;">
+                @if($order->notes)
+                    <div class="notes-box">
+                        <div class="notes-title">Keterangan / Catatan:</div>
+                        <div class="notes-body">{{ $order->notes }}</div>
                     </div>
-                    <div style="font-size: 9px; color: #64748b; font-family: monospace;">{{ $order->document_number }}</div>
+                @endif
+            </td>
+            <td style="vertical-align: top; width: 45%;">
+                <div class="total-card">
+                    <table class="total-row-table">
+                        <tr>
+                            <td class="muted">Total Item:</td>
+                            <td class="text-right font-bold" style="font-size: 11px;">{{ $order->items->sum('qty_ordered') }}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #e2e8f0;">
+                            <td style="font-size: 11px; font-weight: bold; color: #0f172a; padding-top: 4px;">Total Nilai PO:</td>
+                            <td class="text-right font-bold" style="font-size: 13px; color: #2563eb; padding-top: 4px;">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
+                        </tr>
+                    </table>
                 </div>
-            </div>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Footer -->
+    <table class="footer-table">
+        <tr>
+            <td style="color: #64748b; font-size: 9px;">
+                Dicetak secara otomatis pada {{ now()->format('d M Y H:i:s') }}
+            </td>
+            <td class="text-right" style="width: 180px;">
+                <div class="barcode">
+                    <img src="{{ $barcode }}" alt="barcode">
+                </div>
+                <div style="font-size: 8px; color: #64748b; font-family: monospace;">{{ $order->document_number }}</div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
