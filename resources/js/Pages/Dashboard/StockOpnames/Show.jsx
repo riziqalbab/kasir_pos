@@ -36,11 +36,11 @@ function SummaryCard({ label, value, tone = "default" }) {
     };
 
     return (
-        <div className={`rounded-2xl border p-4 ${toneClasses[tone]}`}>
-            <p className="text-xs font-medium uppercase tracking-wide opacity-80">
+        <div className={`rounded-2xl border p-3 sm:p-4 min-w-0 ${toneClasses[tone]}`}>
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide opacity-80 truncate">
                 {label}
             </p>
-            <p className="mt-2 text-2xl font-bold">{value}</p>
+            <p className="mt-1 sm:mt-2 text-base sm:text-2xl font-bold truncate">{value}</p>
         </div>
     );
 }
@@ -288,7 +288,7 @@ export default function Show({
                         <Button
                             type="button"
                             icon={<IconCheck size={18} />}
-                            className="bg-success-500 hover:bg-success-600 text-white shadow-lg shadow-success-500/20 disabled:opacity-50"
+                            className="bg-success-500 hover:bg-success-600 text-white shadow-lg shadow-success-500/20 disabled:opacity-50 w-full sm:w-auto justify-center"
                             label="Finalize Stock Opname"
                             onClick={finalize}
                             disabled={
@@ -299,7 +299,7 @@ export default function Show({
                 </div>
             </div>
 
-            <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 min-w-0">
                 <SummaryCard label="Total Item" value={summary.totalItems} />
                 <SummaryCard
                     label="Item Sesuai"
@@ -322,127 +322,129 @@ export default function Show({
                 />
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
-                <div className="space-y-6">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            <div className="grid gap-6 xl:grid-cols-[1.7fr_1fr] min-w-0">
+                <div className="space-y-6 min-w-0">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
                                 Item Stock Opname
                             </h2>
                             {canManageDraft && (
                                 <Button
                                     type="button"
                                     icon={<IconPlus size={18} />}
-                                    className="bg-primary-500 hover:bg-primary-600 text-white"
+                                    className="bg-primary-500 hover:bg-primary-600 text-white w-full sm:w-auto justify-center"
                                     label="Tambah Produk"
                                     onClick={() => setShowProductModal(true)}
                                 />
                             )}
                         </div>
 
-                        <Table>
-                            <Table.Thead>
-                                <tr>
-                                    <Table.Th>Produk</Table.Th>
-                                    <Table.Th>Stok Sistem</Table.Th>
-                                    <Table.Th>Stok Fisik</Table.Th>
-                                    <Table.Th>Selisih</Table.Th>
-                                    <Table.Th className="w-24 text-center">Simpan</Table.Th>
-                                </tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {localItems.length > 0 ? (
-                                    localItems.map((item) => {
-                                        const difference = Number(item.difference || 0);
-                                        const isDifferent =
-                                            item.physical_stock !== null && difference !== 0;
+                        <div className="w-full overflow-x-auto">
+                            <Table>
+                                <Table.Thead>
+                                    <tr>
+                                        <Table.Th className="min-w-[130px] sm:min-w-0">Produk</Table.Th>
+                                        <Table.Th className="text-center sm:text-left">Stok Sistem</Table.Th>
+                                        <Table.Th className="text-center sm:text-left">Stok Fisik</Table.Th>
+                                        <Table.Th className="text-center sm:text-left">Selisih</Table.Th>
+                                        <Table.Th className="w-16 sm:w-24 text-center">Simpan</Table.Th>
+                                    </tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {localItems.length > 0 ? (
+                                        localItems.map((item) => {
+                                            const difference = Number(item.difference || 0);
+                                            const isDifferent =
+                                                item.physical_stock !== null && difference !== 0;
 
-                                        return (
-                                            <tr
-                                                key={item.id}
-                                                className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                            >
-                                                <Table.Td>
-                                                    <div>
-                                                        <p className="font-medium text-slate-800 dark:text-slate-200">
-                                                            {item.product.title}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                            {item.product.category?.name || "-"} •{" "}
-                                                            {item.product.barcode ||
-                                                                item.product.sku ||
-                                                                "-"}
-                                                        </p>
-                                                    </div>
-                                                </Table.Td>
-                                                <Table.Td>{item.system_stock}</Table.Td>
-                                                <Table.Td>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        value={item.physical_stock ?? ""}
-                                                        disabled={!canManageDraft}
-                                                        onChange={(event) =>
-                                                            setItemField(
-                                                                item.id,
-                                                                "physical_stock",
-                                                                event.target.value
-                                                            )
-                                                        }
-                                                        className="h-10 w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                                    />
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <span
-                                                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                                            item.physical_stock === null
-                                                                ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-                                                                : difference === 0
-                                                                  ? "bg-success-100 text-success-700 dark:bg-success-950/30 dark:text-success-400"
-                                                                  : "bg-warning-100 text-warning-700 dark:bg-warning-950/30 dark:text-warning-400"
-                                                        }`}
-                                                    >
-                                                        {item.physical_stock === null
-                                                            ? "Belum dihitung"
-                                                            : difference > 0
-                                                              ? `+${difference}`
-                                                              : difference}
-                                                    </span>
-                                                </Table.Td>
-
-                                                <Table.Td className="text-center">
-                                                    {canManageDraft ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => persistItem(item)}
-                                                            disabled={savingItemId === item.id}
-                                                            className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:border-primary-300 hover:text-primary-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-primary-700 dark:hover:text-primary-400"
+                                            return (
+                                                <tr
+                                                    key={item.id}
+                                                    className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                                >
+                                                    <Table.Td className="p-3 sm:p-4">
+                                                        <div>
+                                                            <p className="font-medium text-slate-800 dark:text-slate-200">
+                                                                {item.product.title}
+                                                            </p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                {item.product.category?.name || "-"} •{" "}
+                                                                {item.product.barcode ||
+                                                                    item.product.sku ||
+                                                                    "-"}
+                                                            </p>
+                                                        </div>
+                                                    </Table.Td>
+                                                    <Table.Td className="p-3 sm:p-4 text-center sm:text-left">{item.system_stock}</Table.Td>
+                                                    <Table.Td className="p-3 sm:p-4">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={item.physical_stock ?? ""}
+                                                            disabled={!canManageDraft}
+                                                            onChange={(event) =>
+                                                                setItemField(
+                                                                    item.id,
+                                                                    "physical_stock",
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                            className="h-9 sm:h-10 w-20 sm:w-24 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                                        />
+                                                    </Table.Td>
+                                                    <Table.Td className="p-3 sm:p-4 text-center sm:text-left">
+                                                        <span
+                                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                                                item.physical_stock === null
+                                                                    ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                                                    : difference === 0
+                                                                      ? "bg-success-100 text-success-700 dark:bg-success-950/30 dark:text-success-400"
+                                                                      : "bg-warning-100 text-warning-700 dark:bg-warning-950/30 dark:text-warning-400"
+                                                            }`}
                                                         >
-                                                            <IconDeviceFloppy size={18} />
-                                                        </button>
-                                                    ) : (
-                                                        "-"
-                                                    )}
-                                                </Table.Td>
-                                            </tr>
-                                        );
-                                    })
-                                ) : (
-                                    <Table.Empty
-                                        colSpan={5}
-                                        message={
-                                            <div className="text-slate-500 dark:text-slate-400">
-                                                Belum ada produk pada sesi ini.
+                                                            {item.physical_stock === null
+                                                                ? "Belum dihitung"
+                                                                : difference > 0
+                                                                  ? `+${difference}`
+                                                                  : difference}
+                                                        </span>
+                                                    </Table.Td>
+
+                                                    <Table.Td className="p-3 sm:p-4 text-center">
+                                                        {canManageDraft ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => persistItem(item)}
+                                                                disabled={savingItemId === item.id}
+                                                                className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-600 transition hover:border-primary-300 hover:text-primary-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-primary-700 dark:hover:text-primary-400"
+                                                            >
+                                                                <IconDeviceFloppy size={18} />
+                                                            </button>
+                                                        ) : (
+                                                            "-"
+                                                        )}
+                                                    </Table.Td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <Table.Empty
+                                            colSpan={5}
+                                            message={
+                                                <div className="text-slate-500 dark:text-slate-400">
+                                                    Belum ada produk pada sesi ini.
+                                                </div>
+                                            }
+                                        >
+                                            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                                                <IconPackage size={28} className="text-slate-400" />
                                             </div>
-                                        }
-                                    >
-                                        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                                            <IconPackage size={28} className="text-slate-400" />
-                                        </div>
-                                    </Table.Empty>
-                                )}
-                            </Table.Tbody>
-                        </Table>
+                                        </Table.Empty>
+                                    )}
+                                </Table.Tbody>
+                            </Table>
+                        </div>
                     </div>
                 </div>
 

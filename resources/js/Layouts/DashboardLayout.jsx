@@ -60,7 +60,7 @@ export default function AppLayout({ children }) {
                     darkMode={darkMode}
                 />
                 <main className="dashboard-scrollbar flex-1 overflow-y-auto">
-                    <div className="w-full py-6 px-4 md:px-6 lg:px-8 pb-20 md:pb-6">
+                    <div className="w-full max-w-full overflow-x-hidden py-6 px-4 md:px-6 lg:px-8 pb-20 md:pb-6">
                         {showSecurityWarnings && (
                             <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                                 <p className="text-sm font-semibold">
