@@ -7,7 +7,13 @@ import { useTheme } from "@/Context/ThemeSwitcherContext";
 
 export default function AppLayout({ children }) {
     const { darkMode, themeSwitcher } = useTheme();
-    const { auth, security } = usePage().props;
+    const { auth, security, flash } = usePage().props;
+
+    useEffect(() => {
+        if (flash?.auto_download_url) {
+            window.location.href = flash.auto_download_url;
+        }
+    }, [flash?.auto_download_url]);
 
     const getInitialSidebarState = () => {
         if (typeof window === "undefined") return false;

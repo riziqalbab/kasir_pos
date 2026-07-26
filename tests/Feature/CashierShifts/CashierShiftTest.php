@@ -208,6 +208,7 @@ class CashierShiftTest extends TestCase
             ]);
 
         $response->assertRedirect(route('cashier-shifts.show', $shift));
+        $response->assertSessionHas('auto_download_url');
         $this->assertDatabaseHas('cashier_shifts', [
             'id' => $shift->id,
             'status' => CashierShift::STATUS_CLOSED,

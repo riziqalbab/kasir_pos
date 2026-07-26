@@ -163,6 +163,11 @@ class HandleInertiaRequests extends Middleware
             'receivableAgingSummary' => $receivableAgingSummary,
             'activeCashierShift' => $activeCashierShift,
             'storeProfile' => $storeProfile,
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'auto_download_url' => fn () => $request->session()->get('auto_download_url'),
+            ],
             'security' => [
                 'warnings' => $securityWarnings,
                 'publicRegistrationEnabled' => config('security.auth.public_registration'),

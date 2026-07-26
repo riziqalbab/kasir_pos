@@ -68,8 +68,11 @@ class LoyaltyService
             $customer->increment('loyalty_points', $pointsEarned);
             $customer->increment('loyalty_total_spent', $transaction->grand_total);
             $customer->increment('loyalty_transaction_count', 1);
-            if (! $customer->last_purchase_at || $transaction->created_at->gt($customer->last_purchase_at)) {
-                $customer->update(['last_purchase_at' => $transaction->created_at]);
+            $txCreatedAt = $transaction->created_at ? \Illuminate\Support\Carbon::parse($transaction->created_at) : now();
+            $lastPurchaseAt = $customer->last_purchase_at ? \Illuminate\Support\Carbon::parse($customer->last_purchase_at) : null;
+
+            if (! $lastPurchaseAt || $txCreatedAt->gt($lastPurchaseAt)) {
+                $customer->update(['last_purchase_at' => $txCreatedAt]);
             }
 
             // Record history

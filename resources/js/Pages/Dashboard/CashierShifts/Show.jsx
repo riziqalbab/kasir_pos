@@ -14,6 +14,7 @@ import {
     IconHourglassLow,
 } from "@tabler/icons-react";
 import { useAuthorization } from "@/Utils/authorization";
+import toast from "react-hot-toast";
 
 const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("id-ID", {
@@ -54,8 +55,17 @@ function MetricCard({ title, value, icon: Icon }) {
 }
 
 export default function Show({ cashierShift, canForceClose = false }) {
-    const { auth, errors } = usePage().props;
+    const { auth, errors, flash } = usePage().props;
     const { can } = useAuthorization();
+
+    React.useEffect(() => {
+        if (flash?.success) toast.success(flash.success);
+        if (flash?.error) toast.error(flash.error);
+        if (flash?.auto_download_url) {
+            window.location.href = flash.auto_download_url;
+        }
+    }, [flash]);
+
     const [actualCash, setActualCash] = useState(
         cashierShift.actual_cash !== null ? String(cashierShift.actual_cash) : ""
     );

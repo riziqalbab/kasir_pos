@@ -183,7 +183,20 @@ class CashierShiftService
                     : CashierShift::STATUS_CLOSED,
             ]);
 
-            return $lockedShift->fresh(['user:id,name', 'openedBy:id,name', 'closedBy:id,name']);
+            $backupFilename = null;
+            // Automatic full background system ZIP backup on shift closure (Database SQL + Media/Storage)
+            try {
+                $backupFilename = app(BackupService::class)->createFullBackup();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Auto full backup failed on shift close: '.$e->getMessage());
+            }
+
+            $refreshed = $lockedShift->fresh(['user:id,name', 'openedBy:id,name', 'closedBy:id,name']);
+            if ($backupFilename) {
+                $refreshed->auto_backup_filename = $backupFilename;
+            }
+
+            return $refreshed;
         });
     }
 

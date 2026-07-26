@@ -186,6 +186,10 @@ class CashierShiftController extends Controller
             ],
         );
 
+        if (! empty($closedShift->auto_backup_filename)) {
+            session()->flash('auto_download_url', route('settings.backups.download', $closedShift->auto_backup_filename));
+        }
+
         return to_route('cashier-shifts.show', $closedShift)->with('success', 'Shift kasir berhasil ditutup.');
     }
 
