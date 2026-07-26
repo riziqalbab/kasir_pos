@@ -270,10 +270,10 @@ export default function Index({
             } else {
                 units.push({ key: "pcs", label: "Pcs", price: Number(item.sell_price || 0) });
             }
-            if (item.isi_pcs_dalam_pack > 0) {
+            if (item.satuan_jual_pack || Number(item.harga_jual_pack) > 0 || Number(item.isi_pcs_dalam_pack) > 0) {
                 units.push({ key: "pack", label: item.satuan_jual_pack || "Pak", price: Number(item.harga_jual_pack || 0) });
             }
-            if (item.isi_pcs_dalam_dus > 0) {
+            if (item.satuan_jual_dus || Number(item.harga_jual_dus) > 0 || Number(item.isi_pcs_dalam_dus) > 0) {
                 units.push({ key: "dus", label: item.satuan_jual_dus || "Dus", price: Number(item.harga_jual_dus || 0) });
             }
         }
@@ -2111,10 +2111,10 @@ export default function Index({
                                                             } else {
                                                                 availableUnits.push({ key: "pcs", label: "Pcs", price: Number(item.product?.sell_price || 0) });
                                                             }
-                                                            if (item.product?.isi_pcs_dalam_pack > 0) {
+                                                            if (item.product?.satuan_jual_pack || Number(item.product?.harga_jual_pack) > 0 || Number(item.product?.isi_pcs_dalam_pack) > 0) {
                                                                 availableUnits.push({ key: "pack", label: item.product.satuan_jual_pack || "Pak", price: Number(item.product.harga_jual_pack || 0) });
                                                             }
-                                                            if (item.product?.isi_pcs_dalam_dus > 0) {
+                                                            if (item.product?.satuan_jual_dus || Number(item.product?.harga_jual_dus) > 0 || Number(item.product?.isi_pcs_dalam_dus) > 0) {
                                                                 availableUnits.push({ key: "dus", label: item.product.satuan_jual_dus || "Dus", price: Number(item.product.harga_jual_dus || 0) });
                                                             }
                                                         } else if (item.is_service && item.service?.service_prices) {
