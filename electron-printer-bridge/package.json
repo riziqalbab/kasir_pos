@@ -12,10 +12,6 @@
     "cors": "^2.8.5",
     "express": "^4.19.2"
   },
-  "devDependencies": {
-    "electron": "^30.0.1",
-    "electron-builder": "^24.13.3"
-  },
   "build": {
     "appId": "com.antigravity.printerbridge",
     "productName": "Antigravity Printer Bridge",
@@ -36,5 +32,9 @@
       "allowToChangeInstallationDirectory": true
     },
     "asar": true
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
   }
 }
