@@ -150,6 +150,12 @@ class PermissionSeeder extends Seeder
         $create('point-redemptions-access');
         $create('point-redemptions-create');
 
+        // backup & restore
+        $create('backups-access');
+        $create('backups-create');
+        $create('backups-restore');
+        $create('backups-delete');
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

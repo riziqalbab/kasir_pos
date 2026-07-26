@@ -37,6 +37,7 @@ import {
     IconBuildingBank,
     IconScale,
     IconBriefcase,
+    IconDatabase,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -365,6 +366,13 @@ export default function Menu() {
                     active: url === "/dashboard/settings/loyalty",
                     icon: <IconCrown size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["dashboard-access"]),
+                },
+                {
+                    title: "Backup & Restore",
+                    href: route("settings.backups.index"),
+                    active: url === "/dashboard/settings/backups",
+                    icon: <IconDatabase size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["backups-access"]),
                 },
             ],
         },

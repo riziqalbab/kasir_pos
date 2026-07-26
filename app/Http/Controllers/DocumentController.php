@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payable;
+use App\Models\PurchaseOrder;
 use App\Models\Receivable;
 use App\Models\Transaction;
-use App\Models\PurchaseOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 

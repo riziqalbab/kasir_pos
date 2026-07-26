@@ -98,7 +98,7 @@ class CashierShiftController extends Controller
                     event: 'bank_account.balance_updated',
                     module: 'bank_accounts',
                     auditable: $bankAccount,
-                    description: "Saldo rekening {$bankAccount->bank_name} diatur saat pembukaan shift menjadi " . number_format($balance, 0, ',', '.') . ".",
+                    description: "Saldo rekening {$bankAccount->bank_name} diatur saat pembukaan shift menjadi ".number_format($balance, 0, ',', '.').'.',
                     before: $before,
                     after: [
                         'bank_name' => $bankAccount->bank_name,

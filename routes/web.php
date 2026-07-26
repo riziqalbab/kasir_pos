@@ -85,6 +85,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:products-create')
         ->middlewareFor(['edit', 'update'], 'permission:products-edit')
         ->middlewareFor('destroy', 'permission:products-delete');
+    Route::post('/products/import', [ProductController::class, 'import'])->middleware('permission:products-create')->name('products.import');
+    Route::get('/products/import/template', [ProductController::class, 'downloadTemplate'])->middleware('permission:products-access')->name('products.import.template');
     Route::resource('units', UnitController::class)
         ->except(['create', 'edit', 'show', 'update'])
         ->middlewareFor('index', 'permission:units-access')
@@ -225,6 +227,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::post('/settings/bank-accounts/order', [\App\Http\Controllers\Apps\BankAccountController::class, 'updateOrder'])->middleware(['permission:payment-settings-update', 'step_up'])->name('settings.bank-accounts.order');
     Route::patch('/settings/bank-accounts/{bankAccount}/balance', [\App\Http\Controllers\Apps\BankAccountController::class, 'updateBalance'])->middleware('permission:payment-settings-update|agent-transactions-create')->name('settings.bank-accounts.balance');
 
+    // settings backup & restore
+    Route::get('/settings/backups', [\App\Http\Controllers\Apps\BackupController::class, 'index'])->middleware('permission:backups-access')->name('settings.backups.index');
+    Route::post('/settings/backups', [\App\Http\Controllers\Apps\BackupController::class, 'store'])->middleware('permission:backups-create')->name('settings.backups.store');
+    Route::get('/settings/backups/{filename}/download', [\App\Http\Controllers\Apps\BackupController::class, 'download'])->middleware('permission:backups-access')->name('settings.backups.download');
+    Route::post('/settings/backups/restore', [\App\Http\Controllers\Apps\BackupController::class, 'restore'])->middleware('permission:backups-restore')->name('settings.backups.restore');
+    Route::delete('/settings/backups/{filename}', [\App\Http\Controllers\Apps\BackupController::class, 'destroy'])->middleware('permission:backups-delete')->name('settings.backups.destroy');
+
     // confirm payment for bank transfer
     Route::patch('/transactions/{transaction}/confirm-payment', [TransactionController::class, 'confirmPayment'])->middleware(['permission:transactions-confirm-payment', 'step_up'])->name('transactions.confirm-payment');
 
@@ -288,7 +297,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
 require __DIR__.'/auth.php';
 
-Route::get('/run-migrations-temp', function() {
+Route::get('/run-migrations-temp', function () {
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    return 'Migrations run: ' . \Illuminate\Support\Facades\Artisan::output();
+
+    return 'Migrations run: '.\Illuminate\Support\Facades\Artisan::output();
 });

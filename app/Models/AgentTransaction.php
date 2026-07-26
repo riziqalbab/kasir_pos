@@ -41,19 +41,19 @@ class AgentTransaction extends Model
 
     public function getBalanceEffect(): int
     {
-        if ($this->status !== 'success' || !$this->bank_account_id) {
+        if ($this->status !== 'success' || ! $this->bank_account_id) {
             return 0;
         }
 
         $type = $this->agentTransactionType;
-        if (!$type) {
+        if (! $type) {
             return 0;
         }
 
         if ($type->type === 'debet') {
             // Money goes out of our bank account to destination.
             // Nominal is deducted, and bank fee is deducted.
-            return - ((int) $this->nominal + (int) $this->admin_fee_bank);
+            return -((int) $this->nominal + (int) $this->admin_fee_bank);
         } else {
             // Kredit: money enters our bank account from swipe.
             // Nominal is added, and if admin fee payment is via bank, admin fee customer is added.
@@ -62,6 +62,7 @@ class AgentTransaction extends Model
             if ($this->admin_fee_payment_method === 'bank') {
                 $effect += (int) $this->admin_fee_customer;
             }
+
             return $effect;
         }
     }
@@ -96,14 +97,14 @@ class AgentTransaction extends Model
                 if ($originalStatus === 'success' && $originalBankId) {
                     $oldType = \App\Models\AgentTransactionType::find($originalTypeId);
                     if ($oldType) {
-                         if ($oldType->type === 'debet') {
-                             $oldEffect = - ((int)$originalNominal + (int)$originalFeeBank);
-                         } else {
-                             $oldEffect = (int)$originalNominal - (int)$originalFeeBank;
-                             if ($originalPayMethod === 'bank') {
-                                 $oldEffect += (int)$originalFeeCustomer;
-                             }
-                         }
+                        if ($oldType->type === 'debet') {
+                            $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
+                        } else {
+                            $oldEffect = (int) $originalNominal - (int) $originalFeeBank;
+                            if ($originalPayMethod === 'bank') {
+                                $oldEffect += (int) $originalFeeCustomer;
+                            }
+                        }
                     }
                 }
 
@@ -142,11 +143,11 @@ class AgentTransaction extends Model
                 $oldType = \App\Models\AgentTransactionType::find($originalTypeId);
                 if ($oldType) {
                     if ($oldType->type === 'debet') {
-                        $oldEffect = - ((int)$originalNominal + (int)$originalFeeBank);
+                        $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
                     } else {
-                        $oldEffect = (int)$originalNominal - (int)$originalFeeBank;
+                        $oldEffect = (int) $originalNominal - (int) $originalFeeBank;
                         if ($originalPayMethod === 'bank') {
-                            $oldEffect += (int)$originalFeeCustomer;
+                            $oldEffect += (int) $originalFeeCustomer;
                         }
                     }
                 }

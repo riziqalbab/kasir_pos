@@ -7,7 +7,9 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Unit;
 use App\Services\AuditLogService;
+use App\Services\ProductImportService;
 use App\Services\StockMutationService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -16,7 +18,8 @@ class ProductController extends Controller
 {
     public function __construct(
         private readonly StockMutationService $stockMutationService,
-        private readonly AuditLogService $auditLogService
+        private readonly AuditLogService $auditLogService,
+        private readonly ProductImportService $productImportService
     ) {}
 
     /**
@@ -30,10 +33,10 @@ class ProductController extends Controller
         $products = Product::when(request()->search, function ($products) {
             $products = $products->where('title', 'like', '%'.request()->search.'%');
         })
-        ->when(request()->category_id, function ($products) {
-            $products = $products->where('category_id', request()->category_id);
-        })
-        ->with('category')->latest()->paginate(10)->withQueryString();
+            ->when(request()->category_id, function ($products) {
+                $products = $products->where('category_id', request()->category_id);
+            })
+            ->with('category')->latest()->paginate(10)->withQueryString();
 
         $categories = Category::all();
 
@@ -443,5 +446,79 @@ class ProductController extends Controller
             'harga_beli_pcs',
             'harga_jual_pcs',
         ]);
+    }
+
+    /**
+     * Import products from CSV file.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        try {
+            $file = $request->file('csv_file');
+            $result = $this->productImportService->importFromCsv($file->getRealPath());
+
+            $this->auditLogService->log(
+                'import',
+                'products',
+                $result,
+                "Mengimpor {$result['total']} produk dari CSV ({$result['created']} baru, {$result['updated']} diperbarui)."
+            );
+
+            return back()->with('success', "Berhasil mengimpor {$result['total']} produk ({$result['created']} baru, {$result['updated']} diperbarui).");
+        } catch (Exception $e) {
+            return back()->with('error', 'Gagal mengimpor CSV: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download CSV template for product import.
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="template_import_produk.csv"',
+        ];
+
+        $columns = [
+            'Kode', 'Nama', 'Kategori',
+            'Satuan1', 'Satuan2', 'Satuan3',
+            'HargaBeli1', 'HargaBeli2', 'HargaBeli3',
+            'HargaJual1', 'HargaJual2', 'HargaJual3',
+            'stok1', 'stok2', 'stok3',
+            'isi1', 'isi2', 'isi3',
+            'Diskon1', 'Diskon2', 'Diskon3',
+            'PPN1', 'PPN2', 'PPN3',
+            'HargaBeliPPN1', 'HargaBeliPPN2', 'HargaBeliPPN3',
+            'KodeSupp', 'NamaSupp', 'AlamatSupp', 'TelponSupp',
+            'Expired', 'TempatRak', 'Foto', 'FotoSize',
+        ];
+
+        $sampleRow = [
+            '8999901', 'Viva Foundation Kuning Pengantin 30ml', 'Kosmetik',
+            'dus', 'pack', 'pcs',
+            '1.533.600', '63.900', '5.325',
+            '1.535.000', '65.000', '6.500',
+            '6', '0', '0',
+            '288', '24', '1',
+            '0', '0', '0',
+            '0', '0', '0',
+            '1.533.600', '63.900', '5.325',
+            'SUP-001', 'PT Viva Indonesia', 'Jl. Industri No. 12', '08123456789',
+            '2027-12-31', 'Rak A-1', '', '',
+        ];
+
+        $callback = function () use ($columns, $sampleRow) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns, ';');
+            fputcsv($file, $sampleRow, ';');
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

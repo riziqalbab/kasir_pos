@@ -159,7 +159,7 @@ class MultipleSellingUnitsTest extends TestCase
 
         $transaction = Transaction::latest('id')->first();
         $this->assertNotNull($transaction);
-        $response->assertRedirect(route('transactions.print', $transaction->invoice) . '?autoprint=true');
+        $response->assertRedirect(route('transactions.print', $transaction->invoice).'?autoprint=true');
 
         // Deducted stock check: Initial stock is 260 Pcs
         // Checkout includes: 1 Dus (100 Pcs) + 2 Pak (20 Pcs) = 120 Pcs
@@ -406,4 +406,3 @@ class MultipleSellingUnitsTest extends TestCase
         $this->assertEquals(8100, $preview['summary']['subtotal_after_promo']);
     }
 }
-
