@@ -73,7 +73,6 @@ class TransactionController extends Controller
 
         // get all products with categories for product grid
         $products = Product::with('category:id,name')
-            ->select('id', 'barcode', 'title', 'description', 'image', 'buy_price', 'sell_price', 'stock', 'category_id')
             ->where('stock', '>', 0)
             ->orderBy('title')
             ->get();
