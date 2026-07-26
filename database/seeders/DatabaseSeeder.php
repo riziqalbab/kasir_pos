@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
             UnitSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
-            SampleDataSeeder::class,
+            // SampleDataSeeder::class,
             OperationalCoreSeeder::class,
             FeatureCoverageSeeder::class,
             AgentLinkSeeder::class,
