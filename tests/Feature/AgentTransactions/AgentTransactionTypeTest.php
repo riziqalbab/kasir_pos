@@ -37,8 +37,6 @@ class AgentTransactionTypeTest extends TestCase
             'code' => 'JTA0001',
             'name' => 'Tarik Tunai BRI',
             'type' => 'kredit',
-            'default_admin_fee_customer' => 5000,
-            'default_admin_fee_bank' => 3000,
             'is_active' => true,
         ]);
 
@@ -62,8 +60,6 @@ class AgentTransactionTypeTest extends TestCase
                 'code' => 'JTA0002',
                 'name' => 'Transfer Bank Lain',
                 'type' => 'debet',
-                'default_admin_fee_customer' => 7000,
-                'default_admin_fee_bank' => 4000,
                 'is_active' => true,
             ]);
 
@@ -82,8 +78,6 @@ class AgentTransactionTypeTest extends TestCase
             'code' => 'JTA0003',
             'name' => 'Listrik',
             'type' => 'kredit',
-            'default_admin_fee_customer' => 3000,
-            'default_admin_fee_bank' => 1500,
             'is_active' => true,
         ]);
 
@@ -93,8 +87,6 @@ class AgentTransactionTypeTest extends TestCase
                 'code' => 'JTA0003',
                 'name' => 'Token Listrik PLN',
                 'type' => 'kredit',
-                'default_admin_fee_customer' => 3500,
-                'default_admin_fee_bank' => 2000,
                 'is_active' => false,
             ]);
 
@@ -114,8 +106,6 @@ class AgentTransactionTypeTest extends TestCase
             'code' => 'JTA0004',
             'name' => 'Top Up Ovo',
             'type' => 'debet',
-            'default_admin_fee_customer' => 2000,
-            'default_admin_fee_bank' => 1000,
             'is_active' => true,
         ]);
 

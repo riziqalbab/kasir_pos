@@ -29,14 +29,29 @@ class ProductController extends Controller
      */
     public function index()
     {
+        $sort = request()->input('sort', 'created_at_desc');
+
         // get products
         $products = Product::when(request()->search, function ($products) {
-            $products = $products->where('title', 'like', '%'.request()->search.'%');
+            $products->where('title', 'like', '%'.request()->search.'%');
         })
             ->when(request()->category_id, function ($products) {
-                $products = $products->where('category_id', request()->category_id);
+                $products->where('category_id', request()->category_id);
             })
-            ->with('category')->latest()->paginate(10)->withQueryString();
+            ->when($sort, function ($query, $sort) {
+                match ($sort) {
+                    'updated_at_desc' => $query->orderBy('updated_at', 'desc')->orderBy('id', 'desc'),
+                    'created_at_asc' => $query->orderBy('created_at', 'asc')->orderBy('id', 'asc'),
+                    'title_asc' => $query->orderBy('title', 'asc')->orderBy('id', 'asc'),
+                    'title_desc' => $query->orderBy('title', 'desc')->orderBy('id', 'desc'),
+                    'stock_asc' => $query->orderBy('stock', 'asc')->orderBy('id', 'asc'),
+                    'stock_desc' => $query->orderBy('stock', 'desc')->orderBy('id', 'desc'),
+                    'price_asc' => $query->orderBy('sell_price', 'asc')->orderBy('id', 'asc'),
+                    'price_desc' => $query->orderBy('sell_price', 'desc')->orderBy('id', 'desc'),
+                    default => $query->orderBy('created_at', 'desc')->orderBy('id', 'desc'),
+                };
+            })
+            ->with('category')->paginate(10)->withQueryString();
 
         $categories = Category::all();
 
@@ -44,7 +59,7 @@ class ProductController extends Controller
         return Inertia::render('Dashboard/Products/Index', [
             'products' => $products,
             'categories' => $categories,
-            'filters' => request()->all(['search', 'category_id']),
+            'filters' => request()->all(['search', 'category_id', 'sort']),
         ]);
     }
 

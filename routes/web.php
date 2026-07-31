@@ -64,10 +64,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::resource('/users', UserController::class)
         ->except('show')
         ->middlewareFor('index', 'permission:users-access')
-        ->middlewareFor(['create', 'store'], 'permission:users-create')
-        ->middlewareFor('store', ['permission:users-create', 'step_up'])
-        ->middlewareFor(['edit', 'update'], 'permission:users-update')
-        ->middlewareFor('update', ['permission:users-update', 'step_up'])
+        ->middlewareFor(['create', 'store'], ['permission:users-create', 'step_up'])
+        ->middlewareFor(['edit', 'update'], ['permission:users-update', 'step_up'])
         ->middlewareFor('destroy', ['permission:users-delete', 'step_up']);
     Route::post('/notifications/low-stock/read', [NotificationController::class, 'markLowStockRead'])->name('notifications.stock.read');
     Route::post('/notifications/low-stock/read-all', [NotificationController::class, 'markAllLowStockRead'])->name('notifications.stock.readAll');

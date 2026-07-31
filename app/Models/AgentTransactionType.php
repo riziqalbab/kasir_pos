@@ -14,15 +14,11 @@ class AgentTransactionType extends Model
         'name',
         'type', // debet or kredit
         'description',
-        'default_admin_fee_customer',
-        'default_admin_fee_bank',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'default_admin_fee_customer' => 'integer',
-        'default_admin_fee_bank' => 'integer',
     ];
 
     public function scopeActive($query)

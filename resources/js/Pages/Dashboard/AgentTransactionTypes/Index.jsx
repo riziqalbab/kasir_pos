@@ -30,8 +30,6 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
         name: "",
         type: "debet",
         description: "",
-        default_admin_fee_customer: 0,
-        default_admin_fee_bank: 0,
         is_active: true,
     });
 
@@ -67,8 +65,6 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
             name: type.name,
             type: type.type,
             description: type.description || "",
-            default_admin_fee_customer: type.default_admin_fee_customer || 0,
-            default_admin_fee_bank: type.default_admin_fee_bank || 0,
             is_active: type.is_active,
         });
         setIsModalOpen(true);
@@ -159,8 +155,6 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Kode</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nama Transaksi</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tipe (Akun)</th>
-                                <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Default Admin Customer</th>
-                                <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Default Admin Bank</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Keterangan</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-right">Aksi</th>
@@ -180,12 +174,6 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
                                             }`}>
                                                 {type.type}
                                             </span>
-                                        </td>
-                                        <td className="p-4 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            Rp {new Intl.NumberFormat("id-ID").format(type.default_admin_fee_customer)}
-                                        </td>
-                                        <td className="p-4 text-sm font-medium text-slate-800 dark:text-slate-200">
-                                            Rp {new Intl.NumberFormat("id-ID").format(type.default_admin_fee_bank)}
                                         </td>
                                         <td className="p-4 text-sm">
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -223,7 +211,7 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                    <td colSpan="6" className="p-8 text-center text-slate-500 dark:text-slate-400">
                                         Tidak ada data tipe transaksi agen.
                                     </td>
                                 </tr>
@@ -311,36 +299,6 @@ export default function Index({ agentTransactionTypes = {}, filters = {} }) {
                                         <option value="0">Nonaktif</option>
                                     </select>
                                     {errors.is_active && <p className="text-xs text-danger-500 mt-1">{errors.is_active}</p>}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Biaya Admin Pelanggan</label>
-                                    <input
-                                        type="number"
-                                        value={data.default_admin_fee_customer}
-                                        onChange={(e) => setData("default_admin_fee_customer", parseInt(e.target.value) || 0)}
-                                        placeholder="0"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        min="0"
-                                        required
-                                    />
-                                    {errors.default_admin_fee_customer && <p className="text-xs text-danger-500 mt-1">{errors.default_admin_fee_customer}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Biaya Admin Bank / EDC</label>
-                                    <input
-                                        type="number"
-                                        value={data.default_admin_fee_bank}
-                                        onChange={(e) => setData("default_admin_fee_bank", parseInt(e.target.value) || 0)}
-                                        placeholder="0"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        min="0"
-                                        required
-                                    />
-                                    {errors.default_admin_fee_bank && <p className="text-xs text-danger-500 mt-1">{errors.default_admin_fee_bank}</p>}
                                 </div>
                             </div>
 

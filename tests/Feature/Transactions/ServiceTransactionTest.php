@@ -150,4 +150,26 @@ class ServiceTransactionTest extends TestCase
         $profit = $transaction->profits->first();
         $this->assertSame(20000, (int) $profit->total);
     }
+
+    public function test_service_seeder_populates_services(): void
+    {
+        $this->seed(\Database\Seeders\ServiceSeeder::class);
+
+        $this->assertDatabaseCount('services', 38);
+        $this->assertDatabaseHas('services', [
+            'name' => 'Foto Cop HVS 70g',
+            'description' => 'Kode: FC016',
+        ]);
+        $this->assertDatabaseHas('services', [
+            'name' => 'Print A3',
+            'description' => 'Kode: FC032',
+        ]);
+
+        $service = Service::where('name', 'Cetak Bener')->first();
+        $this->assertNotNull($service);
+        $this->assertDatabaseHas('service_prices', [
+            'service_id' => $service->id,
+            'price' => 25000,
+        ]);
+    }
 }

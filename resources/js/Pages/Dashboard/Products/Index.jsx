@@ -359,6 +359,22 @@ export default function Index({ products, categories = [], filters = {} }) {
                             </option>
                         ))}
                     </select>
+
+                    <select
+                        value={filters.sort || "created_at_desc"}
+                        onChange={(e) => updateFilter("sort", e.target.value)}
+                        className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs sm:text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                    >
+                        <option value="created_at_desc">Produk Terbaru</option>
+                        <option value="updated_at_desc">Update Terbaru</option>
+                        <option value="created_at_asc">Produk Terlama</option>
+                        <option value="title_asc">Nama (A - Z)</option>
+                        <option value="title_desc">Nama (Z - A)</option>
+                        <option value="stock_asc">Stok (Tersedikit)</option>
+                        <option value="stock_desc">Stok (Terbanyak)</option>
+                        <option value="price_asc">Harga Jual (Terendah)</option>
+                        <option value="price_desc">Harga Jual (Tertinggi)</option>
+                    </select>
                     {/* Select All Checkbox */}
                     <label className="flex items-center gap-2 cursor-pointer">
                         <input

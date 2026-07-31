@@ -18,7 +18,10 @@ class EnsureRecentPasswordConfirmation
             return $next($request);
         }
 
-        $intendedUrl = $request->headers->get('referer') ?: route('dashboard.access');
+        $intendedUrl = $request->isMethod('GET')
+            ? $request->fullUrl()
+            : ($request->headers->get('referer') ?: route('dashboard.access'));
+
         $request->session()->put('url.intended', $intendedUrl);
         $request->session()->put('security.step_up_context', [
             'route' => $request->route()?->getName(),

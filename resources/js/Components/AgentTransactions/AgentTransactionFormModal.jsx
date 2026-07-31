@@ -56,20 +56,6 @@ export default function AgentTransactionFormModal({
 
     const handleTypeChange = (id) => {
         setData("agent_transaction_type_id", id);
-        const selectedType = transactionTypes.find((t) => t.id === parseInt(id));
-        if (selectedType) {
-            const matchingBank = agentAdminBanks.find((b) => b.amount === selectedType.default_admin_fee_bank);
-            const matchingLoket = agentAdminLokets.find((l) => l.amount === selectedType.default_admin_fee_customer);
-
-            setData((prevData) => ({
-                ...prevData,
-                agent_transaction_type_id: id,
-                admin_fee_customer: selectedType.default_admin_fee_customer,
-                admin_fee_bank: selectedType.default_admin_fee_bank,
-                agent_admin_bank_id: matchingBank ? matchingBank.id : "",
-                agent_admin_loket_id: matchingLoket ? matchingLoket.id : "",
-            }));
-        }
     };
 
     const handleAdminBankChange = (id) => {

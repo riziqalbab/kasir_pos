@@ -43,8 +43,6 @@ class AgentTransactionTypeController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:debet,kredit',
             'description' => 'nullable|string',
-            'default_admin_fee_customer' => 'required|integer|min:0',
-            'default_admin_fee_bank' => 'required|integer|min:0',
             'is_active' => 'required|boolean',
         ]);
 
@@ -63,8 +61,6 @@ class AgentTransactionTypeController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:debet,kredit',
             'description' => 'nullable|string',
-            'default_admin_fee_customer' => 'required|integer|min:0',
-            'default_admin_fee_bank' => 'required|integer|min:0',
             'is_active' => 'required|boolean',
         ]);
 

@@ -292,6 +292,14 @@ export default function Index({
     const modalDiscountInputRef = useRef(null);
     const modalUnitSelectRef = useRef(null);
 
+    const focusSearchInput = () => {
+        setTimeout(() => {
+            if (searchInputRef.current) {
+                searchInputRef.current.focus();
+            }
+        }, 50);
+    };
+
     useEffect(() => {
         if (selectedItemForCart) {
             // Wait for modal to render before focusing
@@ -301,6 +309,8 @@ export default function Index({
                     modalQtyInputRef.current.select();
                 }
             }, 50);
+        } else {
+            focusSearchInput();
         }
     }, [selectedItemForCart]);
 
@@ -567,10 +577,13 @@ export default function Index({
                     toast.success(`${item.title} ditambahkan`);
                     setAddingProductId(null);
                     setSelectedItemForCart(null);
+                    setSearchQuery("");
+                    focusSearchInput();
                 },
                 onError: () => {
                     toast.error("Gagal menambahkan item");
                     setAddingProductId(null);
+                    focusSearchInput();
                 },
             }
         );
@@ -1164,20 +1177,6 @@ export default function Index({
 
     const handleAgentTypeChange = (id) => {
         setAgentData("agent_transaction_type_id", id);
-        const selectedType = agentTransactionTypes.find((t) => t.id === parseInt(id));
-        if (selectedType) {
-            const matchingBank = agentAdminBanks.find((b) => b.amount === selectedType.default_admin_fee_bank);
-            const matchingLoket = agentAdminLokets.find((l) => l.amount === selectedType.default_admin_fee_customer);
-
-            setAgentData((prevData) => ({
-                ...prevData,
-                agent_transaction_type_id: id,
-                admin_fee_customer: selectedType.default_admin_fee_customer,
-                admin_fee_bank: selectedType.default_admin_fee_bank,
-                agent_admin_bank_id: matchingBank ? matchingBank.id : "",
-                agent_admin_loket_id: matchingLoket ? matchingLoket.id : "",
-            }));
-        }
     };
 
     const handleAgentAdminBankChange = (id) => {

@@ -361,7 +361,7 @@ export default function Print({ transaction }) {
                                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all w-full sm:w-auto disabled:opacity-50"
                             >
                                 <IconPrinter size={18} />
-                                {isPrintingSilent ? "Mencetak..." : "Cetak Langsung"}
+                                {isPrintingSilent ? "Mencetak..." : "Cetak Ulang Struk"}
                             </button>
 
                             <button

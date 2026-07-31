@@ -68,7 +68,7 @@ class UserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
+            'password' => $request->password,
             'avatar' => $avatarPath,
         ]);
 
@@ -135,7 +135,7 @@ class UserController extends Controller
         if ($request->password) {
             // update user data password
             $user->update([
-                'password' => bcrypt($request->password),
+                'password' => $request->password,
             ]);
         }
 

@@ -237,8 +237,8 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
             {/* Form Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
-                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl animate-scale-up relative">
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <IconGift size={20} className="text-primary-500" />
                                 {editingPrize ? "Edit Hadiah Poin" : "Tambah Hadiah Poin"}
@@ -253,7 +253,7 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <InputSelect
-                                selected={formattedProducts.find(p => p.id === parseInt(data.product_id)) || null}
+                                selected={formattedProducts.find(p => p.id === Number(data.product_id)) || null}
                                 setSelected={(product) => setData("product_id", product ? product.id : "")}
                                 data={formattedProducts}
                                 displayKey="display_name"
