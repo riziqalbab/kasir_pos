@@ -266,6 +266,10 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor('destroy', 'permission:agent-admin-lokets-delete');
 
     // Point Prizes Master Route
+    Route::get('point-prizes/search-products', [PointPrizeController::class, 'searchProducts'])
+        ->middleware('permission:point-prizes-access')
+        ->name('point-prizes.search-products');
+
     Route::resource('point-prizes', PointPrizeController::class)
         ->except(['show', 'create', 'edit'])
         ->middlewareFor('index', 'permission:point-prizes-access')

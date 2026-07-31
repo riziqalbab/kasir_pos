@@ -13,9 +13,9 @@ import {
 import toast from "react-hot-toast";
 import { useAuthorization } from "@/Utils/authorization";
 import Pagination from "@/Components/Dashboard/Pagination";
-import InputSelect from "@/Components/Dashboard/InputSelect";
+import AsyncProductSelect from "@/Components/Dashboard/AsyncProductSelect";
 
-export default function Index({ pointPrizes = {}, products = [], filters = {} }) {
+export default function Index({ pointPrizes = {}, filters = {} }) {
     const { flash } = usePage().props;
     const { can } = useAuthorization();
     const canCreate = can("point-prizes-create");
@@ -25,13 +25,7 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
     const [search, setSearch] = useState(filters.search || "");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPrize, setEditingPrize] = useState(null);
-
-    const formattedProducts = React.useMemo(() => {
-        return products.map(p => ({
-            ...p,
-            display_name: `${p.title} (${p.barcode || p.sku || "No Barcode"}) - Stok: ${p.stock}`
-        }));
-    }, [products]);
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         product_id: "",
@@ -57,6 +51,7 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
     const openAddModal = () => {
         clearErrors();
         reset();
+        setSelectedProduct(null);
         setEditingPrize(null);
         setIsModalOpen(true);
     };
@@ -65,6 +60,7 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
     const openEditModal = (prize) => {
         clearErrors();
         setEditingPrize(prize);
+        setSelectedProduct(prize.product || null);
         setData({
             product_id: prize.product_id || "",
             points_required: prize.points_required || "",
@@ -252,15 +248,15 @@ export default function Index({ pointPrizes = {}, products = [], filters = {} })
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <InputSelect
-                                selected={formattedProducts.find(p => p.id === Number(data.product_id)) || null}
-                                setSelected={(product) => setData("product_id", product ? product.id : "")}
-                                data={formattedProducts}
-                                displayKey="display_name"
-                                searchable={true}
-                                label="Pilih Produk"
-                                placeholder="-- Pilih Produk Hadiah --"
-                                errors={errors.product_id}
+                            <AsyncProductSelect
+                                selected={selectedProduct}
+                                onSelect={(product) => {
+                                    setSelectedProduct(product);
+                                    setData("product_id", product ? product.id : "");
+                                }}
+                                label="Pilih Produk Hadiah"
+                                placeholder="-- Cari & Pilih Produk Hadiah --"
+                                error={errors.product_id}
                             />
 
                             <div>

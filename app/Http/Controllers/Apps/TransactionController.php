@@ -210,7 +210,7 @@ class TransactionController extends Controller
             ->paginate(15, ['*'], 'point_page')
             ->withQueryString();
 
-        $pointPrizes = \App\Models\PointPrize::with('product')->get()->sortBy('product.title')->values();
+        $pointPrizes = \App\Models\PointPrize::with('product:id,title,barcode,sku,stock')->get()->sortBy('product.title')->values();
 
         return Inertia::render('Dashboard/Transactions/Index', [
             'carts' => $carts,

@@ -273,4 +273,20 @@ class PointRedemptionTest extends TestCase
         $response->assertSessionHasErrors(['items']);
         $this->assertEquals(100, $customer->fresh()->loyalty_points); // points unchanged
     }
+
+    public function test_admin_can_search_products_for_point_prizes()
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('super-admin');
+
+        $this->createProduct('Payung Polos', 10);
+        $this->createProduct('Cangkir Keramik', 5);
+
+        $response = $this->actingAs($admin)
+            ->get(route('point-prizes.search-products', ['q' => 'Payung']));
+
+        $response->assertOk();
+        $response->assertJsonCount(1);
+        $response->assertJsonFragment(['title' => 'Payung Polos']);
+    }
 }

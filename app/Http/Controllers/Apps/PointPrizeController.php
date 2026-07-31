@@ -18,7 +18,7 @@ class PointPrizeController extends Controller
     public function index()
     {
         $pointPrizes = PointPrize::query()
-            ->with('product')
+            ->with('product:id,title,barcode,sku,stock')
             ->when(request()->search, function ($query, $search) {
                 $query->whereHas('product', function ($q) use ($search) {
                     $q->where('title', 'like', '%'.$search.'%')
@@ -29,13 +29,34 @@ class PointPrizeController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $products = Product::orderBy('title')->get();
-
         return Inertia::render('Dashboard/PointPrizes/Index', [
             'pointPrizes' => $pointPrizes,
-            'products' => $products,
             'filters' => request()->only(['search']),
         ]);
+    }
+
+    /**
+     * Search products for point prizes modal on-demand.
+     */
+    public function searchProducts(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $search = trim($request->input('q', ''));
+        if (blank($search)) {
+            return response()->json([]);
+        }
+
+        $products = Product::query()
+            ->select('id', 'title', 'barcode', 'sku', 'stock')
+            ->where(function ($q) use ($search) {
+                $q->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('barcode', 'like', '%'.$search.'%')
+                    ->orWhere('sku', 'like', '%'.$search.'%');
+            })
+            ->orderBy('title')
+            ->limit(20)
+            ->get();
+
+        return response()->json($products);
     }
 
     /**
