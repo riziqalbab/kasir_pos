@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\AgentAdminBank;
 use App\Models\AgentAdminLoket;
+use App\Models\AgentTransactionType;
 use Illuminate\Database\Seeder;
 
 class AgentLinkSeeder extends Seeder
@@ -96,6 +97,33 @@ class AgentLinkSeeder extends Seeder
                 [
                     'amount' => $fee['amount'],
                     'description' => $fee['description'],
+                ]
+            );
+        }
+
+        // Seed default Agent Transaction Types (chart of accounts style)
+        $transactionTypes = [
+            ['kode' => 100, 'kategori' => 'Asset', 'nama' => 'Kas/Bank', 'nilai' => 'debet'],
+            ['kode' => 101, 'kategori' => 'Asset', 'nama' => 'Kas Kecil', 'nilai' => 'debet'],
+            ['kode' => 200, 'kategori' => 'Asset', 'nama' => 'Piutang', 'nilai' => 'debet'],
+            ['kode' => 300, 'kategori' => 'Equity', 'nama' => 'Hutang', 'nilai' => 'kredit'],
+            ['kode' => 400, 'kategori' => 'Income', 'nama' => 'Pendapatan Penjualan', 'nilai' => 'kredit'],
+            ['kode' => 401, 'kategori' => 'Income', 'nama' => 'Pendapatan Lain-Lain', 'nilai' => 'kredit'],
+            ['kode' => 500, 'kategori' => 'Expense', 'nama' => 'Biaya', 'nilai' => 'debet'],
+            ['kode' => 501, 'kategori' => 'Expense', 'nama' => 'Biaya Listrik', 'nilai' => 'debet'],
+            ['kode' => 600, 'kategori' => 'Liability', 'nama' => 'Ambil Prive', 'nilai' => 'debet'],
+            ['kode' => 700, 'kategori' => 'Expense', 'nama' => 'Pembelian', 'nilai' => 'debet'],
+            ['kode' => 800, 'kategori' => 'Asset', 'nama' => 'Retur Pembelian', 'nilai' => 'kredit'],
+            ['kode' => 900, 'kategori' => 'Asset', 'nama' => 'Retur Penjualan', 'nilai' => 'debet'],
+        ];
+
+        foreach ($transactionTypes as $item) {
+            AgentTransactionType::firstOrCreate(
+                ['code' => (string) $item['kode']],
+                [
+                    'name' => $item['nama'],
+                    'type' => $item['nilai'],
+                    'description' => "Kategori: {$item['kategori']}",
                 ]
             );
         }
