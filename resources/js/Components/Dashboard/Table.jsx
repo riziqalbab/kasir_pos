@@ -1,11 +1,14 @@
 import React from 'react'
 
-const Card = ({ icon, title, className, children }) => {
+const Card = ({ icon, title, action, className, children }) => {
     return (
         <>
             <div className={`p-4 rounded-t-lg border ${className} bg-white dark:bg-gray-950 dark:border-gray-900 `}>
-                <div className='flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200'>
-                    {title}
+                <div className='flex items-center justify-between gap-2'>
+                    <div className='flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200'>
+                        {title}
+                    </div>
+                    {action}
                 </div>
             </div>
             <div className='bg-white dark:bg-gray-950 rounded-b-lg border-t-0 dark:border-gray-900'>

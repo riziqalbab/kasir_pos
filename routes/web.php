@@ -237,8 +237,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
     // reports
     Route::get('/reports/sales', [SalesReportController::class, 'index'])->middleware('permission:reports-access')->name('reports.sales.index');
+    Route::get('/reports/sales/export', [SalesReportController::class, 'export'])->middleware('permission:reports-access')->name('reports.sales.export');
     Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
+    Route::get('/reports/profits/export', [ProfitReportController::class, 'export'])->middleware('permission:profits-access')->name('reports.profits.export');
     Route::get('/reports/insights', [AdvancedSalesInsightsController::class, 'index'])->middleware('permission:reports-access')->name('reports.insights.index');
+    Route::get('/reports/insights/export', [AdvancedSalesInsightsController::class, 'export'])->middleware('permission:reports-access')->name('reports.insights.export');
+    Route::get('/reports/agent-link', [\App\Http\Controllers\Reports\AgentLinkReportController::class, 'index'])->middleware('permission:agent-transactions-access')->name('reports.agent-link.index');
+    Route::get('/reports/agent-link/export', [\App\Http\Controllers\Reports\AgentLinkReportController::class, 'export'])->middleware('permission:agent-transactions-access')->name('reports.agent-link.export');
 
     // aging & reminders
     Route::get('/aging', [\App\Http\Controllers\Apps\AgingController::class, 'index'])->middleware('permission:receivables-access')->name('aging.index');

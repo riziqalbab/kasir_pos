@@ -5,10 +5,14 @@ import { Head, router } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "chart.js/auto";
 import {
+    IconAlertTriangle,
+    IconArrowsExchange,
     IconChartBar,
     IconClock,
     IconCoin,
     IconDatabaseOff,
+    IconExternalLink,
+    IconFileSpreadsheet,
     IconFilter,
     IconPackage,
     IconReceipt2,
@@ -182,6 +186,7 @@ export default function Insights({
     repeatCustomerMetrics,
     stockCoverage,
     promoMonitor,
+    agentLink,
 }) {
     const [showFilters, setShowFilters] = useState(false);
     const [marginView, setMarginView] = useState("product");
@@ -336,6 +341,8 @@ export default function Insights({
     const promoActiveRules = promoMonitor?.active_rules || [];
     const promoScheduledRules = promoMonitor?.scheduled_rules || [];
     const promoRecentAudits = promoMonitor?.recent_audits || [];
+    const agentLinkSummary = agentLink?.summary || {};
+    const agentLinkByType = agentLink?.by_type || [];
 
 
     return (
@@ -357,17 +364,26 @@ export default function Insights({
                             performa kasir dalam satu dashboard.
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowFilters((value) => !value)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
-                            showFilters || hasActiveFilters
-                                ? "border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/50 dark:text-primary-400"
-                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                        }`}
-                    >
-                        <IconFilter size={18} />
-                        Filter
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <a
+                            href={route("reports.insights.export", filterData)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                        >
+                            <IconFileSpreadsheet size={18} />
+                            Export Excel
+                        </a>
+                        <button
+                            onClick={() => setShowFilters((value) => !value)}
+                            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                                showFilters || hasActiveFilters
+                                    ? "border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-800 dark:bg-primary-950/50 dark:text-primary-400"
+                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                            }`}
+                        >
+                            <IconFilter size={18} />
+                            Filter
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -687,6 +703,98 @@ export default function Insights({
                                 ))
                             ) : (
                                 <Table.Empty colSpan={6} message="Belum ada data performa kasir pada periode ini." />
+                            )}
+                        </Table.Tbody>
+                    </Table>
+                </Table.Card>
+
+                <Table.Card
+                    title="Agen Link (PPOB)"
+                    action={
+                        <a
+                            href={route("reports.agent-link.index")}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                        >
+                            Laporan Lengkap
+                            <IconExternalLink size={16} />
+                        </a>
+                    }
+                >
+                    <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Volume Transaksi
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                                {formatCurrency(agentLinkSummary.total_volume ?? 0)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {(agentLinkSummary.transactions_count ?? 0).toLocaleString("id-ID")} transaksi berhasil
+                            </p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Profit Bersih
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                                {formatCurrency(agentLinkSummary.total_profit ?? 0)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Rata-rata {formatCurrency(agentLinkSummary.average_profit ?? 0)} / transaksi
+                            </p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Fee Customer / Bank
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                                {formatCurrency(agentLinkSummary.total_customer_fees ?? 0)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Fee ke bank {formatCurrency(agentLinkSummary.total_bank_fees ?? 0)}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Perlu Ditindaklanjuti
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                                {(agentLinkSummary.pending_count ?? 0) + (agentLinkSummary.failed_count ?? 0)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Pending {agentLinkSummary.pending_count ?? 0} • Gagal {agentLinkSummary.failed_count ?? 0}
+                            </p>
+                        </div>
+                    </div>
+                    <Table>
+                        <Table.Thead>
+                            <tr>
+                                <Table.Th>Tipe Transaksi</Table.Th>
+                                <Table.Th className="text-right">Transaksi</Table.Th>
+                                <Table.Th className="text-right">Volume</Table.Th>
+                                <Table.Th className="text-right">Profit</Table.Th>
+                            </tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {agentLinkByType.length > 0 ? (
+                                agentLinkByType.map((item) => (
+                                    <tr key={item.id}>
+                                        <Table.Td>
+                                            [{item.code}] {item.name}
+                                        </Table.Td>
+                                        <Table.Td className="text-right">
+                                            {item.transactions_count}
+                                        </Table.Td>
+                                        <Table.Td className="text-right">
+                                            {formatCurrency(item.total_volume)}
+                                        </Table.Td>
+                                        <Table.Td className="text-right">
+                                            {formatCurrency(item.total_profit)}
+                                        </Table.Td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <Table.Empty colSpan={4} message="Belum ada transaksi agen link pada periode ini." />
                             )}
                         </Table.Tbody>
                     </Table>

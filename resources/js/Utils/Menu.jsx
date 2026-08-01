@@ -237,6 +237,13 @@ export default function Menu() {
                     icon: <IconChartBar size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
+                {
+                    title: "Laporan Agen Link",
+                    href: route("reports.agent-link.index"),
+                    active: url.startsWith("/dashboard/reports/agent-link"),
+                    icon: <IconBuildingBank size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["agent-transactions-access"]),
+                },
             ],
         },
         {

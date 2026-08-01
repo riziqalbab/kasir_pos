@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\ArraySheetExport;
+use App\Exports\MultiSheetExport;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Profit;
@@ -10,6 +12,7 @@ use App\Models\TransactionDetail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SalesReportController extends Controller
 {
@@ -18,7 +21,74 @@ class SalesReportController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = [
+        $filters = $this->filtersFromRequest($request);
+
+        $baseListQuery = $this->listQuery($filters);
+
+        $transactions = (clone $baseListQuery)
+            ->paginate(10)
+            ->withQueryString();
+
+        $summary = $this->buildSummary($filters);
+
+        return Inertia::render('Dashboard/Reports/Sales', [
+            'transactions' => $transactions,
+            'summary' => $summary,
+            'filters' => $filters,
+            'cashiers' => User::select('id', 'name')->orderBy('name')->get(),
+            'customers' => Customer::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Export the sales report to Excel.
+     */
+    public function export(Request $request)
+    {
+        $filters = $this->filtersFromRequest($request);
+
+        $summary = $this->buildSummary($filters);
+
+        $summaryRows = [
+            ['Total Transaksi', $summary['orders_count']],
+            ['Pendapatan (Rp)', $summary['revenue_total']],
+            ['Pendapatan Barang (Rp)', $summary['revenue_product']],
+            ['Pendapatan Jasa (Rp)', $summary['revenue_service']],
+            ['Diskon (Rp)', $summary['discount_total']],
+            ['Item Terjual', $summary['items_sold']],
+            ['Item Barang', $summary['items_product']],
+            ['Item Jasa', $summary['items_service']],
+            ['Profit (Rp)', $summary['profit_total']],
+            ['Profit Barang (Rp)', $summary['profit_product']],
+            ['Profit Jasa (Rp)', $summary['profit_service']],
+            ['Rata-rata Order (Rp)', $summary['average_order']],
+        ];
+
+        $transactionRows = $this->listQuery($filters)
+            ->get()
+            ->map(fn (Transaction $trx) => [
+                $trx->invoice,
+                $trx->created_at,
+                $trx->customer?->name ?? '-',
+                $trx->cashier?->name ?? '-',
+                (int) ($trx->total_items ?? 0),
+                (int) $trx->grand_total,
+                (int) $trx->discount,
+                (int) ($trx->total_profit ?? 0),
+            ])
+            ->all();
+
+        return Excel::download(new MultiSheetExport([
+            new ArraySheetExport('Ringkasan', ['Metrik', 'Nilai'], $summaryRows),
+            new ArraySheetExport('Detail Transaksi', [
+                'Invoice', 'Tanggal', 'Pelanggan', 'Kasir', 'Item', 'Total (Rp)', 'Diskon (Rp)', 'Profit (Rp)',
+            ], $transactionRows),
+        ]), 'laporan-penjualan-'.now()->format('Y-m-d').'.xlsx');
+    }
+
+    protected function filtersFromRequest(Request $request): array
+    {
+        return [
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
             'invoice' => $request->input('invoice'),
@@ -26,19 +96,21 @@ class SalesReportController extends Controller
             'customer_id' => $request->input('customer_id'),
             'item_type' => $request->input('item_type'),
         ];
+    }
 
-        $baseListQuery = $this->applyFilters(
+    protected function listQuery(array $filters)
+    {
+        return $this->applyFilters(
             Transaction::query()
                 ->with(['cashier:id,name', 'customer:id,name'])
                 ->withSum('details as total_items', 'qty')
                 ->withSum('profits as total_profit', 'total'),
             $filters
         )->orderByDesc('created_at');
+    }
 
-        $transactions = (clone $baseListQuery)
-            ->paginate(10)
-            ->withQueryString();
-
+    protected function buildSummary(array $filters): array
+    {
         $aggregateQuery = $this->applyFilters(Transaction::query(), $filters);
 
         $totals = (clone $aggregateQuery)
@@ -90,7 +162,7 @@ class SalesReportController extends Controller
             $displayItemsSold = (int) $itemsSold;
         }
 
-        $summary = [
+        return [
             'orders_count' => (int) ($totals->orders_count ?? 0),
             'revenue_total' => $displayRevenue,
             'revenue_product' => $revenueProduct,
@@ -106,14 +178,6 @@ class SalesReportController extends Controller
                 ? (int) round(($totals->revenue_total ?? 0) / $totals->orders_count)
                 : 0,
         ];
-
-        return Inertia::render('Dashboard/Reports/Sales', [
-            'transactions' => $transactions,
-            'summary' => $summary,
-            'filters' => $filters,
-            'cashiers' => User::select('id', 'name')->orderBy('name')->get(),
-            'customers' => Customer::select('id', 'name')->orderBy('name')->get(),
-        ]);
     }
 
     /**

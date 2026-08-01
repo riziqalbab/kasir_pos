@@ -6,6 +6,7 @@ import Pagination from "@/Components/Dashboard/Pagination";
 import {
     IconCoin,
     IconDatabaseOff,
+    IconFileSpreadsheet,
     IconPercentage,
     IconReceipt,
     IconTrendingUp,
@@ -173,20 +174,29 @@ const ProfitReport = ({
                             Analisis profit dan margin
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                            showFilters || hasActiveFilters
-                                ? "bg-primary-50 border-primary-200 text-primary-700 dark:bg-primary-950/50 dark:border-primary-800 dark:text-primary-400"
-                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"
-                        }`}
-                    >
-                        <IconFilter size={18} />
-                        <span>Filter</span>
-                        {hasActiveFilters && (
-                            <span className="w-2 h-2 rounded-full bg-primary-500"></span>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <a
+                            href={route("reports.profits.export", filterData)}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 transition-colors"
+                        >
+                            <IconFileSpreadsheet size={18} />
+                            <span>Export Excel</span>
+                        </a>
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                showFilters || hasActiveFilters
+                                    ? "bg-primary-50 border-primary-200 text-primary-700 dark:bg-primary-950/50 dark:border-primary-800 dark:text-primary-400"
+                                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"
+                            }`}
+                        >
+                            <IconFilter size={18} />
+                            <span>Filter</span>
+                            {hasActiveFilters && (
+                                <span className="w-2 h-2 rounded-full bg-primary-500"></span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Summary Cards */}

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Exports\ArraySheetExport;
+use App\Exports\MultiSheetExport;
+use App\Models\AgentTransaction;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
@@ -13,18 +16,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AdvancedSalesInsightsController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = [
-            'start_date' => $request->input('start_date'),
-            'end_date' => $request->input('end_date'),
-            'cashier_id' => $request->input('cashier_id'),
-            'customer_id' => $request->input('customer_id'),
-            'category_id' => $request->input('category_id'),
-        ];
+        $filters = $this->filtersFromRequest($request);
 
         $transactionQuery = $this->applyTransactionFilters(
             Transaction::query(),
@@ -62,6 +60,7 @@ class AdvancedSalesInsightsController extends Controller
         $promoMonitor = $this->promoMonitor();
         $loyaltyPerformance = $this->loyaltyPerformance($filters);
         $crmOperations = $this->crmOperations($filters);
+        $agentLink = $this->agentLinkSummary($filters);
 
         return Inertia::render('Dashboard/Reports/Insights', [
             'filters' => $filters,
@@ -90,7 +89,122 @@ class AdvancedSalesInsightsController extends Controller
             'promoMonitor' => $promoMonitor,
             'loyaltyPerformance' => $loyaltyPerformance,
             'crmOperations' => $crmOperations,
+            'agentLink' => $agentLink,
         ]);
+    }
+
+    protected function filtersFromRequest(Request $request): array
+    {
+        return [
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'cashier_id' => $request->input('cashier_id'),
+            'customer_id' => $request->input('customer_id'),
+            'category_id' => $request->input('category_id'),
+        ];
+    }
+
+    /**
+     * Export the full insights dashboard to Excel (one sheet per section).
+     */
+    public function export(Request $request)
+    {
+        $filters = $this->filtersFromRequest($request);
+
+        $transactionQuery = $this->applyTransactionFilters(Transaction::query(), $filters);
+        $transactionIds = (clone $transactionQuery)->pluck('id');
+        $transactionCount = $transactionIds->count();
+
+        $summaryRaw = (clone $transactionQuery)
+            ->selectRaw('COUNT(*) as orders_count, COALESCE(SUM(grand_total), 0) as revenue_total, COALESCE(SUM(discount), 0) as manual_discount_total')
+            ->first();
+
+        $itemsSold = $transactionIds->isNotEmpty()
+            ? DB::table('transaction_details')->whereIn('transaction_id', $transactionIds)->sum('qty')
+            : 0;
+
+        $profitTotal = $transactionIds->isNotEmpty()
+            ? DB::table('profits')->whereIn('transaction_id', $transactionIds)->sum('total')
+            : 0;
+
+        $agentLink = $this->agentLinkSummary($filters);
+        $stockCoverage = $this->stockCoverageAnalysis($filters);
+        $repeatCustomerMetrics = $this->repeatCustomerMetrics($filters);
+
+        $summaryRows = [
+            ['Total Transaksi', (int) ($summaryRaw->orders_count ?? 0)],
+            ['Pendapatan (Rp)', (int) ($summaryRaw->revenue_total ?? 0)],
+            ['Diskon Manual (Rp)', (int) ($summaryRaw->manual_discount_total ?? 0)],
+            ['Item Terjual', (int) $itemsSold],
+            ['Profit (Rp)', (int) $profitTotal],
+            ['Rata-rata Order (Rp)', $transactionCount > 0 ? (int) round(($summaryRaw->revenue_total ?? 0) / $transactionCount) : 0],
+            ['Customer Aktif', $repeatCustomerMetrics['summary']['active_customers'] ?? 0],
+            ['Repeat Rate (%)', $repeatCustomerMetrics['summary']['repeat_rate'] ?? 0],
+            ['Stok Kritis', $stockCoverage['summary']['critical'] ?? 0],
+            ['Volume Agen Link (Rp)', $agentLink['summary']['total_volume'] ?? 0],
+            ['Profit Agen Link (Rp)', $agentLink['summary']['total_profit'] ?? 0],
+        ];
+
+        $toRows = fn (array $items, array $keys) => array_map(
+            fn (array $item) => array_map(fn ($key) => $item[$key] ?? null, $keys),
+            $items
+        );
+
+        $sheets = [
+            new ArraySheetExport('Ringkasan', ['Metrik', 'Nilai'], $summaryRows),
+            new ArraySheetExport(
+                'Top Selling Products',
+                ['Produk', 'SKU', 'Kategori', 'Qty', 'Omzet (Rp)', 'Profit (Rp)'],
+                $toRows($this->topSellingProducts($filters), ['product_title', 'product_sku', 'category_name', 'qty_sold', 'revenue_total', 'profit_total'])
+            ),
+            new ArraySheetExport(
+                'Low Performing Products',
+                ['Produk', 'Stok', 'Qty Terjual', 'Omzet (Rp)', 'Terakhir Terjual'],
+                $toRows($this->lowPerformingProducts($filters), ['product_title', 'current_stock', 'qty_sold', 'revenue_total', 'last_sold_at'])
+            ),
+            new ArraySheetExport(
+                'Margin per Produk',
+                ['Produk', 'Qty', 'Omzet (Rp)', 'Profit (Rp)', 'Margin (%)'],
+                $toRows($this->marginByProduct($filters), ['product_title', 'qty_sold', 'revenue_total', 'profit_total', 'margin_percentage'])
+            ),
+            new ArraySheetExport(
+                'Margin per Kategori',
+                ['Kategori', 'Qty', 'Omzet (Rp)', 'Profit (Rp)', 'Margin (%)'],
+                $toRows($this->marginByCategory($filters), ['category_name', 'qty_sold', 'revenue_total', 'profit_total', 'margin_percentage'])
+            ),
+            new ArraySheetExport(
+                'Sales by Hour',
+                ['Jam', 'Transaksi', 'Omzet (Rp)'],
+                $toRows($this->salesByHour($filters), ['label', 'orders_count', 'revenue_total'])
+            ),
+            new ArraySheetExport(
+                'Sales by Day',
+                ['Tanggal', 'Transaksi', 'Omzet (Rp)'],
+                $toRows($this->salesByDay($filters), ['date', 'orders_count', 'revenue_total'])
+            ),
+            new ArraySheetExport(
+                'Cashier Performance',
+                ['Kasir', 'Transaksi', 'Item Terjual', 'Omzet (Rp)', 'Profit (Rp)', 'Avg Basket (Rp)'],
+                $toRows($this->cashierPerformance($filters), ['cashier_name', 'orders_count', 'items_sold', 'revenue_total', 'profit_total', 'average_basket'])
+            ),
+            new ArraySheetExport(
+                'Repeat Customers',
+                ['Pelanggan', 'Transaksi', 'Omzet (Rp)', 'Avg Basket (Rp)', 'Terakhir Beli'],
+                $toRows($repeatCustomerMetrics['top_customers'] ?? [], ['customer_name', 'orders_count', 'revenue_total', 'average_basket', 'last_purchase_at'])
+            ),
+            new ArraySheetExport(
+                'Stock Coverage',
+                ['Produk', 'Status', 'Stok', 'Qty Terjual', 'Coverage (Hari)', 'Terakhir Terjual'],
+                $toRows($stockCoverage['products'] ?? [], ['product_title', 'coverage_status', 'current_stock', 'qty_sold', 'coverage_days', 'last_sold_at'])
+            ),
+            new ArraySheetExport(
+                'Agen Link per Tipe',
+                ['Tipe', 'Transaksi', 'Volume (Rp)', 'Profit (Rp)'],
+                $toRows(collect($agentLink['by_type'] ?? [])->all(), ['name', 'transactions_count', 'total_volume', 'total_profit'])
+            ),
+        ];
+
+        return Excel::download(new MultiSheetExport($sheets), 'advanced-insights-'.now()->format('Y-m-d').'.xlsx');
     }
 
     protected function applyTransactionFilters(Builder $query, array $filters): Builder
@@ -625,6 +739,63 @@ class AdvancedSalesInsightsController extends Controller
                 'queue_skipped' => 0,
             ],
             'recent_campaigns' => [],
+        ];
+    }
+
+    protected function agentLinkSummary(array $filters): array
+    {
+        $query = AgentTransaction::query()
+            ->when($filters['cashier_id'] ?? null, fn ($q, $cashierId) => $q->where('cashier_id', $cashierId));
+        $this->applyDateRangeFilter($query, 'transaction_date', $filters);
+
+        $statusCounts = (clone $query)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $successQuery = (clone $query)->where('status', 'success');
+
+        $totals = (clone $successQuery)
+            ->selectRaw('
+                COUNT(*) as transactions_count,
+                COALESCE(SUM(nominal), 0) as total_volume,
+                COALESCE(SUM(admin_fee_customer), 0) as total_customer_fees,
+                COALESCE(SUM(admin_fee_bank), 0) as total_bank_fees,
+                COALESCE(SUM(net_profit), 0) as total_profit
+            ')
+            ->first();
+
+        $byType = (clone $successQuery)
+            ->join('agent_transaction_types', 'agent_transaction_types.id', '=', 'agent_transactions.agent_transaction_type_id')
+            ->selectRaw('
+                agent_transaction_types.id,
+                agent_transaction_types.code,
+                agent_transaction_types.name,
+                COUNT(*) as transactions_count,
+                COALESCE(SUM(agent_transactions.nominal), 0) as total_volume,
+                COALESCE(SUM(agent_transactions.net_profit), 0) as total_profit
+            ')
+            ->groupBy('agent_transaction_types.id', 'agent_transaction_types.code', 'agent_transaction_types.name')
+            ->orderByDesc('total_volume')
+            ->limit(5)
+            ->get();
+
+        $transactionsCount = (int) ($totals->transactions_count ?? 0);
+
+        return [
+            'summary' => [
+                'transactions_count' => $transactionsCount,
+                'total_volume' => (int) ($totals->total_volume ?? 0),
+                'total_customer_fees' => (int) ($totals->total_customer_fees ?? 0),
+                'total_bank_fees' => (int) ($totals->total_bank_fees ?? 0),
+                'total_profit' => (int) ($totals->total_profit ?? 0),
+                'average_profit' => $transactionsCount > 0
+                    ? (int) round(($totals->total_profit ?? 0) / $transactionsCount)
+                    : 0,
+                'pending_count' => (int) ($statusCounts['pending'] ?? 0),
+                'failed_count' => (int) ($statusCounts['failed'] ?? 0),
+            ],
+            'by_type' => $byType,
         ];
     }
 
