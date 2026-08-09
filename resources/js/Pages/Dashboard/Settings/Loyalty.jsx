@@ -162,13 +162,11 @@ export default function Loyalty({ settings }) {
                         <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
                             <Button
                                 type="submit"
-                                variant="primary"
+                                icon={<IconDeviceFloppy size={18} />}
+                                label={processing ? "Menyimpan..." : "Simpan Pengaturan"}
                                 disabled={processing}
-                                className="flex items-center gap-2"
-                            >
-                                <IconDeviceFloppy size={18} />
-                                {processing ? "Menyimpan..." : "Simpan Pengaturan"}
-                            </Button>
+                                className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50"
+                            />
                         </div>
                     </form>
                 </div>
