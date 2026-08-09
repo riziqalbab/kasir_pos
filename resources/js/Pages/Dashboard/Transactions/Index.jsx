@@ -2810,7 +2810,7 @@ export default function Index({
                                             <option value="">-- Pilih --</option>
                                             {agentAdminLokets.map((loket) => (
                                                 <option key={loket.id} value={loket.id}>
-                                                    [{loket.code}] {formatPrice(loket.amount)}
+                                                    [{loket.code}] {formatPrice(loket.amount)} {loket.description ? `(${loket.description})` : ''}
                                                 </option>
                                             ))}
                                         </select>
@@ -2820,13 +2820,12 @@ export default function Index({
 
                                     <div>
                                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                                            Admin Bank {selectedAgentType?.type === 'kredit' && <span className="text-[9px] text-slate-400 font-normal lowercase">(tidak berlaku)</span>}
+                                            Admin Bank {selectedAgentType?.type === 'kredit' && <span className="text-[9px] text-slate-400 font-normal lowercase">(opsional, tidak potong profit)</span>}
                                         </label>
                                         <select
-                                            value={selectedAgentType?.type === 'kredit' ? "" : agentData.agent_admin_bank_id}
+                                            value={agentData.agent_admin_bank_id}
                                             onChange={(e) => handleAgentAdminBankChange(e.target.value)}
-                                            disabled={selectedAgentType?.type === 'kredit'}
-                                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
                                             required={selectedAgentType?.type !== 'kredit'}
                                         >
                                             <option value="">-- Pilih --</option>
@@ -2837,7 +2836,7 @@ export default function Index({
                                             ))}
                                         </select>
                                         {agentErrors.agent_admin_bank_id && <p className="text-xs text-rose-500 mt-0.5">{agentErrors.agent_admin_bank_id}</p>}
-                                        <p className="text-[9px] text-slate-400 mt-1">Biaya: <span className="font-semibold">{formatPrice(selectedAgentType?.type === 'kredit' ? 0 : agentData.admin_fee_bank)}</span></p>
+                                        <p className="text-[9px] text-slate-400 mt-1">Biaya: <span className="font-semibold">{formatPrice(agentData.admin_fee_bank)}</span></p>
                                     </div>
                                 </div>
 

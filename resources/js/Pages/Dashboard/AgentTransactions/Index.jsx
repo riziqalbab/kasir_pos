@@ -651,13 +651,12 @@ export default function Index({
 
                                 <div>
                                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                                        Admin Bank Link {selectedType?.type === 'kredit' && <span className="text-[10px] text-slate-400 font-normal lowercase">(tidak berlaku untuk kredit)</span>}
+                                        Admin Bank Link {selectedType?.type === 'kredit' && <span className="text-[10px] text-slate-400 font-normal lowercase">(opsional, tidak memotong profit)</span>}
                                     </label>
                                     <select
-                                        value={selectedType?.type === 'kredit' ? "" : data.agent_admin_bank_id}
+                                        value={data.agent_admin_bank_id}
                                         onChange={(e) => handleAdminBankChange(e.target.value)}
-                                        disabled={selectedType?.type === 'kredit'}
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
                                         required={selectedType?.type !== 'kredit'}
                                     >
                                         <option value="">-- Pilih Admin Bank --</option>
@@ -668,7 +667,7 @@ export default function Index({
                                         ))}
                                     </select>
                                     {errors.agent_admin_bank_id && <p className="text-xs text-danger-500 mt-1">{errors.agent_admin_bank_id}</p>}
-                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(selectedType?.type === 'kredit' ? 0 : data.admin_fee_bank)}</span></p>
+                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(data.admin_fee_bank)}</span></p>
                                 </div>
                             </div>
 
