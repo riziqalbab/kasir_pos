@@ -53,12 +53,15 @@ class AgentTransaction extends Model
         if ($type->type === 'debet') {
             // Money goes out of our bank account to destination.
             // Nominal is deducted, and bank fee is deducted.
-            return -((int) $this->nominal + (int) $this->admin_fee_bank);
+            $effect = -((int) $this->nominal + (int) $this->admin_fee_bank);
+            if ($this->admin_fee_payment_method === 'bank') {
+                $effect += (int) $this->admin_fee_customer;
+            }
+            return $effect;
         } else {
             // Kredit: money enters our bank account from swipe.
-            // Nominal is added, and if admin fee payment is via bank, admin fee customer is added.
-            // Bank fee is deducted.
-            $effect = (int) $this->nominal - (int) $this->admin_fee_bank;
+            // Admin bank is NOT deducted/calculated for kredit transactions.
+            $effect = (int) $this->nominal;
             if ($this->admin_fee_payment_method === 'bank') {
                 $effect += (int) $this->admin_fee_customer;
             }
@@ -99,8 +102,11 @@ class AgentTransaction extends Model
                     if ($oldType) {
                         if ($oldType->type === 'debet') {
                             $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
+                            if ($originalPayMethod === 'bank') {
+                                $oldEffect += (int) $originalFeeCustomer;
+                            }
                         } else {
-                            $oldEffect = (int) $originalNominal - (int) $originalFeeBank;
+                            $oldEffect = (int) $originalNominal;
                             if ($originalPayMethod === 'bank') {
                                 $oldEffect += (int) $originalFeeCustomer;
                             }
@@ -144,8 +150,11 @@ class AgentTransaction extends Model
                 if ($oldType) {
                     if ($oldType->type === 'debet') {
                         $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
+                        if ($originalPayMethod === 'bank') {
+                            $oldEffect += (int) $originalFeeCustomer;
+                        }
                     } else {
-                        $oldEffect = (int) $originalNominal - (int) $originalFeeBank;
+                        $oldEffect = (int) $originalNominal;
                         if ($originalPayMethod === 'bank') {
                             $oldEffect += (int) $originalFeeCustomer;
                         }

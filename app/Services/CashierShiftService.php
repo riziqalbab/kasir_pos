@@ -105,12 +105,13 @@ class CashierShiftService
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'debet');
             })
-            ->sum(DB::raw('nominal + (case when admin_fee_payment_method = "cash" then admin_fee_customer else 0 end)'));
+            ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer else 0 end)"));
 
         $agentCashOutTotal = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'kredit');
             })
+            ->whereNull('bank_account_id')
             ->sum('nominal');
 
         $agentFeesCashInTotal = (int) (clone $agentTransactions)
@@ -289,7 +290,7 @@ class CashierShiftService
             if ($type === 'debet') {
                 $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             } else {
-                $cashOut = $tx->nominal;
+                $cashOut = $tx->bank_account_id ? 0 : $tx->nominal;
                 $cashIn = ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             }
 

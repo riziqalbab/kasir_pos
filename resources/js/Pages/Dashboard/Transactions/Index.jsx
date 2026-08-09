@@ -1139,7 +1139,12 @@ export default function Index({
     };
 
     const handleAgentTypeChange = (id) => {
-        setAgentData("agent_transaction_type_id", id);
+        const selected = agentTransactionTypes.find((t) => t.id === parseInt(id));
+        setAgentData((prevData) => ({
+            ...prevData,
+            agent_transaction_type_id: id,
+            ...(selected?.type === 'kredit' ? { agent_admin_bank_id: "", admin_fee_bank: 0 } : {})
+        }));
     };
 
     const handleAgentAdminBankChange = (id) => {
@@ -1243,9 +1248,7 @@ export default function Index({
     };
 
     const selectedAgentType = agentTransactionTypes.find((t) => t.id === parseInt(agentData.agent_transaction_type_id));
-    const agentTxTotal = selectedAgentType && selectedAgentType.type === 'debet'
-        ? (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0)
-        : (parseInt(agentData.nominal) || 0);
+    const agentTxTotal = (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0);
 
     // Reset highlighted product index when filtered displayItems changes
     useEffect(() => {
@@ -1731,14 +1734,10 @@ export default function Index({
                         /* Agent Link History List & Stats */
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                             {/* Stats Cards */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white p-3 rounded-xl shadow-sm">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Volume Transaksi</span>
                                     <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_volume || 0)}</p>
-                                </div>
-                                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white p-3 rounded-xl shadow-sm">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Laba Bersih</span>
-                                    <p className="text-sm font-bold truncate mt-1">{formatPrice(agentStats?.total_profit || 0)}</p>
                                 </div>
                                 <div className="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-3 rounded-xl shadow-sm">
                                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">Admin Loket</span>
@@ -1897,7 +1896,7 @@ export default function Index({
                                                 <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">EDC/Bank</th>
                                                 <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Nominal</th>
                                                 <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Admin Loket</th>
-                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Laba</th>
+                                                <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Total Bayar</th>
                                                 <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400">Status</th>
                                                 <th className="p-3 font-semibold uppercase text-slate-500 dark:text-slate-400 text-right">Aksi</th>
                                             </tr>
@@ -1935,8 +1934,8 @@ export default function Index({
                                                                 {tx.admin_fee_payment_method}
                                                             </span>
                                                         </td>
-                                                        <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
-                                                            {formatPrice(tx.net_profit)}
+                                                        <td className="p-3 font-bold text-primary-600 dark:text-primary-400">
+                                                            {formatPrice((tx.nominal || 0) + (tx.admin_fee_customer || 0))}
                                                         </td>
                                                         <td className="p-3">
                                                             <select
@@ -2845,7 +2844,7 @@ export default function Index({
                                         <div>
                                             <span className="text-[10px] font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Estimasi Total Pembayaran</span>
                                             <p className="text-[10px] text-slate-400">
-                                                {selectedAgentType?.type === 'debet' ? "Nominal + Admin Loket" : "Nominal (Tarik Tunai)"}
+                                                Nominal + Admin Loket
                                             </p>
                                         </div>
                                         <span className="text-base font-bold text-primary-600 dark:text-primary-400">

@@ -131,7 +131,12 @@ export default function Index({
     };
 
     const handleTypeChange = (id) => {
-        setData("agent_transaction_type_id", id);
+        const selected = transactionTypes.find((t) => t.id === parseInt(id));
+        setData((prevData) => ({
+            ...prevData,
+            agent_transaction_type_id: id,
+            ...(selected?.type === 'kredit' ? { agent_admin_bank_id: "", admin_fee_bank: 0 } : {})
+        }));
     };
 
     const handleAdminBankChange = (id) => {
@@ -153,9 +158,7 @@ export default function Index({
     };
 
     const selectedType = transactionTypes.find((t) => t.id === parseInt(data.agent_transaction_type_id));
-    const modalTotal = selectedType && selectedType.type === 'debet'
-        ? (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0)
-        : (parseInt(data.nominal) || 0);
+    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0);
 
     // Form submit
     const handleSubmit = (e) => {
@@ -283,7 +286,7 @@ export default function Index({
             )}
 
             {/* Stats Cards Dashboard */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 mb-6">
                 {/* Total Volume */}
                 <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white p-5 rounded-2xl shadow-md border border-indigo-600">
                     <div className="flex justify-between items-center opacity-85">
@@ -294,18 +297,6 @@ export default function Index({
                         {formatRp(stats.total_volume)}
                     </h3>
                     <p className="text-xs opacity-75 mt-1">Total nominal transaksi sukses</p>
-                </div>
-
-                {/* Net Profit */}
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white p-5 rounded-2xl shadow-md border border-emerald-600">
-                    <div className="flex justify-between items-center opacity-85">
-                        <span className="text-xs font-bold uppercase tracking-wider">Laba Bersih Agen</span>
-                        <IconCurrencyDollar size={22} />
-                    </div>
-                    <h3 className="text-xl font-bold mt-2 truncate">
-                        {formatRp(stats.total_profit)}
-                    </h3>
-                    <p className="text-xs opacity-75 mt-1">Admin Customer - Admin Bank</p>
                 </div>
 
                 {/* Admin Customer */}
@@ -455,7 +446,7 @@ export default function Index({
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Bank / EDC</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nominal</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Customer</th>
-                                <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Laba Bersih</th>
+                                <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Bayar</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</th>
                                 <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-right">Aksi</th>
                             </tr>
@@ -503,8 +494,8 @@ export default function Index({
                                                 {tx.admin_fee_payment_method}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                                            {formatRp(tx.net_profit)}
+                                        <td className="p-4 text-sm font-bold text-primary-600 dark:text-primary-400">
+                                            {formatRp((tx.nominal || 0) + (tx.admin_fee_customer || 0))}
                                         </td>
                                         <td className="p-4 text-sm">
                                             <select
@@ -677,12 +668,15 @@ export default function Index({
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Bank Link</label>
+                                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                                        Admin Bank Link {selectedType?.type === 'kredit' && <span className="text-[10px] text-slate-400 font-normal lowercase">(tidak berlaku untuk kredit)</span>}
+                                    </label>
                                     <select
-                                        value={data.agent_admin_bank_id}
+                                        value={selectedType?.type === 'kredit' ? "" : data.agent_admin_bank_id}
                                         onChange={(e) => handleAdminBankChange(e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
-                                        required
+                                        disabled={selectedType?.type === 'kredit'}
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                        required={selectedType?.type !== 'kredit'}
                                     >
                                         <option value="">-- Pilih Admin Bank --</option>
                                         {agentAdminBanks.map((bank) => (
@@ -692,7 +686,7 @@ export default function Index({
                                         ))}
                                     </select>
                                     {errors.agent_admin_bank_id && <p className="text-xs text-danger-500 mt-1">{errors.agent_admin_bank_id}</p>}
-                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(data.admin_fee_bank)}</span></p>
+                                    <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatRp(selectedType?.type === 'kredit' ? 0 : data.admin_fee_bank)}</span></p>
                                 </div>
                             </div>
 
@@ -702,7 +696,7 @@ export default function Index({
                                     <div>
                                         <span className="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Total Pembayaran</span>
                                         <p className="text-xs text-slate-400 dark:text-slate-500">
-                                            {selectedType?.type === 'debet' ? "Nominal + Admin Loket" : "Nominal (Tarik Tunai)"}
+                                            Nominal + Admin Loket
                                         </p>
                                     </div>
                                     <span className="text-lg font-bold text-primary-600 dark:text-primary-400">

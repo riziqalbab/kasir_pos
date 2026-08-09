@@ -55,7 +55,12 @@ export default function AgentTransactionFormModal({
     }, [show, tx]);
 
     const handleTypeChange = (id) => {
-        setData("agent_transaction_type_id", id);
+        const selected = transactionTypes.find((t) => t.id === parseInt(id));
+        setData((prevData) => ({
+            ...prevData,
+            agent_transaction_type_id: id,
+            ...(selected?.type === 'kredit' ? { agent_admin_bank_id: "", admin_fee_bank: 0 } : {})
+        }));
     };
 
     const handleAdminBankChange = (id) => {
@@ -77,9 +82,7 @@ export default function AgentTransactionFormModal({
     };
 
     const selectedType = transactionTypes.find((t) => t.id === parseInt(data.agent_transaction_type_id));
-    const modalTotal = selectedType && selectedType.type === 'debet'
-        ? (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0)
-        : (parseInt(data.nominal) || 0);
+    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -213,12 +216,15 @@ export default function AgentTransactionFormModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Admin Bank Link</label>
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                                Admin Bank Link {selectedType?.type === 'kredit' && <span className="text-[10px] text-slate-400 font-normal lowercase">(tidak berlaku untuk kredit)</span>}
+                            </label>
                             <select
-                                value={data.agent_admin_bank_id}
+                                value={selectedType?.type === 'kredit' ? "" : data.agent_admin_bank_id}
                                 onChange={(e) => handleAdminBankChange(e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                                required
+                                disabled={selectedType?.type === 'kredit'}
+                                className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                required={selectedType?.type !== 'kredit'}
                             >
                                 <option value="">-- Pilih Admin Bank --</option>
                                 {agentAdminBanks.map((bank) => (
@@ -228,7 +234,7 @@ export default function AgentTransactionFormModal({
                                 ))}
                             </select>
                             {errors.agent_admin_bank_id && <p className="text-xs text-danger-500 mt-1">{errors.agent_admin_bank_id}</p>}
-                            <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-350">{formatRp(data.admin_fee_bank)}</span></p>
+                            <p className="text-[10px] text-slate-400 mt-1">Nominal: <span className="font-semibold text-slate-700 dark:text-slate-350">{formatRp(selectedType?.type === 'kredit' ? 0 : data.admin_fee_bank)}</span></p>
                         </div>
                     </div>
 
@@ -238,7 +244,7 @@ export default function AgentTransactionFormModal({
                             <div>
                                 <span className="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Total Pembayaran</span>
                                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                                    {selectedType?.type === 'debet' ? "Nominal + Admin Loket" : "Nominal (Tarik Tunai)"}
+                                    Nominal + Admin Loket
                                 </p>
                             </div>
                             <span className="text-lg font-bold text-primary-650 dark:text-primary-400">
