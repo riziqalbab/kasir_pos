@@ -101,34 +101,52 @@ class CashierShiftService
             ->where('cashier_shift_id', $shift->id)
             ->where('status', 'success');
 
-        // Nominal always crosses the cashier's physical cash drawer, regardless of
-        // whether the transaction is also settled through a bank_account (the bank
-        // leg and the cash leg are independent: an EDC-based Tarik Tunai still means
-        // the cashier hands over physical cash to the customer).
-        $agentCashInTotal = (int) (clone $agentTransactions)
+        // Debet (e.g. Setor/Transfer): customer hands cash for the nominal, plus the fee if paid cash.
+        $agentDebetCashIn = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'debet');
             })
             ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer else 0 end)"));
 
-        $agentCashOutTotal = (int) (clone $agentTransactions)
-            ->whereHas('agentTransactionType', function ($query) {
-                $query->where('type', 'kredit');
-            })
-            ->sum('nominal');
-
-        $agentFeesCashInTotal = (int) (clone $agentTransactions)
+        // Kredit (e.g. Tarik Tunai): when the fee is received in cash, nominal +
+        // admin_fee_bank + admin_fee_customer all land in the cash drawer - except
+        // admin_fee_customer routes to the bank balance instead when the admin loket
+        // is a "TF" (transfer) code. When the fee is paid non-cash, nothing in this
+        // transaction touches the cash drawer at all.
+        $agentKreditCashIn = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'kredit');
             })
             ->where('admin_fee_payment_method', 'cash')
+            ->sum(DB::raw('nominal + admin_fee_bank'));
+
+        $agentKreditLoketFeeCashIn = (int) (clone $agentTransactions)
+            ->whereHas('agentTransactionType', function ($query) {
+                $query->where('type', 'kredit');
+            })
+            ->where('admin_fee_payment_method', 'cash')
+            ->where(function ($query) {
+                $query->whereNull('agent_admin_loket_id')
+                    ->orWhereHas('agentAdminLoket', function ($q) {
+                        $q->where('code', 'not like', '%TF%');
+                    });
+            })
             ->sum('admin_fee_customer');
+
+        $agentCashInTotal = $agentDebetCashIn + $agentKreditCashIn + $agentKreditLoketFeeCashIn;
+
+        // No scenario currently sends agent cash back out of the drawer.
+        $agentCashOutTotal = 0;
+
+        // Kept for the UI's fee breakdown card - the loket-fee slice of kredit's cash-in
+        // (already included in agent_cash_in_total above, not added again below).
+        $agentFeesCashInTotal = $agentKreditLoketFeeCashIn;
 
         $transactionsCount = (int) (clone $transactions)->count();
         $salesReturnsCount = (int) (clone $salesReturns)->count();
         $agentTransactionsCount = (int) (clone $agentTransactions)->count();
         $expectedCash = (int) $shift->opening_cash + $cashSalesTotal - $cashRefundTotal;
-        $agentExpectedCash = (int) $shift->agent_opening_cash + $agentCashInTotal - $agentCashOutTotal + $agentFeesCashInTotal;
+        $agentExpectedCash = (int) $shift->agent_opening_cash + $agentCashInTotal - $agentCashOutTotal;
 
         return [
             'cash_sales_total' => $cashSalesTotal,
@@ -294,8 +312,17 @@ class CashierShiftService
                 $cashOut = 0;
                 $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             } else {
-                $cashOut = $tx->nominal;
-                $cashIn = ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+                // Kredit: nothing touches the cash drawer unless the fee is paid in cash.
+                // When it is, nominal + admin_fee_bank + admin_fee_customer all go in -
+                // except admin_fee_customer routes to the bank balance for "TF" loket codes.
+                $cashOut = 0;
+                $cashIn = 0;
+                if ($tx->admin_fee_payment_method === 'cash') {
+                    $cashIn = $tx->nominal + $tx->admin_fee_bank;
+                    if (! AgentTransaction::isTfAdminLoketCode($tx->agentAdminLoket?->code)) {
+                        $cashIn += $tx->admin_fee_customer;
+                    }
+                }
             }
 
             if ($tx->bankAccount) {

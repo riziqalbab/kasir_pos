@@ -168,8 +168,8 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // 2. Kredit (Tarik) - nominal 100,000, fee 5,000 paid in cash.
-        // Cash in laci decreases by 100,000, increases by 5,000 (net -95,000)
+        // 2. Kredit (Tarik) - nominal 100,000, admin_fee_bank 2,000, fee 5,000, paid in cash.
+        // No TF loket, so everything lands in cash: 100,000 + 2,000 + 5,000 = 107,000
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -182,8 +182,8 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // 3. Kredit (Tarik) - nominal 50,000, fee 5,000 paid non-cash (added to swipe).
-        // Cash in laci decreases by 50,000
+        // 3. Kredit (Tarik) - nominal 50,000, fee paid non-cash.
+        // Fee not paid in cash, so nothing in this transaction touches the cash drawer.
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -204,21 +204,19 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(100000, $summary['expected_cash']);
 
         // Agent Expected Cash:
-        // agent_opening_cash (0) + agentCashInTotal (205,000) - agentCashOutTotal (150,000) + agentFeesCashInTotal (5,000) = 60,000
-        $this->assertSame(60000, $summary['agent_expected_cash']);
+        // agent_opening_cash (0) + agentCashInTotal (312,000) - agentCashOutTotal (0) = 312,000
+        $this->assertSame(312000, $summary['agent_expected_cash']);
 
-        $this->assertSame(205000, $summary['agent_cash_in_total']);
-        $this->assertSame(150000, $summary['agent_cash_out_total']);
+        $this->assertSame(312000, $summary['agent_cash_in_total']);
+        $this->assertSame(0, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
         $this->assertSame(3, $summary['agent_transactions_count']);
     }
 
     public function test_agent_transactions_impact_expected_cash_even_when_linked_to_a_bank_account(): void
     {
-        // Nominal always crosses the cashier's physical cash drawer, regardless of
-        // whether the transaction is also settled through a bank_account: an EDC-based
-        // Tarik Tunai still means the cashier hands over physical cash to the customer,
-        // and a bank-routed Transfer/Setor still means the customer hands over cash.
+        // Being linked to a bank_account doesn't change the cash-drawer effect: debet
+        // cash-in and kredit cash-in (when the fee is paid cash) both still apply.
         $cashier = $this->createUserWithPermissions([
             'agent-transactions-create',
             'cashier-shifts-access',
@@ -267,7 +265,7 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // Kredit linked to a bank account (EDC swipe) - cashier still hands over cash.
+        // Kredit linked to a bank account (EDC swipe), fee paid cash, no TF loket.
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -284,11 +282,11 @@ class AgentTransactionTest extends TestCase
         $service = app(CashierShiftService::class);
         $summary = $service->calculateSummary($shift);
 
-        $this->assertSame(205000, $summary['agent_cash_in_total']);
-        $this->assertSame(100000, $summary['agent_cash_out_total']);
+        // Debet cash-in (205,000) + kredit cash-in (100,000 + 2,000 + 5,000 = 107,000)
+        $this->assertSame(312000, $summary['agent_cash_in_total']);
+        $this->assertSame(0, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
-        // agent_opening_cash (0) + 205,000 - 100,000 + 5,000 = 110,000
-        $this->assertSame(110000, $summary['agent_expected_cash']);
+        $this->assertSame(312000, $summary['agent_expected_cash']);
     }
 
     public function test_agent_transactions_correctly_impact_bank_account_balances(): void
@@ -344,8 +342,8 @@ class AgentTransactionTest extends TestCase
 
         $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
 
-        // 2. Kredit (Tarik) - nominal 100,000, bank fee ignored for kredit, customer fee 5,000 paid via bank
-        // Bank balance increases by: 100,000 + 5,000 = 105,000
+        // 2. Kredit (Tarik) - nominal 100,000, bank fee 2,000 (deducted), customer fee 5,000 paid via bank
+        // Bank balance increases by: 100,000 - 2,000 + 5,000 = 103,000
         $tx2 = AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -359,12 +357,55 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        $this->assertEquals(10000000 - 202000 + 105000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 - 202000 + 103000, $bank->fresh()->balance);
 
         // 3. Update tx1 status to failed
         // Reverts its effect: balance increases back by 202,000
         AgentTransaction::find($tx1->id)->update(['status' => 'failed']);
-        $this->assertEquals(10000000 + 105000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
+    }
+
+    public function test_kredit_admin_fee_bank_and_tf_loket_route_to_bank_balance_when_paid_cash(): void
+    {
+        // Even when the customer fee is paid in cash, a "TF" (transfer) admin loket
+        // code means that fee still lands in the bank balance instead of the cash
+        // drawer - it's a transfer-flavored fee, not a walk-in cash fee.
+        $bank = \App\Models\BankAccount::create([
+            'bank_name' => 'BCA',
+            'account_number' => '123456',
+            'account_name' => 'Test Account',
+            'is_active' => true,
+            'balance' => 1000000,
+        ]);
+
+        $tfLoket = \App\Models\AgentAdminLoket::create([
+            'code' => 'TF02',
+            'amount' => 3000,
+            'description' => '501K s/d 1jt',
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => 'JTA0002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        AgentTransaction::create([
+            'cashier_id' => $this->createUserWithPermissions([])->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'agent_admin_loket_id' => $tfLoket->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 100000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        // Bank balance: nominal - admin_fee_bank + admin_fee_customer (TF routes it here)
+        // = 100,000 - 2,000 + 3,000 = 101,000
+        $this->assertEquals(1000000 + 101000, $bank->fresh()->balance);
     }
 
     private function createUserWithPermissions(array $permissions): User

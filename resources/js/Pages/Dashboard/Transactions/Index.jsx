@@ -1248,7 +1248,7 @@ export default function Index({
     };
 
     const selectedAgentType = agentTransactionTypes.find((t) => t.id === parseInt(agentData.agent_transaction_type_id));
-    const agentTxTotal = (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0) + (selectedAgentType?.type === 'debet' ? (parseInt(agentData.admin_fee_bank) || 0) : 0);
+    const agentTxTotal = (parseInt(agentData.nominal) || 0) + (parseInt(agentData.admin_fee_customer) || 0) + (parseInt(agentData.admin_fee_bank) || 0);
 
     // Reset highlighted product index when filtered displayItems changes
     useEffect(() => {
@@ -1935,7 +1935,7 @@ export default function Index({
                                                             </span>
                                                         </td>
                                                         <td className="p-3 font-bold text-primary-600 dark:text-primary-400">
-                                                            {formatPrice((tx.nominal || 0) + (tx.admin_fee_customer || 0) + (tx.agent_transaction_type?.type === 'debet' ? (tx.admin_fee_bank || 0) : 0))}
+                                                            {formatPrice((tx.nominal || 0) + (tx.admin_fee_customer || 0) + (tx.admin_fee_bank || 0))}
                                                         </td>
                                                         <td className="p-3">
                                                             <select
@@ -2846,7 +2846,7 @@ export default function Index({
                                         <div>
                                             <span className="text-[10px] font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Estimasi Total Pembayaran</span>
                                             <p className="text-[10px] text-slate-400">
-                                                {selectedAgentType?.type === 'debet' ? "Nominal + Admin Loket + Admin Bank" : "Nominal + Admin Loket"}
+                                                Nominal + Admin Loket + Admin Bank
                                             </p>
                                         </div>
                                         <span className="text-base font-bold text-primary-600 dark:text-primary-400">

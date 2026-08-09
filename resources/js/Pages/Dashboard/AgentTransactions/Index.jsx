@@ -158,7 +158,7 @@ export default function Index({
     };
 
     const selectedType = transactionTypes.find((t) => t.id === parseInt(data.agent_transaction_type_id));
-    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0) + (selectedType?.type === 'debet' ? (parseInt(data.admin_fee_bank) || 0) : 0);
+    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0) + (parseInt(data.admin_fee_bank) || 0);
 
     // Form submit
     const handleSubmit = (e) => {
@@ -495,7 +495,7 @@ export default function Index({
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm font-bold text-primary-600 dark:text-primary-400">
-                                            {formatRp((tx.nominal || 0) + (tx.admin_fee_customer || 0) + (tx.agent_transaction_type?.type === 'debet' ? (tx.admin_fee_bank || 0) : 0))}
+                                            {formatRp((tx.nominal || 0) + (tx.admin_fee_customer || 0) + (tx.admin_fee_bank || 0))}
                                         </td>
                                         <td className="p-4 text-sm">
                                             <select
@@ -677,7 +677,7 @@ export default function Index({
                                     <div>
                                         <span className="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Total Pembayaran</span>
                                         <p className="text-xs text-slate-400 dark:text-slate-500">
-                                            {selectedType?.type === 'debet' ? "Nominal + Admin Loket + Admin Bank" : "Nominal + Admin Loket"}
+                                            Nominal + Admin Loket + Admin Bank
                                         </p>
                                     </div>
                                     <span className="text-lg font-bold text-primary-600 dark:text-primary-400">
