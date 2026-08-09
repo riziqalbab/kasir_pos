@@ -365,6 +365,41 @@ class AgentTransactionTest extends TestCase
         $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
     }
 
+    public function test_debet_admin_fee_customer_never_affects_bank_balance(): void
+    {
+        // admin_fee_customer never touches the bank balance for debet (e.g.
+        // Transfer/Setor), regardless of admin_fee_payment_method - only nominal
+        // and admin_fee_bank do.
+        $bank = \App\Models\BankAccount::create([
+            'bank_name' => 'BCA',
+            'account_number' => '123456',
+            'account_name' => 'Test Account',
+            'is_active' => true,
+            'balance' => 10000000,
+        ]);
+
+        $debetType = AgentTransactionType::create([
+            'code' => 'JTA0001',
+            'name' => 'Setor Tunai',
+            'type' => 'debet',
+        ]);
+
+        AgentTransaction::create([
+            'cashier_id' => $this->createUserWithPermissions([])->id,
+            'agent_transaction_type_id' => $debetType->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 200000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'bank',
+            'status' => 'success',
+        ]);
+
+        // Balance decreases by: 200,000 + 2,000 = 202,000 (admin_fee_customer ignored)
+        $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
+    }
+
     public function test_kredit_admin_fee_bank_and_tf_loket_route_to_bank_balance_when_paid_cash(): void
     {
         // Even when the customer fee is paid in cash, a "TF" (transfer) admin loket

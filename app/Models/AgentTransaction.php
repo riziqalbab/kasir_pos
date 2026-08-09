@@ -52,12 +52,9 @@ class AgentTransaction extends Model
 
         if ($type->type === 'debet') {
             // Money goes out of our bank account to destination.
-            // Nominal is deducted, and bank fee is deducted.
-            $effect = -((int) $this->nominal + (int) $this->admin_fee_bank);
-            if ($this->admin_fee_payment_method === 'bank') {
-                $effect += (int) $this->admin_fee_customer;
-            }
-            return $effect;
+            // Nominal and bank fee are deducted. admin_fee_customer never affects
+            // the bank balance for debet, regardless of payment method.
+            return -((int) $this->nominal + (int) $this->admin_fee_bank);
         }
 
         return static::calculateKreditBankEffect(
@@ -135,9 +132,6 @@ class AgentTransaction extends Model
                     if ($oldType) {
                         if ($oldType->type === 'debet') {
                             $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
-                            if ($originalPayMethod === 'bank') {
-                                $oldEffect += (int) $originalFeeCustomer;
-                            }
                         } else {
                             $oldEffect = static::calculateKreditBankEffect(
                                 (int) $originalNominal,
@@ -187,9 +181,6 @@ class AgentTransaction extends Model
                 if ($oldType) {
                     if ($oldType->type === 'debet') {
                         $oldEffect = -((int) $originalNominal + (int) $originalFeeBank);
-                        if ($originalPayMethod === 'bank') {
-                            $oldEffect += (int) $originalFeeCustomer;
-                        }
                     } else {
                         $oldEffect = static::calculateKreditBankEffect(
                             (int) $originalNominal,
