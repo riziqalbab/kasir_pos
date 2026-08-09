@@ -101,11 +101,21 @@ class CashierShiftService
             ->where('cashier_shift_id', $shift->id)
             ->where('status', 'success');
 
-        $agentCashInTotal = (int) (clone $agentTransactions)
+        $agentDebetNominalCashIn = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'debet');
             })
-            ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer else 0 end)"));
+            ->whereNull('bank_account_id')
+            ->sum('nominal');
+
+        $agentDebetFeeCashIn = (int) (clone $agentTransactions)
+            ->whereHas('agentTransactionType', function ($query) {
+                $query->where('type', 'debet');
+            })
+            ->where('admin_fee_payment_method', 'cash')
+            ->sum('admin_fee_customer');
+
+        $agentCashInTotal = $agentDebetNominalCashIn + $agentDebetFeeCashIn;
 
         $agentCashOutTotal = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
@@ -288,7 +298,8 @@ class CashierShiftService
             $cashOut = 0;
 
             if ($type === 'debet') {
-                $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+                $cashOut = 0;
+                $cashIn = ($tx->bank_account_id ? 0 : $tx->nominal) + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             } else {
                 $cashOut = $tx->bank_account_id ? 0 : $tx->nominal;
                 $cashIn = ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);

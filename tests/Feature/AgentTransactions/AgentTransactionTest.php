@@ -241,8 +241,8 @@ class AgentTransactionTest extends TestCase
 
         $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
 
-        // 2. Kredit (Tarik) - nominal 100,000, bank fee 2,000, customer fee 5,000 paid via bank
-        // Bank balance increases by: 100,000 - 2,000 + 5,000 = 103,000
+        // 2. Kredit (Tarik) - nominal 100,000, bank fee ignored for kredit, customer fee 5,000 paid via bank
+        // Bank balance increases by: 100,000 + 5,000 = 105,000
         $tx2 = AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -256,12 +256,12 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        $this->assertEquals(10000000 - 202000 + 103000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 - 202000 + 105000, $bank->fresh()->balance);
 
         // 3. Update tx1 status to failed
         // Reverts its effect: balance increases back by 202,000
         AgentTransaction::find($tx1->id)->update(['status' => 'failed']);
-        $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 + 105000, $bank->fresh()->balance);
     }
 
     private function createUserWithPermissions(array $permissions): User

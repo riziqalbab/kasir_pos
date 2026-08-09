@@ -82,7 +82,7 @@ export default function AgentTransactionFormModal({
     };
 
     const selectedType = transactionTypes.find((t) => t.id === parseInt(data.agent_transaction_type_id));
-    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0);
+    const modalTotal = (parseInt(data.nominal) || 0) + (parseInt(data.admin_fee_customer) || 0) + (selectedType?.type === 'debet' ? (parseInt(data.admin_fee_bank) || 0) : 0);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -244,7 +244,7 @@ export default function AgentTransactionFormModal({
                             <div>
                                 <span className="text-xs font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Total Pembayaran</span>
                                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                                    Nominal + Admin Loket
+                                    {selectedType?.type === 'debet' ? "Nominal + Admin Loket + Admin Bank" : "Nominal + Admin Loket"}
                                 </p>
                             </div>
                             <span className="text-lg font-bold text-primary-650 dark:text-primary-400">

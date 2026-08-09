@@ -17,7 +17,7 @@ export default function Print({ transaction, storeProfile }) {
     const storeAddress = storeProfile?.address || "";
     const storePhone = storeProfile?.phone || "";
 
-    const total = (transaction.nominal || 0) + (transaction.admin_fee_customer || 0);
+    const total = (transaction.nominal || 0) + (transaction.admin_fee_customer || 0) + (transaction.agent_transaction_type?.type === 'debet' ? (transaction.admin_fee_bank || 0) : 0);
 
     return (
         <>
