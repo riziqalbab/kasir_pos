@@ -524,24 +524,6 @@ export default function Index({
                                             >
                                                 <IconPrinter size={18} />
                                             </a>
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => openEditModal(tx)}
-                                                    className="p-1.5 rounded-lg text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-950/20 transition-colors"
-                                                    title="Edit Transaksi"
-                                                >
-                                                    <IconPencil size={18} />
-                                                </button>
-                                            )}
-                                            {canDelete && (
-                                                <button
-                                                    onClick={() => handleDelete(tx)}
-                                                    className="p-1.5 rounded-lg text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-950/20 transition-colors"
-                                                    title="Hapus Catatan"
-                                                >
-                                                    <IconTrash size={18} />
-                                                </button>
-                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -592,7 +574,7 @@ export default function Index({
                                     <option value="">-- Pilih Tipe Transaksi --</option>
                                     {transactionTypes.map((type) => (
                                         <option key={type.id} value={type.id}>
-                                            [{type.code}] {type.name} ({type.type === 'debet' ? 'Debet/Masuk' : 'Kredit/Keluar'})
+                                            [{type.code}] {type.name} ({type.type === 'debet' ? 'Debet/Keluar' : 'Kredit/Masuk'})
                                         </option>
                                     ))}
                                 </select>

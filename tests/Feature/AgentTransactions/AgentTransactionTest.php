@@ -101,6 +101,31 @@ class AgentTransactionTest extends TestCase
         ]);
     }
 
+    public function test_admin_fee_bank_does_not_reduce_net_profit_for_kredit_transactions(): void
+    {
+        // admin_fee_bank only applies to debet (outbound transfer). A kredit
+        // transaction (e.g. Tarik Tunai) keeps the full customer fee as profit,
+        // matching how it's already ignored in getBalanceEffect().
+        $kreditType = AgentTransactionType::create([
+            'code' => 'JTA0002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        $tx = AgentTransaction::create([
+            'cashier_id' => $this->createUserWithPermissions([])->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'transaction_date' => now(),
+            'nominal' => 100000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        $this->assertSame(5000, $tx->fresh()->net_profit);
+    }
+
     public function test_agent_transactions_correctly_impact_expected_cash(): void
     {
         $cashier = $this->createUserWithPermissions([
@@ -186,6 +211,84 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(150000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
         $this->assertSame(3, $summary['agent_transactions_count']);
+    }
+
+    public function test_agent_transactions_impact_expected_cash_even_when_linked_to_a_bank_account(): void
+    {
+        // Nominal always crosses the cashier's physical cash drawer, regardless of
+        // whether the transaction is also settled through a bank_account: an EDC-based
+        // Tarik Tunai still means the cashier hands over physical cash to the customer,
+        // and a bank-routed Transfer/Setor still means the customer hands over cash.
+        $cashier = $this->createUserWithPermissions([
+            'agent-transactions-create',
+            'cashier-shifts-access',
+        ]);
+
+        $shift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 100000,
+            'expected_cash' => 100000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
+        $bank = \App\Models\BankAccount::create([
+            'bank_name' => 'BCA',
+            'account_number' => '123456',
+            'account_name' => 'Test Account',
+            'is_active' => true,
+            'balance' => 10000000,
+        ]);
+
+        $debetType = AgentTransactionType::create([
+            'code' => 'JTA0001',
+            'name' => 'Setor Tunai',
+            'type' => 'debet',
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => 'JTA0002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        // Debet linked to a bank account - customer still hands over cash for the nominal.
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $debetType->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 200000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        // Kredit linked to a bank account (EDC swipe) - cashier still hands over cash.
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'bank_account_id' => $bank->id,
+            'transaction_date' => now(),
+            'nominal' => 100000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        $service = app(CashierShiftService::class);
+        $summary = $service->calculateSummary($shift);
+
+        $this->assertSame(205000, $summary['agent_cash_in_total']);
+        $this->assertSame(100000, $summary['agent_cash_out_total']);
+        $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
+        // agent_opening_cash (0) + 205,000 - 100,000 + 5,000 = 110,000
+        $this->assertSame(110000, $summary['agent_expected_cash']);
     }
 
     public function test_agent_transactions_correctly_impact_bank_account_balances(): void

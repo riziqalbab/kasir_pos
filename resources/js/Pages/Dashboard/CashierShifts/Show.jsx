@@ -511,7 +511,7 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400' 
                                                         : 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400'
                                                 }`}>
-                                                    {tx.agent_transaction_type?.type === 'debet' ? 'Debet/Masuk' : 'Kredit/Keluar'}
+                                                    {tx.agent_transaction_type?.type === 'debet' ? 'Debet/Keluar' : 'Kredit/Masuk'}
                                                 </span>
                                             </td>
                                             <td className="p-3 whitespace-nowrap text-slate-600 dark:text-slate-400">

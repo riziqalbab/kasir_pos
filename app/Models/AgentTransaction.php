@@ -75,7 +75,13 @@ class AgentTransaction extends Model
         parent::boot();
 
         static::saving(function ($model) {
-            $model->net_profit = (int) $model->admin_fee_customer - (int) $model->admin_fee_bank;
+            $type = AgentTransactionType::find($model->agent_transaction_type_id);
+            $isDebet = $type && $type->type === 'debet';
+
+            // admin_fee_bank only applies to debet (outbound transfer) transactions,
+            // same as the bank-balance effect below. Kredit (e.g. Tarik Tunai) keeps
+            // the full customer fee as profit.
+            $model->net_profit = (int) $model->admin_fee_customer - ($isDebet ? (int) $model->admin_fee_bank : 0);
         });
 
         static::saved(function ($model) {

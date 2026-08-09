@@ -101,27 +101,20 @@ class CashierShiftService
             ->where('cashier_shift_id', $shift->id)
             ->where('status', 'success');
 
-        $agentDebetNominalCashIn = (int) (clone $agentTransactions)
+        // Nominal always crosses the cashier's physical cash drawer, regardless of
+        // whether the transaction is also settled through a bank_account (the bank
+        // leg and the cash leg are independent: an EDC-based Tarik Tunai still means
+        // the cashier hands over physical cash to the customer).
+        $agentCashInTotal = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'debet');
             })
-            ->whereNull('bank_account_id')
-            ->sum('nominal');
-
-        $agentDebetFeeCashIn = (int) (clone $agentTransactions)
-            ->whereHas('agentTransactionType', function ($query) {
-                $query->where('type', 'debet');
-            })
-            ->where('admin_fee_payment_method', 'cash')
-            ->sum('admin_fee_customer');
-
-        $agentCashInTotal = $agentDebetNominalCashIn + $agentDebetFeeCashIn;
+            ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer else 0 end)"));
 
         $agentCashOutTotal = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'kredit');
             })
-            ->whereNull('bank_account_id')
             ->sum('nominal');
 
         $agentFeesCashInTotal = (int) (clone $agentTransactions)
@@ -299,9 +292,9 @@ class CashierShiftService
 
             if ($type === 'debet') {
                 $cashOut = 0;
-                $cashIn = ($tx->bank_account_id ? 0 : $tx->nominal) + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+                $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             } else {
-                $cashOut = $tx->bank_account_id ? 0 : $tx->nominal;
+                $cashOut = $tx->nominal;
                 $cashIn = ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
             }
 

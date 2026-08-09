@@ -140,7 +140,7 @@ export default function AgentTransactionFormModal({
                             <option value="">-- Pilih Tipe Transaksi --</option>
                             {transactionTypes.map((type) => (
                                 <option key={type.id} value={type.id}>
-                                    [{type.code}] {type.name} ({type.type === 'debet' ? 'Debet/Masuk' : 'Kredit/Keluar'})
+                                    [{type.code}] {type.name} ({type.type === 'debet' ? 'Debet/Keluar' : 'Kredit/Masuk'})
                                 </option>
                             ))}
                         </select>
