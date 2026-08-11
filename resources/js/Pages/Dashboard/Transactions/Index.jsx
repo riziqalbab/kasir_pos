@@ -2820,7 +2820,7 @@ export default function Index({
 
                                     <div>
                                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                                            Admin Bank {selectedAgentType?.type === 'kredit' && <span className="text-[9px] text-slate-400 font-normal lowercase">(opsional, tidak potong profit)</span>}
+                                            Admin Bank {selectedAgentType?.type === 'kredit' && <span className="text-[9px] text-slate-400 font-normal lowercase">(opsional, tidak potong profit &amp; saldo bank)</span>}
                                         </label>
                                         <select
                                             value={agentData.agent_admin_bank_id}

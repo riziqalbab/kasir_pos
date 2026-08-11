@@ -59,7 +59,6 @@ class AgentTransaction extends Model
 
         return static::calculateKreditBankEffect(
             (int) $this->nominal,
-            (int) $this->admin_fee_bank,
             (int) $this->admin_fee_customer,
             (string) $this->admin_fee_payment_method,
             $this->agentAdminLoket?->code
@@ -67,19 +66,20 @@ class AgentTransaction extends Model
     }
 
     /**
-     * Kredit (e.g. Tarik Tunai): nominal enters the bank account, net of the real
-     * admin_fee_bank cost. The customer fee (admin_fee_customer) also lands in the
-     * bank account instead of the cash drawer when it's paid non-cash, or when the
-     * admin loket is a "TF" (transfer) code even if paid in cash.
+     * Kredit (e.g. Tarik Tunai): the full nominal enters the bank account.
+     * admin_fee_bank is not a cost to us here - it's charged to the customer's own
+     * account by their bank, so it neither reduces this balance nor net_profit (see
+     * the saving() hook). The customer fee (admin_fee_customer) lands in the bank
+     * account instead of the cash drawer when it's paid non-cash, or when the admin
+     * loket is a "TF" (transfer) code even if paid in cash.
      */
     public static function calculateKreditBankEffect(
         int $nominal,
-        int $adminFeeBank,
         int $adminFeeCustomer,
         string $paymentMethod,
         ?string $loketCode
     ): int {
-        $effect = $nominal - $adminFeeBank;
+        $effect = $nominal;
 
         if ($paymentMethod === 'bank' || static::isTfAdminLoketCode($loketCode)) {
             $effect += $adminFeeCustomer;
@@ -135,7 +135,6 @@ class AgentTransaction extends Model
                         } else {
                             $oldEffect = static::calculateKreditBankEffect(
                                 (int) $originalNominal,
-                                (int) $originalFeeBank,
                                 (int) $originalFeeCustomer,
                                 (string) $originalPayMethod,
                                 $originalLoketId ? \App\Models\AgentAdminLoket::find($originalLoketId)?->code : null
@@ -184,7 +183,6 @@ class AgentTransaction extends Model
                     } else {
                         $oldEffect = static::calculateKreditBankEffect(
                             (int) $originalNominal,
-                            (int) $originalFeeBank,
                             (int) $originalFeeCustomer,
                             (string) $originalPayMethod,
                             $originalLoketId ? \App\Models\AgentAdminLoket::find($originalLoketId)?->code : null

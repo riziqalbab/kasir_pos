@@ -169,7 +169,7 @@ class AgentTransactionTest extends TestCase
         ]);
 
         // 2. Kredit (Tarik) - nominal 100,000, admin_fee_bank 2,000, fee 5,000, paid in cash.
-        // No TF loket, so everything lands in cash: 100,000 + 2,000 + 5,000 = 107,000
+        // Nominal is cash OUT (handed to customer); fee (no TF loket) is cash IN.
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -183,7 +183,8 @@ class AgentTransactionTest extends TestCase
         ]);
 
         // 3. Kredit (Tarik) - nominal 50,000, fee paid non-cash.
-        // Fee not paid in cash, so nothing in this transaction touches the cash drawer.
+        // Nominal is still handed to the customer in cash (cash OUT) regardless of
+        // how the fee itself is settled; the fee doesn't touch cash since it's non-cash.
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -204,11 +205,11 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(100000, $summary['expected_cash']);
 
         // Agent Expected Cash:
-        // agent_opening_cash (0) + agentCashInTotal (312,000) - agentCashOutTotal (0) = 312,000
-        $this->assertSame(312000, $summary['agent_expected_cash']);
+        // agent_opening_cash (0) + agentCashInTotal (210,000) - agentCashOutTotal (150,000) = 60,000
+        $this->assertSame(60000, $summary['agent_expected_cash']);
 
-        $this->assertSame(312000, $summary['agent_cash_in_total']);
-        $this->assertSame(0, $summary['agent_cash_out_total']);
+        $this->assertSame(210000, $summary['agent_cash_in_total']);
+        $this->assertSame(150000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
         $this->assertSame(3, $summary['agent_transactions_count']);
     }
@@ -282,11 +283,57 @@ class AgentTransactionTest extends TestCase
         $service = app(CashierShiftService::class);
         $summary = $service->calculateSummary($shift);
 
-        // Debet cash-in (205,000) + kredit cash-in (100,000 + 2,000 + 5,000 = 107,000)
-        $this->assertSame(312000, $summary['agent_cash_in_total']);
-        $this->assertSame(0, $summary['agent_cash_out_total']);
+        // Debet cash-in (205,000) + kredit fee cash-in (5,000); kredit nominal
+        // (100,000) is cash-out, handed to the customer.
+        $this->assertSame(210000, $summary['agent_cash_in_total']);
+        $this->assertSame(100000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
-        $this->assertSame(312000, $summary['agent_expected_cash']);
+        $this->assertSame(110000, $summary['agent_expected_cash']);
+    }
+
+    public function test_kredit_transaction_cash_out_applies_even_when_fee_paid_non_cash(): void
+    {
+        $cashier = $this->createUserWithPermissions([
+            'agent-transactions-create',
+            'cashier-shifts-access',
+        ]);
+
+        $shift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 100000,
+            'expected_cash' => 100000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => 'JTA0002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        // Fee paid via bank, so it never touches cash - but the nominal is still
+        // handed to the customer in cash, draining the agent float below zero.
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'transaction_date' => now(),
+            'nominal' => 75000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 0,
+            'admin_fee_payment_method' => 'bank',
+            'status' => 'success',
+        ]);
+
+        $service = app(CashierShiftService::class);
+        $summary = $service->calculateSummary($shift);
+
+        $this->assertSame(0, $summary['agent_cash_in_total']);
+        $this->assertSame(75000, $summary['agent_cash_out_total']);
+        $this->assertSame(0, $summary['agent_fees_cash_in_total']);
+        $this->assertSame(-75000, $summary['agent_expected_cash']);
     }
 
     public function test_agent_transactions_correctly_impact_bank_account_balances(): void
@@ -342,9 +389,10 @@ class AgentTransactionTest extends TestCase
 
         $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
 
-        // 2. Kredit (Tarik) - nominal 100,000, bank fee 2,000 (deducted), customer fee 5,000 paid via bank
-        // Bank balance increases by: 100,000 - 2,000 + 5,000 = 103,000
-        $tx2 = AgentTransaction::create([
+        // 2. Kredit (Tarik) - nominal 100,000, customer fee 5,000 paid via bank.
+        // admin_fee_bank (2,000) is not our cost here, so it's ignored.
+        // Bank balance increases by: 100,000 + 5,000 = 105,000
+        AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
             'agent_transaction_type_id' => $kreditType->id,
@@ -357,12 +405,12 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        $this->assertEquals(10000000 - 202000 + 103000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 - 202000 + 105000, $bank->fresh()->balance);
 
         // 3. Update tx1 status to failed
         // Reverts its effect: balance increases back by 202,000
         AgentTransaction::find($tx1->id)->update(['status' => 'failed']);
-        $this->assertEquals(10000000 + 103000, $bank->fresh()->balance);
+        $this->assertEquals(10000000 + 105000, $bank->fresh()->balance);
     }
 
     public function test_debet_admin_fee_customer_never_affects_bank_balance(): void
@@ -400,11 +448,12 @@ class AgentTransactionTest extends TestCase
         $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
     }
 
-    public function test_kredit_admin_fee_bank_and_tf_loket_route_to_bank_balance_when_paid_cash(): void
+    public function test_kredit_tf_loket_routes_customer_fee_to_bank_balance_when_paid_cash(): void
     {
         // Even when the customer fee is paid in cash, a "TF" (transfer) admin loket
         // code means that fee still lands in the bank balance instead of the cash
         // drawer - it's a transfer-flavored fee, not a walk-in cash fee.
+        // admin_fee_bank stays out of it entirely for kredit.
         $bank = \App\Models\BankAccount::create([
             'bank_name' => 'BCA',
             'account_number' => '123456',
@@ -438,9 +487,111 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // Bank balance: nominal - admin_fee_bank + admin_fee_customer (TF routes it here)
-        // = 100,000 - 2,000 + 3,000 = 101,000
-        $this->assertEquals(1000000 + 101000, $bank->fresh()->balance);
+        // Bank balance: nominal + admin_fee_customer (TF routes it here), with
+        // admin_fee_bank ignored = 100,000 + 3,000 = 103,000
+        $this->assertEquals(1000000 + 103000, $bank->fresh()->balance);
+    }
+
+    public function test_trasfer_then_tarik_tunai_on_the_same_bank_moves_cash_and_bank_opposite_ways(): void
+    {
+        // Regression for the reported case: a Trasfer (debet) followed by a Tarik
+        // Tunai (kredit) on the same BRI account, both nominal 50,000 with a 3,000
+        // cash loket fee and a 5,000 admin_fee_bank.
+        $cashier = $this->createUserWithPermissions([
+            'agent-transactions-create',
+            'cashier-shifts-access',
+        ]);
+
+        $shift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 0,
+            'expected_cash' => 0,
+            'agent_opening_cash' => 100000,
+            'agent_expected_cash' => 100000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
+        $bank = \App\Models\BankAccount::create([
+            'bank_name' => 'BRI',
+            'account_number' => '002401998877503',
+            'account_name' => 'PT Maju Bersama Retail',
+            'is_active' => true,
+            'balance' => 100000,
+        ]);
+
+        $tfLoket = \App\Models\AgentAdminLoket::create([
+            'code' => 'TF02',
+            'amount' => 3000,
+            'description' => '501K s/d 1jt',
+        ]);
+
+        $brivaLoket = \App\Models\AgentAdminLoket::create([
+            'code' => 'BRIVA01',
+            'amount' => 3000,
+            'description' => 'Tarik tunai',
+        ]);
+
+        $debetType = AgentTransactionType::create([
+            'code' => '001',
+            'name' => 'Trasfer',
+            'type' => 'debet',
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => '002',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        // Trasfer (debet): customer hands over 50,000 + 3,000 fee in cash, we send
+        // 50,000 out of BRI and the bank charges us 5,000 for it.
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $debetType->id,
+            'bank_account_id' => $bank->id,
+            'agent_admin_loket_id' => $tfLoket->id,
+            'transaction_date' => now(),
+            'nominal' => 50000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 5000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        $service = app(CashierShiftService::class);
+
+        // Cash 100,000 + 53,000 = 153,000; BRI 100,000 - 55,000 = 45,000
+        $this->assertSame(153000, $service->calculateSummary($shift)['agent_expected_cash']);
+        $this->assertEquals(45000, $bank->fresh()->balance);
+
+        // Tarik Tunai (kredit): customer takes 50,000 cash out of the drawer and
+        // pays a 3,000 fee in cash; BRI receives the full 50,000. admin_fee_bank
+        // is the customer's own bank's charge, so it touches neither side.
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'bank_account_id' => $bank->id,
+            'agent_admin_loket_id' => $brivaLoket->id,
+            'transaction_date' => now(),
+            'nominal' => 50000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 5000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+        ]);
+
+        // Cash 153,000 - 50,000 + 3,000 = 106,000; BRI 45,000 + 50,000 = 95,000
+        $summary = $service->calculateSummary($shift);
+        $this->assertSame(106000, $summary['agent_expected_cash']);
+        $this->assertEquals(95000, $bank->fresh()->balance);
+
+        // The two legs move in opposite directions, which is the whole point.
+        $this->assertSame(56000, $summary['agent_cash_in_total']);
+        $this->assertSame(50000, $summary['agent_cash_out_total']);
     }
 
     private function createUserWithPermissions(array $permissions): User
