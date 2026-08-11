@@ -154,8 +154,8 @@ class AgentTransactionTest extends TestCase
             'type' => 'kredit',
         ]);
 
-        // 1. Debet (Setor) - nominal 200,000, fee 5,000 paid in cash.
-        // Cash in laci increases by 205,000
+        // 1. Debet (Setor) - nominal 200,000, fee 5,000 + bank fee 2,000 paid in cash.
+        // Cash in laci increases by 207,000
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -205,10 +205,10 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(100000, $summary['expected_cash']);
 
         // Agent Expected Cash:
-        // agent_opening_cash (0) + agentCashInTotal (210,000) - agentCashOutTotal (150,000) = 60,000
-        $this->assertSame(60000, $summary['agent_expected_cash']);
+        // agent_opening_cash (0) + agentCashInTotal (212,000) - agentCashOutTotal (150,000) = 62,000
+        $this->assertSame(62000, $summary['agent_expected_cash']);
 
-        $this->assertSame(210000, $summary['agent_cash_in_total']);
+        $this->assertSame(212000, $summary['agent_cash_in_total']);
         $this->assertSame(150000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
         $this->assertSame(3, $summary['agent_transactions_count']);
@@ -283,12 +283,12 @@ class AgentTransactionTest extends TestCase
         $service = app(CashierShiftService::class);
         $summary = $service->calculateSummary($shift);
 
-        // Debet cash-in (205,000) + kredit fee cash-in (5,000); kredit nominal
-        // (100,000) is cash-out, handed to the customer.
-        $this->assertSame(210000, $summary['agent_cash_in_total']);
+        // Debet cash-in (200,000 + 5,000 fee + 2,000 bank fee = 207,000) + kredit fee
+        // cash-in (5,000); kredit nominal (100,000) is cash-out, handed to the customer.
+        $this->assertSame(212000, $summary['agent_cash_in_total']);
         $this->assertSame(100000, $summary['agent_cash_out_total']);
         $this->assertSame(5000, $summary['agent_fees_cash_in_total']);
-        $this->assertSame(110000, $summary['agent_expected_cash']);
+        $this->assertSame(112000, $summary['agent_expected_cash']);
     }
 
     public function test_kredit_transaction_cash_out_applies_even_when_fee_paid_non_cash(): void
@@ -448,12 +448,24 @@ class AgentTransactionTest extends TestCase
         $this->assertEquals(10000000 - 202000, $bank->fresh()->balance);
     }
 
-    public function test_kredit_tf_loket_routes_customer_fee_to_bank_balance_when_paid_cash(): void
+    public function test_kredit_cash_fee_stays_in_cash_drawer_even_for_a_tf_loket(): void
     {
-        // Even when the customer fee is paid in cash, a "TF" (transfer) admin loket
-        // code means that fee still lands in the bank balance instead of the cash
-        // drawer - it's a transfer-flavored fee, not a walk-in cash fee.
+        // The admin loket code has no effect on routing: a cash-paid customer fee
+        // goes to the cash drawer, so the bank balance only gains the nominal.
         // admin_fee_bank stays out of it entirely for kredit.
+        $cashier = $this->createUserWithPermissions(['cashier-shifts-access']);
+
+        $shift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 0,
+            'expected_cash' => 0,
+            'agent_opening_cash' => 500000,
+            'agent_expected_cash' => 500000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
         $bank = \App\Models\BankAccount::create([
             'bank_name' => 'BCA',
             'account_number' => '123456',
@@ -475,7 +487,8 @@ class AgentTransactionTest extends TestCase
         ]);
 
         AgentTransaction::create([
-            'cashier_id' => $this->createUserWithPermissions([])->id,
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
             'agent_transaction_type_id' => $kreditType->id,
             'agent_admin_loket_id' => $tfLoket->id,
             'bank_account_id' => $bank->id,
@@ -487,9 +500,13 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // Bank balance: nominal + admin_fee_customer (TF routes it here), with
-        // admin_fee_bank ignored = 100,000 + 3,000 = 103,000
-        $this->assertEquals(1000000 + 103000, $bank->fresh()->balance);
+        // Bank balance: nominal only, admin_fee_bank and the cash-paid customer fee
+        // both ignored = 1,000,000 + 100,000
+        $this->assertEquals(1100000, $bank->fresh()->balance);
+
+        // Cash drawer: 500,000 - 100,000 nominal + 3,000 fee = 403,000
+        $summary = app(CashierShiftService::class)->calculateSummary($shift);
+        $this->assertSame(403000, $summary['agent_expected_cash']);
     }
 
     public function test_trasfer_then_tarik_tunai_on_the_same_bank_moves_cash_and_bank_opposite_ways(): void
@@ -545,8 +562,8 @@ class AgentTransactionTest extends TestCase
             'type' => 'kredit',
         ]);
 
-        // Trasfer (debet): customer hands over 50,000 + 3,000 fee in cash, we send
-        // 50,000 out of BRI and the bank charges us 5,000 for it.
+        // Trasfer (debet): customer hands over 50,000 + 3,000 loket fee + 5,000 bank fee
+        // in cash, we send 50,000 out of BRI and the bank charges us 5,000 for it.
         AgentTransaction::create([
             'cashier_id' => $cashier->id,
             'cashier_shift_id' => $shift->id,
@@ -563,8 +580,8 @@ class AgentTransactionTest extends TestCase
 
         $service = app(CashierShiftService::class);
 
-        // Cash 100,000 + 53,000 = 153,000; BRI 100,000 - 55,000 = 45,000
-        $this->assertSame(153000, $service->calculateSummary($shift)['agent_expected_cash']);
+        // Cash 100,000 + 58,000 = 158,000; BRI 100,000 - 55,000 = 45,000
+        $this->assertSame(158000, $service->calculateSummary($shift)['agent_expected_cash']);
         $this->assertEquals(45000, $bank->fresh()->balance);
 
         // Tarik Tunai (kredit): customer takes 50,000 cash out of the drawer and
@@ -584,13 +601,13 @@ class AgentTransactionTest extends TestCase
             'status' => 'success',
         ]);
 
-        // Cash 153,000 - 50,000 + 3,000 = 106,000; BRI 45,000 + 50,000 = 95,000
+        // Cash 158,000 - 50,000 + 3,000 = 111,000; BRI 45,000 + 50,000 = 95,000
         $summary = $service->calculateSummary($shift);
-        $this->assertSame(106000, $summary['agent_expected_cash']);
+        $this->assertSame(111000, $summary['agent_expected_cash']);
         $this->assertEquals(95000, $bank->fresh()->balance);
 
         // The two legs move in opposite directions, which is the whole point.
-        $this->assertSame(56000, $summary['agent_cash_in_total']);
+        $this->assertSame(61000, $summary['agent_cash_in_total']);
         $this->assertSame(50000, $summary['agent_cash_out_total']);
     }
 

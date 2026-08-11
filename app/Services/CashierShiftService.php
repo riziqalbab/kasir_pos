@@ -101,12 +101,15 @@ class CashierShiftService
             ->where('cashier_shift_id', $shift->id)
             ->where('status', 'success');
 
-        // Debet (e.g. Setor/Transfer): customer hands cash for the nominal, plus the fee if paid cash.
+        // Debet (e.g. Setor/Transfer): customer hands cash for the nominal, plus the fees
+        // if paid cash. admin_fee_bank is reimbursed by the customer too (it's part of the
+        // total charged, see the transaction list's "Total Bayar"), while the bank balance
+        // is debited for nominal + admin_fee_bank.
         $agentDebetCashIn = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'debet');
             })
-            ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer else 0 end)"));
+            ->sum(DB::raw("nominal + (case when admin_fee_payment_method = 'cash' then admin_fee_customer + admin_fee_bank else 0 end)"));
 
         // Kredit (e.g. Tarik Tunai): nominal is handed to the customer in cash -
         // always a cash outflow, regardless of how the admin fee is settled.
@@ -117,19 +120,13 @@ class CashierShiftService
             ->sum('nominal');
 
         // When the fee is received in cash, admin_fee_customer lands in the cash
-        // drawer - except it routes to the bank balance instead when the admin
-        // loket is a "TF" (transfer) code.
+        // drawer regardless of the admin loket code; it only routes to the bank
+        // balance when the fee itself is paid non-cash.
         $agentKreditLoketFeeCashIn = (int) (clone $agentTransactions)
             ->whereHas('agentTransactionType', function ($query) {
                 $query->where('type', 'kredit');
             })
             ->where('admin_fee_payment_method', 'cash')
-            ->where(function ($query) {
-                $query->whereNull('agent_admin_loket_id')
-                    ->orWhereHas('agentAdminLoket', function ($q) {
-                        $q->where('code', 'not like', '%TF%');
-                    });
-            })
             ->sum('admin_fee_customer');
 
         $agentCashInTotal = $agentDebetCashIn + $agentKreditLoketFeeCashIn;
@@ -308,16 +305,15 @@ class CashierShiftService
 
             if ($type === 'debet') {
                 $cashOut = 0;
-                $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0);
+                $cashIn = $tx->nominal + ($tx->admin_fee_payment_method === 'cash'
+                    ? $tx->admin_fee_customer + $tx->admin_fee_bank
+                    : 0);
             } else {
                 // Kredit: nominal always leaves the cash drawer (handed to the
-                // customer). admin_fee_customer lands in cash only if paid in
-                // cash - except it routes to the bank balance for "TF" loket codes.
+                // customer). admin_fee_customer lands in cash only if paid in cash,
+                // otherwise it goes to the bank balance.
                 $cashOut = $tx->nominal;
-                $cashIn = 0;
-                if ($tx->admin_fee_payment_method === 'cash' && ! AgentTransaction::isTfAdminLoketCode($tx->agentAdminLoket?->code)) {
-                    $cashIn = $tx->admin_fee_customer;
-                }
+                $cashIn = $tx->admin_fee_payment_method === 'cash' ? $tx->admin_fee_customer : 0;
             }
 
             if ($tx->bankAccount) {

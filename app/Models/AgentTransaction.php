@@ -60,37 +60,29 @@ class AgentTransaction extends Model
         return static::calculateKreditBankEffect(
             (int) $this->nominal,
             (int) $this->admin_fee_customer,
-            (string) $this->admin_fee_payment_method,
-            $this->agentAdminLoket?->code
+            (string) $this->admin_fee_payment_method
         );
     }
 
     /**
-     * Kredit (e.g. Tarik Tunai): the full nominal enters the bank account.
+     * Kredit (e.g. Tarik Tunai): only the nominal enters the bank account.
      * admin_fee_bank is not a cost to us here - it's charged to the customer's own
-     * account by their bank, so it neither reduces this balance nor net_profit (see
-     * the saving() hook). The customer fee (admin_fee_customer) lands in the bank
-     * account instead of the cash drawer when it's paid non-cash, or when the admin
-     * loket is a "TF" (transfer) code even if paid in cash.
+     * account by their bank, so it neither increases this balance nor net_profit (see
+     * the saving() hook). The customer fee (admin_fee_customer) lands in the cash
+     * drawer, and only reaches the bank account when it's paid non-cash.
      */
     public static function calculateKreditBankEffect(
         int $nominal,
         int $adminFeeCustomer,
-        string $paymentMethod,
-        ?string $loketCode
+        string $paymentMethod
     ): int {
         $effect = $nominal;
 
-        if ($paymentMethod === 'bank' || static::isTfAdminLoketCode($loketCode)) {
+        if ($paymentMethod === 'bank') {
             $effect += $adminFeeCustomer;
         }
 
         return $effect;
-    }
-
-    public static function isTfAdminLoketCode(?string $code): bool
-    {
-        return $code && str_contains(strtoupper($code), 'TF');
     }
 
     protected static function boot()
@@ -123,7 +115,6 @@ class AgentTransaction extends Model
                 $originalFeeCustomer = $model->getOriginal('admin_fee_customer');
                 $originalPayMethod = $model->getOriginal('admin_fee_payment_method');
                 $originalTypeId = $model->getOriginal('agent_transaction_type_id');
-                $originalLoketId = $model->getOriginal('agent_admin_loket_id');
 
                 // Calculate old effect
                 $oldEffect = 0;
@@ -136,8 +127,7 @@ class AgentTransaction extends Model
                             $oldEffect = static::calculateKreditBankEffect(
                                 (int) $originalNominal,
                                 (int) $originalFeeCustomer,
-                                (string) $originalPayMethod,
-                                $originalLoketId ? \App\Models\AgentAdminLoket::find($originalLoketId)?->code : null
+                                (string) $originalPayMethod
                             );
                         }
                     }
@@ -172,7 +162,6 @@ class AgentTransaction extends Model
             $originalFeeCustomer = $model->getOriginal('admin_fee_customer');
             $originalPayMethod = $model->getOriginal('admin_fee_payment_method');
             $originalTypeId = $model->getOriginal('agent_transaction_type_id');
-            $originalLoketId = $model->getOriginal('agent_admin_loket_id');
 
             $oldEffect = 0;
             if ($originalStatus === 'success' && $originalBankId) {
@@ -184,8 +173,7 @@ class AgentTransaction extends Model
                         $oldEffect = static::calculateKreditBankEffect(
                             (int) $originalNominal,
                             (int) $originalFeeCustomer,
-                            (string) $originalPayMethod,
-                            $originalLoketId ? \App\Models\AgentAdminLoket::find($originalLoketId)?->code : null
+                            (string) $originalPayMethod
                         );
                     }
                 }
