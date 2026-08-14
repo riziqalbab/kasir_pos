@@ -37,7 +37,6 @@ import {
     IconPlus,
     IconSearch,
     IconX,
-    IconPencil,
     IconPrinter,
     IconTrendingUp,
     IconCurrencyDollar,
@@ -103,19 +102,15 @@ export default function Index({
 
     // Agent Permissions
     const canCreateAgent = can("agent-transactions-create") && activeCashierShift !== null;
-    const canEditAgent = can("agent-transactions-edit");
-    const canDeleteAgent = can("agent-transactions-delete");
 
     // Agent useForm
     const {
         data: agentData,
         setData: setAgentData,
         post: postAgent,
-        put: putAgent,
         processing: agentProcessing,
         errors: agentErrors,
         reset: resetAgent,
-        clearErrors: clearAgentErrors,
     } = useForm({
         agent_transaction_type_id: "",
         bank_account_id: "",
@@ -131,8 +126,6 @@ export default function Index({
         status: "success",
         notes: "",
     });
-
-    const [editingAgentTx, setEditingAgentTx] = useState(null);
 
     // Agent filters
     const [agentSearch, setAgentSearch] = useState(agentFilters?.search || "");
@@ -1167,30 +1160,16 @@ export default function Index({
 
     const handleAgentSubmit = (e) => {
         e.preventDefault();
-        if (editingAgentTx) {
-            putAgent(route("agent-transactions.update", editingAgentTx.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toast.success("Transaksi agen diperbarui.");
-                    setEditingAgentTx(null);
-                    resetAgent();
-                },
-                onError: () => {
-                    toast.error("Gagal memperbarui transaksi.");
-                }
-            });
-        } else {
-            postAgent(route("agent-transactions.store"), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toast.success("Transaksi agen dicatat.");
-                    resetAgent();
-                },
-                onError: () => {
-                    toast.error("Gagal mencatat transaksi.");
-                }
-            });
-        }
+        postAgent(route("agent-transactions.store"), {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success("Transaksi agen dicatat.");
+                resetAgent();
+            },
+            onError: () => {
+                toast.error("Gagal mencatat transaksi.");
+            }
+        });
     };
 
     const handleAgentStatusChange = (tx, newStatus) => {
@@ -1203,48 +1182,6 @@ export default function Index({
                 onError: (errors) => toast.error(errors?.message || "Gagal mengubah status"),
             }
         );
-    };
-
-    const handleAgentDelete = (tx) => {
-        if (confirm(`Hapus transaksi senilai Rp ${new Intl.NumberFormat("id-ID").format(tx.nominal)}?`)) {
-            router.delete(route("agent-transactions.destroy", tx.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toast.success("Catatan transaksi berhasil dihapus");
-                    if (editingAgentTx?.id === tx.id) {
-                        handleCancelEditAgent();
-                    }
-                },
-                onError: (errors) => toast.error(errors?.message || "Gagal menghapus transaksi"),
-            });
-        }
-    };
-
-    const handleEditAgent = (tx) => {
-        clearAgentErrors();
-        setEditingAgentTx(tx);
-        setAgentData({
-            agent_transaction_type_id: tx.agent_transaction_type_id,
-            bank_account_id: tx.bank_account_id || "",
-            agent_admin_bank_id: tx.agent_admin_bank_id || "",
-            agent_admin_loket_id: tx.agent_admin_loket_id || "",
-            customer_name: tx.customer_name || "",
-            customer_phone: tx.customer_phone || "",
-            reference_number: tx.reference_number || "",
-            nominal: tx.nominal,
-            admin_fee_customer: tx.admin_fee_customer,
-            admin_fee_bank: tx.admin_fee_bank,
-            admin_fee_payment_method: tx.admin_fee_payment_method,
-            status: tx.status,
-            notes: tx.notes || "",
-        });
-        setMobileView("cart");
-    };
-
-    const handleCancelEditAgent = () => {
-        setEditingAgentTx(null);
-        resetAgent();
-        clearAgentErrors();
     };
 
     const selectedAgentType = agentTransactionTypes.find((t) => t.id === parseInt(agentData.agent_transaction_type_id));
@@ -1965,24 +1902,6 @@ export default function Index({
                                                                 >
                                                                     <IconPrinter size={16} />
                                                                 </a>
-                                                                {canEditAgent && (
-                                                                    <button
-                                                                        onClick={() => handleEditAgent(tx)}
-                                                                        className="p-1 rounded text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-950/20"
-                                                                        title="Edit Transaksi"
-                                                                    >
-                                                                        <IconPencil size={16} />
-                                                                    </button>
-                                                                )}
-                                                                {canDeleteAgent && (
-                                                                    <button
-                                                                        onClick={() => handleAgentDelete(tx)}
-                                                                        className="p-1 rounded text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-950/20"
-                                                                        title="Hapus Catatan"
-                                                                    >
-                                                                        <IconTrash size={16} />
-                                                                    </button>
-                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -2712,16 +2631,8 @@ export default function Index({
                             <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between flex-shrink-0">
                                 <h3 className="text-sm font-semibold text-slate-850 dark:text-white flex items-center gap-2">
                                     <IconBuildingBank size={18} className="text-primary-500" />
-                                    {editingAgentTx ? "Edit Pencatatan Agen" : "Catat Transaksi Agen"}
+                                    Catat Transaksi Agen
                                 </h3>
-                                {editingAgentTx && (
-                                    <button
-                                        onClick={handleCancelEditAgent}
-                                        className="text-xs font-semibold text-rose-500 hover:underline"
-                                    >
-                                        Batal Edit
-                                    </button>
-                                )}
                             </div>
 
                             {/* Form Body - Scrollable */}
@@ -2902,7 +2813,7 @@ export default function Index({
                                     ) : (
                                         <>
                                             <IconDeviceFloppy size={16} />
-                                            <span>{editingAgentTx ? "Simpan Perubahan" : "Catat Transaksi"}</span>
+                                            <span>Catat Transaksi</span>
                                             <kbd className="bg-primary-650 text-white rounded px-1.5 py-0.5 border border-primary-400 font-mono text-[9px] font-bold">F2</kbd>
                                         </>
                                     )}
