@@ -57,8 +57,8 @@ const formatPrice = (value = 0) =>
     });
 
 export default function Index({
-    carts = [],
-    carts_total = 0,
+    carts: initialCarts = [],
+    carts_total: initialCartsTotal = 0,
     heldCarts = [],
     customers = [],
     products = [],
@@ -167,6 +167,12 @@ export default function Index({
     const [addingProductId, setAddingProductId] = useState(null);
     const [removingItemId, setRemovingItemId] = useState(null);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [carts, setCarts] = useState(initialCarts);
+    const [cartsTotal, setCartsTotal] = useState(initialCartsTotal);
+    useEffect(() => {
+        setCarts(initialCarts);
+        setCartsTotal(initialCartsTotal);
+    }, [initialCarts, initialCartsTotal]);
     const [pricingPreview, setPricingPreview] = useState(initialPricingPreview);
     const [isLoadingPricing, setIsLoadingPricing] = useState(false);
     const [discountInput, setDiscountInput] = useState("");
@@ -383,8 +389,8 @@ export default function Index({
         [shippingInput]
     );
     const baseSubtotal = useMemo(
-        () => Number(pricingPreview?.summary?.base_subtotal ?? carts_total ?? 0),
-        [pricingPreview, carts_total]
+        () => Number(pricingPreview?.summary?.base_subtotal ?? cartsTotal ?? 0),
+        [pricingPreview, cartsTotal]
     );
     const promoDiscount = useMemo(
         () => Number(pricingPreview?.summary?.promo_discount_total ?? 0),
@@ -514,6 +520,13 @@ export default function Index({
         });
     };
 
+    // Apply a cart-mutation JSON response ({carts, carts_total, pricingPreview}) to local state
+    const applyCartResponse = (data) => {
+        setCarts(data.carts);
+        setCartsTotal(data.carts_total);
+        setPricingPreview(data.pricingPreview);
+    };
+
     // Handle add product to cart
     const handleAddToCart = async (item, qty = 1, satuanKey = "pcs", discount = 0) => {
         if (!item?.id) return;
@@ -524,25 +537,20 @@ export default function Index({
             ? { service_id: item.id, qty, satuan_key: satuanKey, discount }
             : { product_id: item.id, sell_price: item.sell_price, qty, satuan_key: satuanKey, discount };
 
-        router.post(
-            route("transactions.addToCart"),
-            payload,
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toast.success(`${item.title} ditambahkan`);
-                    setAddingProductId(null);
-                    setSelectedItemForCart(null);
-                    setSearchQuery("");
-                    focusSearchInput();
-                },
-                onError: () => {
-                    toast.error("Gagal menambahkan item");
-                    setAddingProductId(null);
-                    focusSearchInput();
-                },
-            }
-        );
+        axios
+            .post(route("transactions.addToCart"), payload)
+            .then((res) => {
+                applyCartResponse(res.data);
+                toast.success(`${item.title} ditambahkan`);
+                setSelectedItemForCart(null);
+                setSearchQuery("");
+                focusSearchInput();
+            })
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Gagal menambahkan item");
+                focusSearchInput();
+            })
+            .finally(() => setAddingProductId(null));
     };
 
     // Handle update cart quantity
@@ -552,54 +560,37 @@ export default function Index({
         if (newQty < 1) return;
         setUpdatingCartId(cartId);
 
-        router.patch(
-            route("transactions.updateCart", cartId),
-            { qty: newQty },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setUpdatingCartId(null);
-                },
-                onError: (errors) => {
-                    toast.error(errors?.message || "Gagal update quantity");
-                    setUpdatingCartId(null);
-                },
-            }
-        );
+        axios
+            .patch(route("transactions.updateCart", cartId), { qty: newQty })
+            .then((res) => applyCartResponse(res.data))
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Gagal update quantity");
+            })
+            .finally(() => setUpdatingCartId(null));
     };
 
     const handleRemoveFromCart = (cartId) => {
         setRemovingItemId(cartId);
 
-        router.delete(route("transactions.destroyCart", cartId), {
-            preserveScroll: true,
-            onSuccess: () => {
-                setRemovingItemId(null);
-            },
-            onError: (errors) => {
-                toast.error(errors?.message || "Gagal menghapus item");
-                setRemovingItemId(null);
-            },
-        });
+        axios
+            .delete(route("transactions.destroyCart", cartId))
+            .then((res) => applyCartResponse(res.data))
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Gagal menghapus item");
+            })
+            .finally(() => setRemovingItemId(null));
     };
 
     const handleUpdateUnit = (cartId, newSatuanKey) => {
         setUpdatingCartId(cartId);
 
-        router.patch(
-            route("transactions.updateCart", cartId),
-            { satuan_key: newSatuanKey },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setUpdatingCartId(null);
-                },
-                onError: (errors) => {
-                    toast.error(errors?.message || "Gagal update satuan");
-                    setUpdatingCartId(null);
-                },
-            }
-        );
+        axios
+            .patch(route("transactions.updateCart", cartId), { satuan_key: newSatuanKey })
+            .then((res) => applyCartResponse(res.data))
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Gagal update satuan");
+            })
+            .finally(() => setUpdatingCartId(null));
     };
 
     // Handle numpad confirm for cash input
@@ -638,15 +629,15 @@ export default function Index({
     // Handle clear entire cart
     const handleClearCart = () => {
         if (confirm("Kosongkan semua item di keranjang belanja?")) {
-            router.post(route("transactions.clear"), {}, {
-                preserveScroll: true,
-                onSuccess: () => {
+            axios
+                .post(route("transactions.clear"), {})
+                .then((res) => {
+                    applyCartResponse(res.data);
                     toast.success("Keranjang belanja dikosongkan");
-                },
-                onError: () => {
+                })
+                .catch(() => {
                     toast.error("Gagal mengosongkan keranjang");
-                }
-            });
+                });
         }
     };
 

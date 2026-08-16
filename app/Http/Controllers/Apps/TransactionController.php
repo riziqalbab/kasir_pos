@@ -303,6 +303,28 @@ class TransactionController extends Controller
     }
 
     /**
+     * Build a lightweight JSON payload (cart items + total + pricing preview)
+     * used by cart-mutation endpoints instead of a full Inertia page reload.
+     */
+    private function cartResponse(int $status = 200)
+    {
+        $carts = Cart::with(['product', 'service.servicePrices.unit'])
+            ->where('cashier_id', auth()->id())
+            ->active()
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'carts' => $carts,
+            'carts_total' => $carts->sum('price'),
+            'pricingPreview' => $this->previewCheckout(
+                $this->pricingService->previewCart($carts, null)
+            ),
+        ], $status);
+    }
+
+    /**
      * addToCart
      *
      * @param  mixed  $request
@@ -313,14 +335,14 @@ class TransactionController extends Controller
         if ($request->has('service_id')) {
             $service = Service::find($request->service_id);
             if (! $service) {
-                return redirect()->back()->with('error', 'Jasa tidak ditemukan.');
+                return response()->json(['success' => false, 'message' => 'Jasa tidak ditemukan.'], 422);
             }
 
             $unitId = $request->input('satuan_key');
             if (! $unitId) {
                 $firstPrice = $service->servicePrices()->first();
                 if (! $firstPrice) {
-                    return redirect()->back()->with('error', 'Jasa ini belum memiliki konfigurasi harga.');
+                    return response()->json(['success' => false, 'message' => 'Jasa ini belum memiliki konfigurasi harga.'], 422);
                 }
                 $unitId = $firstPrice->unit_id;
             }
@@ -331,7 +353,7 @@ class TransactionController extends Controller
                 ->first();
 
             if (! $servicePrice) {
-                return redirect()->back()->with('error', 'Satuan jasa tidak valid.');
+                return response()->json(['success' => false, 'message' => 'Satuan jasa tidak valid.'], 422);
             }
 
             $cart = Cart::where('service_id', $service->id)
@@ -359,7 +381,7 @@ class TransactionController extends Controller
                 ]);
             }
 
-            return redirect()->route('transactions.index')->with('success', 'Jasa berhasil ditambahkan ke keranjang.');
+            return $this->cartResponse();
         }
 
         // Cari produk berdasarkan ID yang diberikan
@@ -367,7 +389,7 @@ class TransactionController extends Controller
 
         // Jika produk tidak ditemukan, redirect dengan pesan error
         if (! $product) {
-            return redirect()->back()->with('error', 'Product not found.');
+            return response()->json(['success' => false, 'message' => 'Product not found.'], 422);
         }
 
         $qty = (int) $request->input('qty', 1);
@@ -401,7 +423,7 @@ class TransactionController extends Controller
 
         // Cek stok produk
         if ($product->stock < $totalCartBaseQty) {
-            return redirect()->back()->with('error', 'Stok tidak mencukupi.');
+            return response()->json(['success' => false, 'message' => 'Stok tidak mencukupi.'], 422);
         }
 
         // Cek keranjang
@@ -433,7 +455,7 @@ class TransactionController extends Controller
             ]);
         }
 
-        return redirect()->route('transactions.index')->with('success', 'Product Added Successfully!.');
+        return $this->cartResponse();
     }
 
     /**
@@ -449,18 +471,15 @@ class TransactionController extends Controller
         if ($cart) {
             $cart->delete();
 
-            return back();
+            return $this->cartResponse();
         } else {
-            // Handle case where no cart is found (e.g., redirect with error message)
-            return back()->withErrors(['message' => 'Cart not found']);
+            return response()->json(['success' => false, 'message' => 'Cart not found'], 404);
         }
 
     }
 
     /**
      * clearCart - Clear all active items in the cart
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function clearCart()
     {
@@ -470,7 +489,7 @@ class TransactionController extends Controller
             ->active()
             ->delete();
 
-        return back()->with('success', 'Keranjang berhasil dikosongkan.');
+        return $this->cartResponse();
     }
 
     /**
@@ -531,7 +550,7 @@ class TransactionController extends Controller
             $cart->price = $servicePrice->price * $newQty;
             $cart->save();
 
-            return back()->with('success', 'Cart updated successfully');
+            return $this->cartResponse();
         }
 
         $newSatuanKey = $request->input('satuan_key', $cart->satuan_key ?: 'pcs');
@@ -578,7 +597,7 @@ class TransactionController extends Controller
         $cart->price = $newSellPrice * $newQty;
         $cart->save();
 
-        return back()->with('success', 'Cart updated successfully');
+        return $this->cartResponse();
     }
 
     /**

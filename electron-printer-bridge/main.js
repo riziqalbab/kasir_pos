@@ -197,12 +197,27 @@ function buildReceiptBuffer(data, paperSize) {
   return builder.getBuffer();
 }
 
+// Estimate printed content length so pageSize height isn't left to the driver default
+function estimateReceiptHeightMm(data) {
+  const tx = data.transaction || {};
+  const items = tx.details || tx.items || [];
+  let mm = 45; // header + meta + dividers + summary + footer baseline
+  items.forEach(item => {
+    mm += 10; // item name line + qty/price line
+    if (item.discount_total && Number(item.discount_total) > 0) mm += 5;
+  });
+  if (tx.discount && Number(tx.discount) > 0) mm += 6;
+  if (tx.shipping_cost && Number(tx.shipping_cost) > 0) mm += 6;
+  return mm + 20; // buffer
+}
+
 // Generate Receipt HTML content for Native print engine
-function buildReceiptHtml(data, paperSize) {
+function buildReceiptHtml(data, paperSize, heightMm) {
   const store = data.store || {};
   const tx = data.transaction || {};
   const items = tx.details || tx.items || [];
   const widthClass = paperSize === '58mm' ? 'width-58' : 'width-80';
+  const pageWidthMm = paperSize === '58mm' ? 58 : 80;
 
   const formatPrice = (val) => Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 0 });
 
@@ -234,23 +249,23 @@ function buildReceiptHtml(data, paperSize) {
       <meta charset="utf-8">
       <style>
         @page {
+          size: ${pageWidthMm}mm ${heightMm}mm;
           margin: 0;
         }
         body {
+          width: ${pageWidthMm}mm;
           font-family: 'Courier New', Courier, monospace;
-          font-size: 12px;
+          font-size: ${paperSize === '58mm' ? '12px' : '13px'};
           line-height: 1.4;
           color: #000;
           margin: 0;
-          padding: 8px;
+          padding: 0 3mm;
+          box-sizing: border-box;
           background: #fff;
           -webkit-print-color-adjust: exact;
         }
-        .width-58 {
-          width: 200px; /* Approximately 58mm width */
-        }
-        .width-80 {
-          width: 280px; /* Approximately 80mm width */
+        .width-58, .width-80 {
+          width: 100%;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -350,7 +365,8 @@ async function executePrintJob(data) {
   if (config.engine === 'native') {
     // 1. NATIVE HTML PRINTING
     const printerName = config.systemPrinterName;
-    const htmlContent = buildReceiptHtml(data, paperSize);
+    const heightMm = estimateReceiptHeightMm(data);
+    const htmlContent = buildReceiptHtml(data, paperSize, heightMm);
 
     // Create background window
     let printWin = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false } });
@@ -362,7 +378,12 @@ async function executePrintJob(data) {
           silent: true,
           printBackground: true,
           deviceName: printerName,
-          margins: { marginType: 'none' }
+          margins: { marginType: 'none' },
+          // Force exact paper size instead of relying on driver default (was causing shrink-to-fit on 80mm rolls)
+          pageSize: {
+            width: (paperSize === '58mm' ? 58 : 80) * 1000,
+            height: heightMm * 1000
+          }
         };
         printWin.webContents.print(printOptions, (success, errorType) => {
           printWin.destroy();
