@@ -379,11 +379,9 @@ async function executePrintJob(data) {
           printBackground: true,
           deviceName: printerName,
           margins: { marginType: 'none' },
-          // Force exact paper size instead of relying on driver default (was causing shrink-to-fit on 80mm rolls)
-          pageSize: {
-            width: (paperSize === '58mm' ? 58 : 80) * 1000,
-            height: heightMm * 1000
-          }
+          // Custom pageSize removed: many generic thermal printer drivers (e.g. "58mm/80mm Series Printer")
+          // don't support arbitrary custom page sizes via Chromium print and output blank pages when forced.
+          // Rely on the printer driver's own configured roll-width default instead.
         };
         printWin.webContents.print(printOptions, (success, errorType) => {
           printWin.destroy();
