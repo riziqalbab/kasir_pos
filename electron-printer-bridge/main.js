@@ -5,7 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const net = require('net');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 let mainWindow = null;
 let appTray = null;
@@ -93,6 +93,87 @@ class EscPosBuilder {
     return Buffer.from(this.buffer);
   }
 }
+
+// PowerShell script: sends raw bytes to a Windows printer queue via the Win32 WritePrinter API
+// (RAW datatype), bypassing GDI/driver text formatting entirely. Out-Printer is intentionally
+// NOT used here — see the comment at its call site in executePrintJob().
+const RAW_PRINTER_PS1 = `
+param(
+  [Parameter(Mandatory=$true)][string]$PrinterName,
+  [Parameter(Mandatory=$true)][string]$FilePath
+)
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class RawPrinterHelper {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class DOCINFOA {
+        [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+        [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+        [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+    }
+
+    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+
+    [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+
+    [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
+
+    public static bool SendBytesToPrinter(string printerName, byte[] bytes) {
+        IntPtr hPrinter;
+        DOCINFOA di = new DOCINFOA();
+        di.pDocName = "Receipt Raw Print";
+        di.pDataType = "RAW";
+        bool success = false;
+
+        if (!OpenPrinter(printerName, out hPrinter, IntPtr.Zero)) return false;
+        try {
+            if (!StartDocPrinter(hPrinter, 1, di)) return false;
+            try {
+                if (!StartPagePrinter(hPrinter)) return false;
+                try {
+                    IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
+                    Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
+                    int written;
+                    success = WritePrinter(hPrinter, pUnmanagedBytes, bytes.Length, out written);
+                    Marshal.FreeCoTaskMem(pUnmanagedBytes);
+                } finally {
+                    EndPagePrinter(hPrinter);
+                }
+            } finally {
+                EndDocPrinter(hPrinter);
+            }
+        } finally {
+            ClosePrinter(hPrinter);
+        }
+        return success;
+    }
+}
+"@
+
+$bytes = [System.IO.File]::ReadAllBytes($FilePath)
+$ok = [RawPrinterHelper]::SendBytesToPrinter($PrinterName, $bytes)
+if (-not $ok) {
+    throw "WritePrinter failed (Win32 error $([System.Runtime.InteropServices.Marshal]::GetLastWin32Error()))"
+}
+`;
 
 // Generate ESC/POS Binary buffer from print payload
 function buildReceiptBuffer(data, paperSize) {
@@ -429,37 +510,47 @@ async function executePrintJob(data) {
     } else {
       // System raw spooling bypass (OS USB queue)
       // Save buffer to a temp file and send via OS specific raw command
+      if (!config.systemPrinterName) {
+        return Promise.reject(new Error('System printer name is not configured for raw USB printing'));
+      }
+
       const tempFilePath = path.join(app.getPath('temp'), `receipt_${Date.now()}.bin`);
       fs.writeFileSync(tempFilePath, buffer);
 
       return new Promise((resolve, reject) => {
-        let command = '';
-        if (process.platform === 'win32') {
-          // Windows Raw Spooling via copy or PowerShell
-          // If printer system name is not empty, send raw print job
-          if (!config.systemPrinterName) {
-            return reject(new Error('System printer name is not configured for raw USB printing'));
-          }
-          // Using raw print command
-          command = `powershell -Command "Get-Content -Path '${tempFilePath}' -Raw -Encoding Byte | Out-Printer -Name '${config.systemPrinterName}'"`;
-        } else {
-          // macOS & Linux raw print (CUPS lpr command bypasses standard page formatting with -o raw)
-          if (!config.systemPrinterName) {
-            return reject(new Error('System printer name is not configured for raw USB printing'));
-          }
-          command = `lpr -P "${config.systemPrinterName}" -o raw "${tempFilePath}"`;
-        }
-
-        exec(command, (error, stdout, stderr) => {
-          // Clean up temp file
+        const cleanupAndSettle = (error, stderr) => {
           try { fs.unlinkSync(tempFilePath); } catch (e) {}
-
           if (error) {
             reject(new Error(`Raw print command error: ${stderr || error.message}`));
           } else {
             resolve({ success: true, message: `Raw ESC/POS sent to OS printer queue: ${config.systemPrinterName}` });
           }
-        });
+        };
+
+        if (process.platform === 'win32') {
+          // Send bytes straight to the printer via the Win32 WritePrinter API (RAW datatype).
+          // Do NOT use PowerShell's Out-Printer here: it formats input as text through Out-LineOutput,
+          // which needs a real console window size and throws "Length cannot be less than zero" when
+          // run headless (as spawned by Electron) — and it isn't a true raw byte passthrough anyway.
+          const psScriptPath = path.join(app.getPath('temp'), `rawprint_${Date.now()}.ps1`);
+          fs.writeFileSync(psScriptPath, RAW_PRINTER_PS1);
+
+          execFile('powershell', [
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', psScriptPath,
+            '-PrinterName', config.systemPrinterName,
+            '-FilePath', tempFilePath,
+          ], (error, stdout, stderr) => {
+            try { fs.unlinkSync(psScriptPath); } catch (e) {}
+            cleanupAndSettle(error, stderr);
+          });
+        } else {
+          // macOS & Linux raw print (CUPS lpr bypasses standard page formatting with -o raw)
+          execFile('lpr', ['-P', config.systemPrinterName, '-o', 'raw', tempFilePath], (error, stdout, stderr) => {
+            cleanupAndSettle(error, stderr);
+          });
+        }
       });
     }
   }
