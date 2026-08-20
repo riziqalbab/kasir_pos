@@ -23,7 +23,12 @@ import PrinterBridgeSettingsModal from "@/Components/POS/PrinterBridgeSettingsMo
 export default function Print({ transaction }) {
     const { storeProfile } = usePage().props;
     const { can } = useAuthorization();
-    const [printMode, setPrintMode] = useState("invoice"); // 'invoice' | 'thermal80' | 'thermal58'
+    const [printMode, setPrintMode] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("preferred_format") || "thermal80";
+        }
+        return "thermal80";
+    }); // 'invoice' | 'thermal80' | 'thermal58' | 'shipping'
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
     const canConfirmPayment = can("transactions-confirm-payment");
