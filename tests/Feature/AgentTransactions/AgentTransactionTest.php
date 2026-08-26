@@ -611,6 +611,79 @@ class AgentTransactionTest extends TestCase
         $this->assertSame(50000, $summary['agent_cash_out_total']);
     }
 
+    public function test_agent_transactions_index_filters_by_active_shift_by_default(): void
+    {
+        $cashier = $this->createUserWithPermissions([
+            'agent-transactions-access',
+            'agent-transactions-create',
+            'cashier-shifts-access',
+        ]);
+
+        $type = AgentTransactionType::create([
+            'code' => '001',
+            'name' => 'Trasfer',
+            'type' => 'debet',
+        ]);
+
+        // Old closed shift
+        $oldShift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now()->subDay(),
+            'closed_at' => now()->subDay()->addHours(8),
+            'opening_cash' => 50000,
+            'expected_cash' => 50000,
+            'status' => CashierShift::STATUS_CLOSED,
+        ]);
+
+        $oldTx = AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $oldShift->id,
+            'agent_transaction_type_id' => $type->id,
+            'nominal' => 100000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 0,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+            'transaction_date' => now()->subDay(),
+        ]);
+
+        // New active shift
+        $newShift = CashierShift::create([
+            'user_id' => $cashier->id,
+            'opened_by' => $cashier->id,
+            'opened_at' => now(),
+            'opening_cash' => 100000,
+            'expected_cash' => 100000,
+            'status' => CashierShift::STATUS_OPEN,
+        ]);
+
+        $newTx = AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $newShift->id,
+            'agent_transaction_type_id' => $type->id,
+            'nominal' => 50000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 0,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+            'transaction_date' => now(),
+        ]);
+
+        // By default (active shift), only newTx should be listed
+        $res = $this->actingAs($cashier)->get(route('agent-transactions.index'));
+        $res->assertOk();
+        $transactions = $res->viewData('page')['props']['transactions']['data'];
+        $this->assertCount(1, $transactions);
+        $this->assertEquals($newTx->id, $transactions[0]['id']);
+
+        // When requesting all history
+        $resAll = $this->actingAs($cashier)->get(route('agent-transactions.index', ['shift_filter' => 'all']));
+        $resAll->assertOk();
+        $allTransactions = $resAll->viewData('page')['props']['transactions']['data'];
+        $this->assertCount(2, $allTransactions);
+    }
+
     private function createUserWithPermissions(array $permissions): User
     {
         $user = User::factory()->create();

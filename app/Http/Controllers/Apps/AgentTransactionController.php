@@ -26,6 +26,8 @@ class AgentTransactionController extends Controller
         $userId = $request->user()->id;
         $activeShift = $this->cashierShiftService->getActiveShiftForUser($userId);
 
+        $shiftFilter = $request->input('shift_filter', $activeShift ? 'current' : 'all');
+
         $filters = [
             'search' => $request->input('search'),
             'start_date' => $request->input('start_date'),
@@ -33,11 +35,22 @@ class AgentTransactionController extends Controller
             'type_id' => $request->input('type_id'),
             'bank_account_id' => $request->input('bank_account_id'),
             'status' => $request->input('status'),
+            'shift_filter' => $shiftFilter,
         ];
 
         // build query
         $query = AgentTransaction::query()
             ->with(['agentTransactionType', 'bankAccount', 'cashier:id,name', 'agentAdminBank', 'agentAdminLoket'])
+            ->when($shiftFilter === 'current', function ($query) use ($activeShift) {
+                if ($activeShift) {
+                    $query->where('cashier_shift_id', $activeShift->id);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            })
+            ->when($shiftFilter !== 'current' && ! $request->user()->isSuperAdmin(), function ($query) use ($userId) {
+                $query->where('cashier_id', $userId);
+            })
             ->when($filters['search'], function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('customer_name', 'like', "%{$search}%")

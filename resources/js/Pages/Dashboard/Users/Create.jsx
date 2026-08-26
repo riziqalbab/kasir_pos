@@ -1,19 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { Head, usePage, useForm, Link } from "@inertiajs/react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import {
     IconUserPlus,
     IconDeviceFloppy,
     IconArrowLeft,
-    IconShield,
 } from "@tabler/icons-react";
 import Input from "@/Components/Dashboard/Input";
-import Checkbox from "@/Components/Dashboard/Checkbox";
+import PermissionSelector from "@/Components/Dashboard/PermissionSelector";
 import toast from "react-hot-toast";
-import { useState } from "react";
 
 export default function Create() {
-    const { roles } = usePage().props;
+    const { roles = [], permissions = [] } = usePage().props;
 
     const { data, setData, post, errors, processing } = useForm({
         name: "",
@@ -21,20 +19,11 @@ export default function Create() {
         password: "",
         password_confirmation: "",
         selectedRoles: [],
+        selectedPermissions: [],
         avatar: null,
     });
 
     const [avatarPreview, setAvatarPreview] = useState(null);
-
-    const setSelectedRoles = (e) => {
-        let items = [...data.selectedRoles];
-        if (items.includes(e.target.value)) {
-            items = items.filter((name) => name !== e.target.value);
-        } else {
-            items.push(e.target.value);
-        }
-        setData("selectedRoles", items);
-    };
 
     const submit = (e) => {
         e.preventDefault();
@@ -51,7 +40,7 @@ export default function Create() {
             <div className="mb-6">
                 <Link
                     href={route("users.index")}
-                    className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3"
+                    className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3 transition-colors"
                 >
                     <IconArrowLeft size={16} />
                     Kembali ke Pengguna
@@ -63,7 +52,7 @@ export default function Create() {
             </div>
 
             <form onSubmit={submit}>
-                <div className="max-w-2xl space-y-6">
+                <div className="max-w-4xl space-y-6">
                     {/* Account Info */}
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
                         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
@@ -154,41 +143,18 @@ export default function Create() {
                         </div>
                     </div>
 
-                    {/* Roles */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                            <IconShield size={16} />
-                            Akses Group
-                        </h3>
-                        <div className="flex flex-wrap gap-4">
-                            {roles.map((role, i) => (
-                                <label
-                                    key={i}
-                                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
-                                        data.selectedRoles.includes(role.name)
-                                            ? "border-primary-500 bg-primary-50 dark:bg-primary-950/50"
-                                            : "border-slate-200 dark:border-slate-700 hover:border-primary-300"
-                                    }`}
-                                >
-                                    <Checkbox
-                                        value={role.name}
-                                        onChange={setSelectedRoles}
-                                        checked={data.selectedRoles.includes(
-                                            role.name
-                                        )}
-                                    />
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">
-                                        {role.name}
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-                        {errors.selectedRoles && (
-                            <p className="text-xs text-danger-500 mt-3">
-                                {errors.selectedRoles}
-                            </p>
-                        )}
-                    </div>
+                    {/* Permissions & Roles Selector */}
+                    <PermissionSelector
+                        roles={roles}
+                        permissions={permissions}
+                        selectedRoles={data.selectedRoles}
+                        selectedPermissions={data.selectedPermissions}
+                        onRolesChange={(roles) => setData("selectedRoles", roles)}
+                        onPermissionsChange={(perms) =>
+                            setData("selectedPermissions", perms)
+                        }
+                        error={errors.selectedRoles || errors.selectedPermissions}
+                    />
 
                     {/* Submit */}
                     <div className="flex justify-end gap-3">

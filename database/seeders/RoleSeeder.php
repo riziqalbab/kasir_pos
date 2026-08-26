@@ -49,12 +49,13 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('services-access', '%services%');
         $this->createRoleWithPermissions('point-prizes-access', '%point-prizes%');
         $this->createRoleWithPermissions('point-redemptions-access', '%point-redemptions%');
+        $this->createRoleWithPermissions('settings-access', '%settings%');
         $this->createRoleWithPermissions('backups-access', '%backups%');
 
         $superAdminRole = Role::firstOrCreate(['name' => 'super-admin']);
         $superAdminRole->syncPermissions(Permission::all());
 
-        // Create cashier role with basic permissions for public registration
+        // Create cashier role with basic permissions for public registration & cashier staff
         $cashierRole = Role::firstOrCreate(['name' => 'cashier']);
         $cashierPermissions = Permission::whereIn('name', [
             'dashboard-access',
@@ -64,19 +65,10 @@ class RoleSeeder extends Seeder
             'cashier-shifts-close',
             'customers-access',
             'customers-create',
-            'receivables-access',
-            'receivables-pay',
-            'payables-access',
-            'payables-pay',
-            'suppliers-access',
-            'agent-transactions-access',
-            'agent-transactions-create',
-            'agent-transactions-edit',
-            'agent-transactions-delete',
-            'agent-admin-banks-access',
-            'agent-admin-lokets-access',
             'point-redemptions-access',
             'point-redemptions-create',
+            'agent-transactions-access',
+            'agent-transactions-create',
         ])->get();
         $cashierRole->syncPermissions($cashierPermissions);
 

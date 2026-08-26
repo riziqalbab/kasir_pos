@@ -207,12 +207,12 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/documents/purchase-orders/{purchaseOrder}/pdf', [\App\Http\Controllers\DocumentController::class, 'purchaseOrder'])->middleware('permission:purchase-orders-access')->name('pdf.purchase-orders.show');
 
     // settings target penjualan
-    Route::get('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'target'])->middleware('permission:dashboard-access')->name('settings.target');
-    Route::post('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'updateTarget'])->middleware('permission:dashboard-access')->name('settings.target.update');
-    Route::get('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'storeProfile'])->middleware('permission:dashboard-access')->name('settings.store');
-    Route::post('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'updateStoreProfile'])->middleware('permission:dashboard-access')->name('settings.store.update');
-    Route::get('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'loyalty'])->middleware('permission:dashboard-access')->name('settings.loyalty');
-    Route::post('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'updateLoyalty'])->middleware('permission:dashboard-access')->name('settings.loyalty.update');
+    Route::get('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'target'])->middleware('permission:settings-access')->name('settings.target');
+    Route::post('/settings/target', [\App\Http\Controllers\Apps\SettingController::class, 'updateTarget'])->middleware('permission:settings-access')->name('settings.target.update');
+    Route::get('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'storeProfile'])->middleware('permission:settings-access')->name('settings.store');
+    Route::post('/settings/store', [\App\Http\Controllers\Apps\SettingController::class, 'updateStoreProfile'])->middleware('permission:settings-access')->name('settings.store.update');
+    Route::get('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'loyalty'])->middleware('permission:settings-access')->name('settings.loyalty');
+    Route::post('/settings/loyalty', [\App\Http\Controllers\Apps\SettingController::class, 'updateLoyalty'])->middleware('permission:settings-access')->name('settings.loyalty.update');
 
     // settings bank accounts
     Route::get('/settings/bank-accounts', [\App\Http\Controllers\Apps\BankAccountController::class, 'index'])->middleware('permission:payment-settings-access')->name('settings.bank-accounts.index');

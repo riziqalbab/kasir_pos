@@ -86,4 +86,68 @@ class UserManagementTest extends TestCase
             'password' => 'kasirpassword123',
         ]));
     }
+
+    public function test_admin_can_create_user_with_granular_direct_permissions(): void
+    {
+        Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'products-create', 'guard_name' => 'web']);
+
+        $admin = User::factory()->create([
+            'password' => 'adminpassword',
+        ]);
+        $admin->givePermissionTo(['users-access', 'users-create']);
+
+        // Set session password confirmed
+        $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->post(route('users.store'), [
+                'name' => 'Staff Produk',
+                'email' => 'produk@example.com',
+                'password' => 'staffpassword123',
+                'password_confirmation' => 'staffpassword123',
+                'selectedRoles' => [],
+                'selectedPermissions' => ['products-access', 'products-create'],
+            ])
+            ->assertRedirect(route('users.index'));
+
+        $user = User::where('email', 'produk@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertTrue($user->hasPermissionTo('products-access'));
+        $this->assertTrue($user->hasPermissionTo('products-create'));
+        $this->assertFalse($user->hasPermissionTo('users-access'));
+
+        $perms = $user->getPermissions();
+        $this->assertTrue($perms['products-access'] ?? false);
+        $this->assertTrue($perms['products-create'] ?? false);
+        $this->assertArrayNotHasKey('users-access', $perms);
+    }
+
+    public function test_admin_can_update_user_roles_and_permissions(): void
+    {
+        Permission::firstOrCreate(['name' => 'categories-access', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']);
+
+        $admin = User::factory()->create();
+        $admin->givePermissionTo(['users-access', 'users-update']);
+
+        $targetUser = User::factory()->create([
+            'email' => 'target@example.com',
+        ]);
+        $targetUser->givePermissionTo('categories-access');
+
+        $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->put(route('users.update', $targetUser->id), [
+                'name' => 'Target Updated',
+                'email' => 'target@example.com',
+                'selectedRoles' => ['cashier'],
+                'selectedPermissions' => ['products-access'],
+            ])
+            ->assertRedirect(route('users.index'));
+
+        $fresh = $targetUser->fresh();
+        $this->assertTrue($fresh->hasRole('cashier'));
+        $this->assertTrue($fresh->hasPermissionTo('products-access'));
+        $this->assertFalse($fresh->hasDirectPermission('categories-access'));
+    }
 }

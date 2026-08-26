@@ -50,6 +50,7 @@ export default function Index({
     const [typeId, setTypeId] = useState(filters.type_id || "");
     const [bankAccountId, setBankAccountId] = useState(filters.bank_account_id || "");
     const [statusFilter, setStatusFilter] = useState(filters.status || "");
+    const [shiftFilter, setShiftFilter] = useState(filters.shift_filter || (activeCashierShift ? "current" : "all"));
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         agent_transaction_type_id: "",
@@ -84,6 +85,7 @@ export default function Index({
                 type_id: typeId,
                 bank_account_id: bankAccountId,
                 status: statusFilter,
+                shift_filter: shiftFilter,
             },
             { preserveState: true }
         );
@@ -97,7 +99,9 @@ export default function Index({
         setTypeId("");
         setBankAccountId("");
         setStatusFilter("");
-        router.get(route("agent-transactions.index"), {}, { preserveState: true });
+        const defaultShift = activeCashierShift ? "current" : "all";
+        setShiftFilter(defaultShift);
+        router.get(route("agent-transactions.index"), { shift_filter: defaultShift }, { preserveState: true });
     };
 
     // Open add modal
@@ -324,12 +328,71 @@ export default function Index({
                 </div>
             </div>
 
-            {/* Filter Panel */}
-            <div className="mb-6 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                    <IconSearch size={16} />
-                    Pencarian & Filter
-                </h3>
+            {/* Shift Filter & Search Panel */}
+            <div className="mb-6 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <IconSearch size={16} />
+                        Pencarian & Filter Transaksi
+                    </h3>
+                    
+                    {/* Shift Tabs */}
+                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShiftFilter("current");
+                                router.get(
+                                    route("agent-transactions.index"),
+                                    {
+                                        search,
+                                        start_date: startDate,
+                                        end_date: endDate,
+                                        type_id: typeId,
+                                        bank_account_id: bankAccountId,
+                                        status: statusFilter,
+                                        shift_filter: "current",
+                                    },
+                                    { preserveState: true }
+                                );
+                            }}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                shiftFilter === "current"
+                                    ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                        >
+                            Shift Saat Ini {activeCashierShift ? "(Aktif)" : ""}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShiftFilter("all");
+                                router.get(
+                                    route("agent-transactions.index"),
+                                    {
+                                        search,
+                                        start_date: startDate,
+                                        end_date: endDate,
+                                        type_id: typeId,
+                                        bank_account_id: bankAccountId,
+                                        status: statusFilter,
+                                        shift_filter: "all",
+                                    },
+                                    { preserveState: true }
+                                );
+                            }}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                shiftFilter === "all"
+                                    ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                        >
+                            Semua Riwayat
+                        </button>
+                    </div>
+                </div>
+
                 <form onSubmit={handleFilterSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                         {/* Search Input */}

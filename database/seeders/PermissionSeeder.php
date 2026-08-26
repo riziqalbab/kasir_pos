@@ -150,6 +150,10 @@ class PermissionSeeder extends Seeder
         $create('point-redemptions-access');
         $create('point-redemptions-create');
 
+        // settings
+        $create('settings-access');
+        $create('settings-edit');
+
         // backup & restore
         $create('backups-access');
         $create('backups-create');

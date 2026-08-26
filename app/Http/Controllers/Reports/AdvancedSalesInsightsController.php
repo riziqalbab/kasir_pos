@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Http\Controllers\Controller;
 use App\Exports\ArraySheetExport;
 use App\Exports\MultiSheetExport;
+use App\Http\Controllers\Controller;
 use App\Models\AgentTransaction;
 use App\Models\Category;
 use App\Models\Customer;

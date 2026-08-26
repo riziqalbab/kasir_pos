@@ -8,7 +8,9 @@ use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
@@ -23,7 +25,7 @@ class UserController extends Controller
     {
         // get all users data
         $users = User::query()
-            ->with('roles')
+            ->with(['roles', 'permissions'])
             ->when(request()->search, fn ($query) => $query->where('name', 'like', '%'.request()->search.'%'))
             ->select('id', 'name', 'avatar', 'email')
             ->latest()
@@ -47,9 +49,16 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
+        // get all permission data
+        $permissions = Permission::query()
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         // render view
         return Inertia::render('Dashboard/Users/Create', [
             'roles' => $roles,
+            'permissions' => $permissions,
         ]);
     }
 
@@ -72,8 +81,16 @@ class UserController extends Controller
             'avatar' => $avatarPath,
         ]);
 
-        // assign role to user
-        $user->assignRole($request->selectedRoles);
+        // assign roles & direct permissions to user
+        if ($request->filled('selectedRoles')) {
+            $user->assignRole($request->selectedRoles);
+        }
+
+        if ($request->filled('selectedPermissions')) {
+            $user->givePermissionTo($request->selectedPermissions);
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->auditLogService->log(
             event: 'user.created',
@@ -82,7 +99,7 @@ class UserController extends Controller
             description: 'Pengguna baru dibuat.',
             after: $this->userPayload(
                 $user,
-                $this->auditLogService->roleNames($request->selectedRoles),
+                $this->auditLogService->roleNames($request->selectedRoles ?? []),
                 $avatarPath !== null
             ),
         );
@@ -102,12 +119,23 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
+        // get all permission data
+        $permissions = Permission::query()
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         // load relationship
-        $user->load(['roles' => fn ($query) => $query->select('id', 'name'), 'roles.permissions' => fn ($query) => $query->select('id', 'name')]);
+        $user->load([
+            'roles' => fn ($query) => $query->select('id', 'name'),
+            'roles.permissions' => fn ($query) => $query->select('id', 'name'),
+            'permissions' => fn ($query) => $query->select('id', 'name'),
+        ]);
 
         // render view
         return Inertia::render('Dashboard/Users/Edit', [
             'roles' => $roles,
+            'permissions' => $permissions,
             'user' => $user,
         ]);
     }
@@ -146,10 +174,13 @@ class UserController extends Controller
             'avatar' => $avatarPath,
         ]);
 
-        // assign role to user
-        $user->syncRoles($request->selectedRoles);
+        // sync roles and direct permissions
+        $user->syncRoles($request->selectedRoles ?? []);
+        $user->syncPermissions($request->selectedPermissions ?? []);
 
-        $afterRoles = $this->auditLogService->roleNames($request->selectedRoles);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $afterRoles = $this->auditLogService->roleNames($request->selectedRoles ?? []);
         $after = $this->userPayload($user->fresh(), $afterRoles, $avatarChanged);
 
         $this->auditLogService->log(

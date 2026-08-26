@@ -30,8 +30,22 @@ class UserRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$isCreate ? 'required' : 'nullable', 'string', 'min:8', 'confirmed'],
             'avatar' => ['nullable', 'image', 'max:2048'],
-            'selectedRoles' => ['required', 'array', 'min:1'],
+            'selectedRoles' => ['nullable', 'array'],
             'selectedRoles.*' => ['string'],
+            'selectedPermissions' => ['nullable', 'array'],
+            'selectedPermissions.*' => ['string'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $roles = array_filter((array) $this->input('selectedRoles', []));
+            $permissions = array_filter((array) $this->input('selectedPermissions', []));
+
+            if (empty($roles) && empty($permissions)) {
+                $validator->errors()->add('selectedRoles', 'Pilih minimal satu group akses atau hak akses.');
+            }
+        });
     }
 }

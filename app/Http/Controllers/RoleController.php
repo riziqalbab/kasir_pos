@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RoleController extends Controller
 {
@@ -53,6 +54,8 @@ class RoleController extends Controller
         // give permissions to role
         $role->givePermissionTo($request->selectedPermission);
 
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $this->auditLogService->log(
             event: 'role.created',
             module: 'roles',
@@ -84,6 +87,8 @@ class RoleController extends Controller
 
         // sync role permissions
         $role->syncPermissions($request->selectedPermission);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $afterPermissions = $this->auditLogService->permissionNames($request->selectedPermission);
 
@@ -126,6 +131,8 @@ class RoleController extends Controller
 
         // delete role data
         $role->delete();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->auditLogService->log(
             event: 'role.deleted',
