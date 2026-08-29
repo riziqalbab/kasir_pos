@@ -141,6 +141,15 @@ class TransactionController extends Controller
 
         $agentQuery = \App\Models\AgentTransaction::query()
             ->with(['agentTransactionType', 'bankAccount', 'cashier:id,name', 'agentAdminBank', 'agentAdminLoket'])
+            ->when($activeShift, function ($query) use ($activeShift, $userId) {
+                // Filter by current shift and current cashier
+                $query->where('cashier_shift_id', $activeShift->id)
+                      ->where('cashier_id', $userId);
+            })
+            ->when(!$activeShift, function ($query) {
+                // If no active shift, return no results
+                $query->whereRaw('1 = 0');
+            })
             ->when($agentFilters['search'], function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('customer_name', 'like', "%{$search}%")
@@ -190,6 +199,15 @@ class TransactionController extends Controller
 
         $pointRedemptionQuery = \App\Models\PointRedemption::query()
             ->with(['customer', 'cashier:id,name', 'items.pointPrize'])
+            ->when($activeShift, function ($query) use ($activeShift, $userId) {
+                // Filter by current shift and current cashier
+                $query->where('cashier_shift_id', $activeShift->id)
+                      ->where('cashier_id', $userId);
+            })
+            ->when(!$activeShift, function ($query) {
+                // If no active shift, return no results
+                $query->whereRaw('1 = 0');
+            })
             ->when($pointFilters['search'], function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('redemption_code', 'like', "%{$search}%")
@@ -1006,6 +1024,16 @@ class TransactionController extends Controller
 
         if (! $request->user()->isSuperAdmin()) {
             $query->where('cashier_id', $request->user()->id);
+
+            // For non-super-admin, also filter by active shift
+            $userId = $request->user()->id;
+            $activeShift = $this->cashierShiftService->getActiveShiftForUser($userId);
+
+            if ($activeShift) {
+                $query->where('cashier_shift_id', $activeShift->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
 
         $query
