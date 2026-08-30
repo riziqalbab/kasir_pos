@@ -292,6 +292,18 @@ class TransactionFlowTest extends TestCase
         $this->assertDatabaseCount('transactions', 0);
     }
 
+    public function test_cashier_can_render_transaction_index_page(): void
+    {
+        $cashier = $this->createCashier();
+        $this->openShiftFor($cashier);
+
+        $response = $this
+            ->actingAs($cashier)
+            ->get(route('transactions.index'));
+
+        $response->assertOk();
+    }
+
     protected function openShiftFor(User $cashier)
     {
         return \App\Models\CashierShift::create([
