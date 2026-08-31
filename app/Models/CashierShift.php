@@ -106,6 +106,18 @@ class CashierShift extends Model
         return $this->hasMany(PointRedemption::class);
     }
 
+    public function cashierShiftBankAccounts()
+    {
+        return $this->hasMany(CashierShiftBankAccount::class);
+    }
+
+    public function bankAccounts()
+    {
+        return $this->belongsToMany(BankAccount::class, 'cashier_shift_bank_accounts')
+            ->withPivot(['opening_balance', 'expected_balance', 'actual_balance', 'difference'])
+            ->withTimestamps();
+    }
+
     public function scopeOpen($query)
     {
         return $query->where('status', self::STATUS_OPEN);

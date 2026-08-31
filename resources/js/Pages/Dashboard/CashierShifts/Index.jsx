@@ -10,6 +10,7 @@ import {
     IconEye,
     IconHistory,
     IconUser,
+    IconBuildingBank,
 } from "@tabler/icons-react";
 
 const formatCurrency = (value = 0) =>
@@ -32,12 +33,22 @@ export default function Index({
     shifts,
     filters,
     cashiers = [],
+    bankAccounts = [],
     activeShift = null,
 }) {
     const { auth, errors } = usePage().props;
     const { can } = useAuthorization();
     const [openingCash, setOpeningCash] = useState("");
     const [agentOpeningCash, setAgentOpeningCash] = useState("");
+    const [openingBankBalances, setOpeningBankBalances] = useState(() => {
+        const initial = {};
+        if (bankAccounts && bankAccounts.length > 0) {
+            bankAccounts.forEach((bank) => {
+                initial[bank.id] = bank.balance ?? 0;
+            });
+        }
+        return initial;
+    });
     const [notes, setNotes] = useState("");
     const canOpenShift = can("cashier-shifts-open");
 
@@ -71,6 +82,7 @@ export default function Index({
         router.post(route("cashier-shifts.store"), {
             opening_cash: Number(openingCash || 0),
             agent_opening_cash: Number(agentOpeningCash || 0),
+            balances: openingBankBalances,
             notes,
         });
     };
@@ -84,7 +96,7 @@ export default function Index({
                     <div>
                         <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white">
                             <IconHistory size={28} className="text-primary-500" />
-                            Shift Kasir
+                            <span>Shift Kasir</span>
                         </h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             Buka shift, pantau shift aktif, dan review cash closing.
@@ -157,6 +169,41 @@ export default function Index({
                                     placeholder="Opsional"
                                 />
                             </div>
+
+                            {/* Saldo Rekening Bank (EDC) section */}
+                            {bankAccounts && bankAccounts.length > 0 && (
+                                <div className="md:col-span-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-1.5">
+                                        <IconBuildingBank size={18} className="text-primary-500" />
+                                        <span>Saldo Awal Rekening Bank / EDC</span>
+                                    </h3>
+                                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                                        {bankAccounts.map((bank) => (
+                                            <div key={bank.id}>
+                                                <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                                    {bank.bank_name} - {bank.account_name} ({bank.account_number})
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={openingBankBalances[bank.id] === 0 ? "" : (openingBankBalances[bank.id] ?? "")}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const numVal = val === "" ? 0 : (parseInt(val, 10) || 0);
+                                                        setOpeningBankBalances(prev => ({
+                                                            ...prev,
+                                                            [bank.id]: numVal
+                                                        }));
+                                                    }}
+                                                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="md:col-span-4">
                                 <button
                                     type="submit"

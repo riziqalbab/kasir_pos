@@ -16,6 +16,8 @@ class CloseCashierShiftRequest extends FormRequest
         return [
             'actual_cash' => ['required', 'integer', 'min:0'],
             'agent_actual_cash' => ['required', 'integer', 'min:0'],
+            'bank_actual_balances' => ['nullable', 'array'],
+            'bank_actual_balances.*' => ['nullable', 'integer', 'min:0'],
             'close_notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

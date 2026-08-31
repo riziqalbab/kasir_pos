@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\CashierShifts;
 
+use App\Models\AgentTransaction;
+use App\Models\AgentTransactionType;
+use App\Models\BankAccount;
 use App\Models\CashierShift;
 use App\Models\Category;
 use App\Models\Customer;
@@ -284,6 +287,132 @@ class CashierShiftTest extends TestCase
                 'agent_actual_cash' => 0,
             ])
             ->assertRedirect(route('password.confirm'));
+    }
+
+    public function test_cashier_can_open_shift_with_bank_balances_and_records_shift_bank_accounts(): void
+    {
+        $cashier = $this->createUserWithPermissions([
+            'cashier-shifts-access',
+            'cashier-shifts-open',
+        ]);
+
+        $bank = BankAccount::create([
+            'bank_name' => 'BRI EDC',
+            'account_number' => '1234567890',
+            'account_name' => 'Toko Kasir',
+            'balance' => 1000000,
+            'is_active' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($cashier)
+            ->post(route('cashier-shifts.store'), [
+                'opening_cash' => 100000,
+                'agent_opening_cash' => 200000,
+                'balances' => [
+                    $bank->id => 1500000,
+                ],
+                'notes' => 'Shift Pagi',
+            ]);
+
+        $shift = CashierShift::first();
+        $response->assertRedirect(route('cashier-shifts.show', $shift));
+
+        $this->assertSame(1500000, (int) $bank->fresh()->balance);
+        $this->assertDatabaseHas('cashier_shift_bank_accounts', [
+            'cashier_shift_id' => $shift->id,
+            'bank_account_id' => $bank->id,
+            'opening_balance' => 1500000,
+            'expected_balance' => 1500000,
+        ]);
+    }
+
+    public function test_closing_shift_reconciles_edc_bank_balances_with_agent_transactions(): void
+    {
+        $cashier = $this->createUserWithPermissions([
+            'cashier-shifts-access',
+            'cashier-shifts-open',
+            'cashier-shifts-close',
+        ]);
+
+        $bank = BankAccount::create([
+            'bank_name' => 'Mandiri EDC',
+            'account_number' => '9876543210',
+            'account_name' => 'Toko Kasir',
+            'balance' => 2000000,
+            'is_active' => true,
+        ]);
+
+        $debetType = AgentTransactionType::create([
+            'code' => 'TF',
+            'name' => 'Transfer Bank',
+            'type' => 'debet',
+        ]);
+
+        $kreditType = AgentTransactionType::create([
+            'code' => 'TT',
+            'name' => 'Tarik Tunai',
+            'type' => 'kredit',
+        ]);
+
+        $this->actingAs($cashier)->post(route('cashier-shifts.store'), [
+            'opening_cash' => 100000,
+            'agent_opening_cash' => 200000,
+            'balances' => [$bank->id => 2000000],
+        ]);
+
+        $shift = CashierShift::first();
+
+        // 1. Debet tx (e.g. transfer 500.000 + bank fee 2.500) -> bank outflow = 502.500
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $debetType->id,
+            'bank_account_id' => $bank->id,
+            'nominal' => 500000,
+            'admin_fee_customer' => 5000,
+            'admin_fee_bank' => 2500,
+            'net_profit' => 2500,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+            'transaction_date' => now(),
+        ]);
+
+        // 2. Kredit tx (e.g. tarik tunai 100.000) -> bank inflow = 100.000
+        AgentTransaction::create([
+            'cashier_id' => $cashier->id,
+            'cashier_shift_id' => $shift->id,
+            'agent_transaction_type_id' => $kreditType->id,
+            'bank_account_id' => $bank->id,
+            'nominal' => 100000,
+            'admin_fee_customer' => 3000,
+            'admin_fee_bank' => 0,
+            'net_profit' => 3000,
+            'admin_fee_payment_method' => 'cash',
+            'status' => 'success',
+            'transaction_date' => now(),
+        ]);
+
+        // Expected Bank = 2.000.000 + 100.000 - 502.500 = 1.597.500
+        // Actual Bank = 1.600.000 -> Diff = +2.500
+        $response = $this->actingAs($cashier)->post(route('cashier-shifts.close', $shift), [
+            'actual_cash' => 100000,
+            'agent_actual_cash' => 200000,
+            'bank_actual_balances' => [
+                $bank->id => 1600000,
+            ],
+            'close_notes' => 'Settlement EDC match',
+        ]);
+
+        $response->assertRedirect(route('cashier-shifts.show', $shift));
+        $this->assertDatabaseHas('cashier_shift_bank_accounts', [
+            'cashier_shift_id' => $shift->id,
+            'bank_account_id' => $bank->id,
+            'opening_balance' => 2000000,
+            'expected_balance' => 1597500,
+            'actual_balance' => 1600000,
+            'difference' => 2500,
+        ]);
     }
 
     private function createUserWithPermissions(array $permissions): User

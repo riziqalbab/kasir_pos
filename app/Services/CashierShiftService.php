@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\AgentTransaction;
+use App\Models\BankAccount;
 use App\Models\CashierShift;
+use App\Models\CashierShiftBankAccount;
 use App\Models\SalesReturn;
 use App\Models\Transaction;
 use App\Models\User;
@@ -45,8 +47,14 @@ class CashierShiftService
         return $shift;
     }
 
-    public function openShift(User $cashier, User $actor, int $openingCash, int $agentOpeningCash = 0, ?string $notes = null): CashierShift
-    {
+    public function openShift(
+        User $cashier,
+        User $actor,
+        int $openingCash,
+        int $agentOpeningCash = 0,
+        ?string $notes = null,
+        array $bankBalances = []
+    ): CashierShift {
         $existing = CashierShift::query()
             ->open()
             ->where('user_id', $cashier->id)
@@ -58,17 +66,39 @@ class CashierShiftService
             ]);
         }
 
-        return CashierShift::create([
-            'user_id' => $cashier->id,
-            'opened_by' => $actor->id,
-            'opened_at' => now(),
-            'opening_cash' => $openingCash,
-            'agent_opening_cash' => $agentOpeningCash,
-            'expected_cash' => $openingCash,
-            'agent_expected_cash' => $agentOpeningCash,
-            'notes' => $notes,
-            'status' => CashierShift::STATUS_OPEN,
-        ]);
+        return DB::transaction(function () use ($cashier, $actor, $openingCash, $agentOpeningCash, $notes, $bankBalances) {
+            $shift = CashierShift::create([
+                'user_id' => $cashier->id,
+                'opened_by' => $actor->id,
+                'opened_at' => now(),
+                'opening_cash' => $openingCash,
+                'agent_opening_cash' => $agentOpeningCash,
+                'expected_cash' => $openingCash,
+                'agent_expected_cash' => $agentOpeningCash,
+                'notes' => $notes,
+                'status' => CashierShift::STATUS_OPEN,
+            ]);
+
+            $activeBanks = BankAccount::active()->ordered()->get();
+            foreach ($activeBanks as $bank) {
+                $openingBalance = isset($bankBalances[$bank->id]) && $bankBalances[$bank->id] !== ''
+                    ? (int) $bankBalances[$bank->id]
+                    : (int) $bank->balance;
+
+                if ($bank->balance !== $openingBalance) {
+                    $bank->update(['balance' => $openingBalance]);
+                }
+
+                CashierShiftBankAccount::create([
+                    'cashier_shift_id' => $shift->id,
+                    'bank_account_id' => $bank->id,
+                    'opening_balance' => $openingBalance,
+                    'expected_balance' => $openingBalance,
+                ]);
+            }
+
+            return $shift;
+        });
     }
 
     public function calculateSummary(CashierShift $shift): array
@@ -164,6 +194,7 @@ class CashierShiftService
         User $actor,
         int $actualCash,
         int $agentActualCash = 0,
+        array $bankActualBalances = [],
         ?string $closeNotes = null,
         bool $forceClose = false
     ): CashierShift {
@@ -173,7 +204,7 @@ class CashierShiftService
             ]);
         }
 
-        return DB::transaction(function () use ($shift, $actor, $actualCash, $agentActualCash, $closeNotes, $forceClose) {
+        return DB::transaction(function () use ($shift, $actor, $actualCash, $agentActualCash, $bankActualBalances, $closeNotes, $forceClose) {
             $lockedShift = CashierShift::query()->lockForUpdate()->findOrFail($shift->id);
 
             if (! $lockedShift->isOpen()) {
@@ -200,6 +231,25 @@ class CashierShiftService
                     : CashierShift::STATUS_CLOSED,
             ]);
 
+            // Reconcile and save bank/EDC balances
+            $bankSummaries = $this->getBankBalancesSummary($lockedShift);
+            foreach ($bankSummaries as $item) {
+                $bankId = $item['bank_account_id'];
+                $hasInput = array_key_exists($bankId, $bankActualBalances) && $bankActualBalances[$bankId] !== '' && $bankActualBalances[$bankId] !== null;
+                $actualBalance = $hasInput ? (int) $bankActualBalances[$bankId] : null;
+                $difference = $actualBalance !== null ? ($actualBalance - $item['expected_balance']) : null;
+
+                CashierShiftBankAccount::updateOrCreate([
+                    'cashier_shift_id' => $lockedShift->id,
+                    'bank_account_id' => $bankId,
+                ], [
+                    'opening_balance' => $item['opening_balance'],
+                    'expected_balance' => $item['expected_balance'],
+                    'actual_balance' => $actualBalance,
+                    'difference' => $difference,
+                ]);
+            }
+
             $backupFilename = null;
             // Automatic full background system ZIP backup on shift closure (Database SQL + Media/Storage)
             try {
@@ -208,13 +258,136 @@ class CashierShiftService
                 \Illuminate\Support\Facades\Log::warning('Auto full backup failed on shift close: '.$e->getMessage());
             }
 
-            $refreshed = $lockedShift->fresh(['user:id,name', 'openedBy:id,name', 'closedBy:id,name']);
+            $refreshed = $lockedShift->fresh(['user:id,name', 'openedBy:id,name', 'closedBy:id,name', 'cashierShiftBankAccounts.bankAccount']);
             if ($backupFilename) {
                 $refreshed->auto_backup_filename = $backupFilename;
             }
 
             return $refreshed;
         });
+    }
+
+    public function getBankBalancesSummary(CashierShift $shift): array
+    {
+        $shiftBanks = CashierShiftBankAccount::query()
+            ->with('bankAccount')
+            ->where('cashier_shift_id', $shift->id)
+            ->get();
+
+        $activeBanks = BankAccount::active()->ordered()->get();
+
+        $bankMap = [];
+        if ($shiftBanks->isNotEmpty()) {
+            foreach ($shiftBanks as $sb) {
+                if ($sb->bankAccount) {
+                    $bankMap[$sb->bank_account_id] = [
+                        'bank_account_id' => $sb->bank_account_id,
+                        'bank_name' => $sb->bankAccount->bank_name,
+                        'account_name' => $sb->bankAccount->account_name,
+                        'account_number' => $sb->bankAccount->account_number,
+                        'opening_balance' => (int) $sb->opening_balance,
+                        'actual_balance' => $sb->actual_balance !== null ? (int) $sb->actual_balance : null,
+                        'difference' => $sb->difference !== null ? (int) $sb->difference : null,
+                    ];
+                }
+            }
+        } else {
+            foreach ($activeBanks as $bank) {
+                $bankMap[$bank->id] = [
+                    'bank_account_id' => $bank->id,
+                    'bank_name' => $bank->bank_name,
+                    'account_name' => $bank->account_name,
+                    'account_number' => $bank->account_number,
+                    'opening_balance' => (int) $bank->balance,
+                    'actual_balance' => null,
+                    'difference' => null,
+                ];
+            }
+        }
+
+        // Calculate mutations from Agent Transactions during this shift
+        $agentTxList = AgentTransaction::query()
+            ->with('agentTransactionType')
+            ->where('cashier_shift_id', $shift->id)
+            ->where('status', 'success')
+            ->whereNotNull('bank_account_id')
+            ->get();
+
+        $bankMutations = [];
+        foreach ($agentTxList as $tx) {
+            $bankId = $tx->bank_account_id;
+            if (! isset($bankMutations[$bankId])) {
+                $bankMutations[$bankId] = [
+                    'bank_inflow' => 0,
+                    'bank_outflow' => 0,
+                    'tx_count' => 0,
+                ];
+            }
+
+            $isDebet = $tx->agentTransactionType && $tx->agentTransactionType->type === 'debet';
+            if ($isDebet) {
+                // Bank balance reduced: nominal + admin_fee_bank
+                $bankMutations[$bankId]['bank_outflow'] += ($tx->nominal + $tx->admin_fee_bank);
+            } else {
+                // Bank balance increased: nominal + (fee if paid via bank)
+                $feeBank = $tx->admin_fee_payment_method === 'bank' ? $tx->admin_fee_customer : 0;
+                $bankMutations[$bankId]['bank_inflow'] += ($tx->nominal + $feeBank);
+            }
+            $bankMutations[$bankId]['tx_count'] += 1;
+        }
+
+        // Also check POS transactions with payment_method = 'bank_transfer'
+        $posBankTransfers = Transaction::query()
+            ->where('cashier_shift_id', $shift->id)
+            ->where('payment_method', 'bank_transfer')
+            ->where('payment_status', 'paid')
+            ->whereNotNull('bank_account_id')
+            ->select('bank_account_id', DB::raw('SUM(grand_total) as total_amount'), DB::raw('COUNT(*) as tx_count'))
+            ->groupBy('bank_account_id')
+            ->get();
+
+        foreach ($posBankTransfers as $posTx) {
+            $bankId = $posTx->bank_account_id;
+            if (! isset($bankMutations[$bankId])) {
+                $bankMutations[$bankId] = [
+                    'bank_inflow' => 0,
+                    'bank_outflow' => 0,
+                    'tx_count' => 0,
+                ];
+            }
+            $bankMutations[$bankId]['bank_inflow'] += (int) $posTx->total_amount;
+            $bankMutations[$bankId]['tx_count'] += (int) $posTx->tx_count;
+        }
+
+        $results = [];
+        foreach ($bankMap as $bankId => $data) {
+            $mutations = $bankMutations[$bankId] ?? ['bank_inflow' => 0, 'bank_outflow' => 0, 'tx_count' => 0];
+            $expectedBalance = $data['opening_balance'] + $mutations['bank_inflow'] - $mutations['bank_outflow'];
+            $actualBalance = $data['actual_balance'];
+            $difference = $data['difference'];
+
+            if ($shift->isOpen()) {
+                $difference = null;
+            } elseif ($actualBalance !== null) {
+                $difference = $actualBalance - $expectedBalance;
+            }
+
+            $results[] = [
+                'bank_account_id' => $bankId,
+                'bank_name' => $data['bank_name'],
+                'account_name' => $data['account_name'],
+                'account_number' => $data['account_number'],
+                'opening_balance' => $data['opening_balance'],
+                'bank_inflow' => $mutations['bank_inflow'],
+                'bank_outflow' => $mutations['bank_outflow'],
+                'tx_count' => $mutations['tx_count'],
+                'expected_balance' => $expectedBalance,
+                'actual_balance' => $actualBalance,
+                'difference' => $difference,
+            ];
+        }
+
+        return $results;
     }
 
     public function summarizeForDisplay(?CashierShift $shift): ?array

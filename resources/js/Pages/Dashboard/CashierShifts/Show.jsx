@@ -72,6 +72,13 @@ export default function Show({ cashierShift, canForceClose = false }) {
     const [agentActualCash, setAgentActualCash] = useState(
         cashierShift.agent_actual_cash !== null ? String(cashierShift.agent_actual_cash) : ""
     );
+    const [bankActualBalances, setBankActualBalances] = useState(() => {
+        const initial = {};
+        (cashierShift.agent_bank_balances || []).forEach((bank) => {
+            initial[bank.bank_account_id] = bank.actual_balance !== null ? String(bank.actual_balance) : "";
+        });
+        return initial;
+    });
     const [closeNotes, setCloseNotes] = useState(cashierShift.close_notes || "");
 
     const canCloseShift = useMemo(() => {
@@ -105,9 +112,17 @@ export default function Show({ cashierShift, canForceClose = false }) {
     const handleCloseShift = (event) => {
         event.preventDefault();
 
+        const formattedBankActual = {};
+        Object.entries(bankActualBalances).forEach(([bankId, val]) => {
+            if (val !== "" && val !== null && val !== undefined) {
+                formattedBankActual[bankId] = Number(val);
+            }
+        });
+
         router.post(route("cashier-shifts.close", cashierShift.id), {
             actual_cash: actualCashNumber,
             agent_actual_cash: agentActualCashNumber,
+            bank_actual_balances: formattedBankActual,
             close_notes: closeNotes,
         });
     };
@@ -335,7 +350,7 @@ export default function Show({ cashierShift, canForceClose = false }) {
                     <div className="space-y-6">
                         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
                             <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                                Cash Closing Summary
+                                Cash & EDC Closing Summary
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Kas POS Toko */}
@@ -379,6 +394,48 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Rekonsiliasi EDC / Rekening Bank */}
+                                {cashierShift.agent_bank_balances && cashierShift.agent_bank_balances.map((bank) => (
+                                    <div key={bank.bank_account_id} className="space-y-3 bg-slate-50/50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                EDC {bank.bank_name}
+                                            </h3>
+                                            <span className="text-[11px] font-mono text-slate-400">
+                                                {bank.account_number}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800">
+                                            <span className="text-slate-500 dark:text-slate-400">Saldo Awal</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(bank.opening_balance)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800">
+                                            <span className="text-slate-500 dark:text-slate-400">Mutasi Masuk / Keluar</span>
+                                            <div className="text-right">
+                                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">+{formatCurrency(bank.bank_inflow)}</span>
+                                                <span className="text-slate-400 mx-1">/</span>
+                                                <span className="font-semibold text-rose-600 dark:text-rose-400">-{formatCurrency(bank.bank_outflow)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                            <span className="text-slate-500 dark:text-slate-400 font-medium">Expected Balance</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(bank.expected_balance)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 dark:border-slate-800">
+                                            <span className="text-slate-500 dark:text-slate-400 font-medium">Actual Balance</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {bank.actual_balance === null ? "-" : formatCurrency(bank.actual_balance)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm py-1.5">
+                                            <span className="text-slate-500 dark:text-slate-400 font-medium">Selisih</span>
+                                            <span className={`font-bold ${bank.difference === null ? "text-slate-900 dark:text-white" : bank.difference < 0 ? "text-rose-600 dark:text-rose-450" : bank.difference > 0 ? "text-emerald-600 dark:text-emerald-450" : "text-emerald-650"}`}>
+                                                {bank.difference === null ? "-" : formatCurrency(bank.difference)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
@@ -388,7 +445,7 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                     Tutup Shift
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    Input kas fisik akhir untuk finalisasi cash closing toko dan kas fisik agen.
+                                    Input kas fisik dan saldo akhir EDC/Rekening aktual untuk finalisasi closing shift.
                                 </p>
                                 <form onSubmit={handleCloseShift} className="mt-4 space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -419,6 +476,63 @@ export default function Show({ cashierShift, canForceClose = false }) {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Saldo Akhir EDC / Rekening Bank Aktual */}
+                                    {cashierShift.agent_bank_balances && cashierShift.agent_bank_balances.length > 0 && (
+                                        <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                                <IconBuildingBank size={16} className="text-primary-500" />
+                                                <span>Saldo Akhir EDC / Rekening Bank Aktual</span>
+                                            </label>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
+                                                Input saldo aktual sesuai settlement mesin EDC atau mutasi rekening.
+                                            </p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {cashierShift.agent_bank_balances.map((bank) => {
+                                                    const bankVal = bankActualBalances[bank.bank_account_id] ?? "";
+                                                    const bankDiff = bankVal === "" ? null : Number(bankVal) - bank.expected_balance;
+                                                    return (
+                                                        <div key={bank.bank_account_id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                                                    {bank.bank_name} ({bank.account_number})
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-mono">
+                                                                    Exp: {formatCurrency(bank.expected_balance)}
+                                                                </span>
+                                                            </div>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={bankVal}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setBankActualBalances(prev => ({
+                                                                        ...prev,
+                                                                        [bank.bank_account_id]: val,
+                                                                    }));
+                                                                }}
+                                                                placeholder={`Expected: ${bank.expected_balance}`}
+                                                                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                                            />
+                                                            {bankDiff !== null && (
+                                                                <p className={`text-[11px] font-semibold ${
+                                                                    bankDiff === 0
+                                                                        ? "text-emerald-600 dark:text-emerald-400"
+                                                                        : bankDiff > 0
+                                                                        ? "text-emerald-600 dark:text-emerald-400"
+                                                                        : "text-rose-600 dark:text-rose-450"
+                                                                }`}>
+                                                                    Selisih EDC: {formatCurrency(bankDiff)}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div>
                                         <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Catatan Closing</label>
                                         <textarea

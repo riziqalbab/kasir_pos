@@ -144,9 +144,9 @@ class TransactionController extends Controller
             ->when($activeShift, function ($query) use ($activeShift, $userId) {
                 // Filter by current shift and current cashier
                 $query->where('cashier_shift_id', $activeShift->id)
-                      ->where('cashier_id', $userId);
+                    ->where('cashier_id', $userId);
             })
-            ->when(!$activeShift, function ($query) {
+            ->when(! $activeShift, function ($query) {
                 // If no active shift, return no results
                 $query->whereRaw('1 = 0');
             })
@@ -202,9 +202,9 @@ class TransactionController extends Controller
             ->when($activeShift, function ($query) use ($activeShift, $userId) {
                 // Filter by current shift and current cashier
                 $query->where('cashier_shift_id', $activeShift->id)
-                      ->where('user_id', $userId);
+                    ->where('user_id', $userId);
             })
-            ->when(!$activeShift, function ($query) {
+            ->when(! $activeShift, function ($query) {
                 // If no active shift, return no results
                 $query->whereRaw('1 = 0');
             })

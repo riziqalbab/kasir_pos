@@ -50,10 +50,13 @@ class CashierShiftController extends Controller
             ? User::query()->orderBy('name')->get(['id', 'name'])
             : collect([$request->user()->only(['id', 'name'])]);
 
+        $bankAccounts = \App\Models\BankAccount::active()->ordered()->get();
+
         return Inertia::render('Dashboard/CashierShifts/Index', [
             'shifts' => $shifts,
             'filters' => $filters,
             'cashiers' => $cashiers,
+            'bankAccounts' => $bankAccounts,
             'activeShift' => $activeShift ? $this->transformShift($activeShift) : null,
             'canForceClose' => $request->user()->isSuperAdmin() || $request->user()->can('cashier-shifts-force-close'),
         ]);
@@ -71,15 +74,17 @@ class CashierShiftController extends Controller
 
     public function store(StoreCashierShiftRequest $request): RedirectResponse
     {
+        $balances = $request->input('balances', []);
+
         $shift = $this->cashierShiftService->openShift(
             cashier: $request->user(),
             actor: $request->user(),
             openingCash: (int) $request->validated('opening_cash'),
             agentOpeningCash: (int) $request->validated('agent_opening_cash', 0),
             notes: $request->validated('notes'),
+            bankBalances: $balances,
         );
 
-        $balances = $request->input('balances', []);
         foreach ($balances as $bankAccountId => $balance) {
             $bankAccount = \App\Models\BankAccount::find($bankAccountId);
             if ($bankAccount) {
@@ -91,8 +96,6 @@ class CashierShiftController extends Controller
                     'sort_order' => (int) $bankAccount->sort_order,
                     'balance' => (int) $bankAccount->balance,
                 ];
-
-                $bankAccount->update(['balance' => $balance]);
 
                 $this->auditLogService->log(
                     event: 'bank_account.balance_updated',
@@ -169,6 +172,7 @@ class CashierShiftController extends Controller
             actor: $request->user(),
             actualCash: (int) $request->validated('actual_cash'),
             agentActualCash: (int) $request->validated('agent_actual_cash', 0),
+            bankActualBalances: (array) $request->validated('bank_actual_balances', []),
             closeNotes: $request->validated('close_notes'),
             forceClose: $forceClose,
         );
@@ -208,6 +212,7 @@ class CashierShiftController extends Controller
     {
         $summary = $this->cashierShiftService->calculateSummary($shift);
         $breakdowns = $this->cashierShiftService->getDetailedBreakdowns($shift);
+        $agentBankBalances = $this->cashierShiftService->getBankBalancesSummary($shift);
 
         $agentTransactions = \App\Models\AgentTransaction::query()
             ->with(['agentTransactionType', 'bankAccount', 'agentAdminBank', 'agentAdminLoket'])
@@ -257,6 +262,7 @@ class CashierShiftController extends Controller
                 'name' => $shift->closedBy->name,
             ] : null,
             'agent_transactions' => $agentTransactions,
+            'agent_bank_balances' => $agentBankBalances,
             ...$breakdowns,
         ];
     }
