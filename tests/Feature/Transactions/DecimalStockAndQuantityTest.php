@@ -17,6 +17,7 @@ class DecimalStockAndQuantityTest extends TestCase
     use RefreshDatabase;
 
     protected User $cashier;
+
     protected Product $fuelProduct;
 
     protected function setUp(): void

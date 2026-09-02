@@ -21,10 +21,10 @@ class DatabaseSeeder extends Seeder
             ServiceSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
-            // SampleDataSeeder::class,
             OperationalCoreSeeder::class,
             FeatureCoverageSeeder::class,
             AgentLinkSeeder::class,
+            BulkProductSeeder::class,
         ]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

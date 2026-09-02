@@ -196,9 +196,11 @@ export default function Index({
     const [shiftNotesInput, setShiftNotesInput] = useState("");
     const [openingBankBalances, setOpeningBankBalances] = useState({});
 
-    // Modal states for item selection (Qty, Satuan, Diskon)
+    // Modal states for item selection (Qty, Satuan, Diskon, Mode Curah)
     const [selectedItemForCart, setSelectedItemForCart] = useState(null);
+    const [modalInputMode, setModalInputMode] = useState("qty"); // 'qty' | 'nominal'
     const [modalQty, setModalQty] = useState(1);
+    const [modalNominal, setModalNominal] = useState("");
     const [modalUnitKey, setModalUnitKey] = useState("pcs");
     const [modalDiscount, setModalDiscount] = useState("0");
 
@@ -245,7 +247,9 @@ export default function Index({
 
     const openCartModal = (item) => {
         setSelectedItemForCart(item);
+        setModalInputMode("qty");
         setModalQty(1);
+        setModalNominal("");
         const units = getAvailableUnitsForItem(item);
         setModalUnitKey(units.length > 0 ? units[0].key : "pcs");
         setModalDiscount("0");
@@ -2859,45 +2863,153 @@ export default function Index({
                                 </div>
                             )}
                         </div>
+                        {/* Mode Selector (Qty vs Nominal Curah) */}
+                        <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setModalInputMode("qty");
+                                    setTimeout(() => modalQtyInputRef.current?.focus(), 50);
+                                }}
+                                className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                                    modalInputMode === "qty"
+                                        ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                                }`}
+                            >
+                                Input Kuantitas ({getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.label || "Qty"})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setModalInputMode("nominal");
+                                }}
+                                className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                                    modalInputMode === "nominal"
+                                        ? "bg-white dark:bg-slate-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                                }`}
+                            >
+                                Beli Nominal (Rp)
+                            </button>
+                        </div>
+
                         <div className="space-y-4">
-                            {/* Quantity Input */}
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
-                                    Jumlah (Qty)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setModalQty(prev => Math.max(1, prev - 1))}
-                                        className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-850 cursor-pointer"
-                                    >
-                                        -
-                                    </button>
-                                    <input
-                                        ref={modalQtyInputRef}
-                                        type="number"
-                                        min="1"
-                                        value={modalQty}
-                                        onChange={(e) => setModalQty(Math.max(1, parseInt(e.target.value) || 1))}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                if (modalUnitSelectRef.current) {
-                                                    modalUnitSelectRef.current.focus();
+                            {/* Mode 1: Quantity Input */}
+                            {modalInputMode === "qty" ? (
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                                        Jumlah ({getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.label || "Qty"})
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setModalQty(prev => Math.max(0.001, Number((Number(prev) - 1).toFixed(3))))}
+                                            className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-850 cursor-pointer"
+                                        >
+                                            -
+                                        </button>
+                                        <input
+                                            ref={modalQtyInputRef}
+                                            type="number"
+                                            step="any"
+                                            min="0.001"
+                                            value={modalQty}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value) || 0;
+                                                setModalQty(val > 0 ? val : e.target.value);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    if (modalUnitSelectRef.current) {
+                                                        modalUnitSelectRef.current.focus();
+                                                    }
                                                 }
-                                            }
-                                        }}
-                                        className="flex-1 h-10 text-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setModalQty(prev => prev + 1)}
-                                        className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-855 cursor-pointer"
-                                    >
-                                        +
-                                    </button>
+                                            }}
+                                            className="flex-1 h-10 text-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setModalQty(prev => Number((Number(prev) + 1).toFixed(3)))}
+                                            className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold transition-all border border-slate-200 dark:border-slate-855 cursor-pointer"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                    {/* Quick Qty presets */}
+                                    <div className="grid grid-cols-5 gap-1.5 mt-2">
+                                        {[0.25, 0.5, 1, 2, 5].map((amt) => (
+                                            <button
+                                                key={amt}
+                                                type="button"
+                                                onClick={() => setModalQty(amt)}
+                                                className="py-1 text-[11px] font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-950/40 dark:hover:text-primary-400 transition-colors"
+                                            >
+                                                {amt}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                /* Mode 2: Nominal Uang (Rp) Input */
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                                        Nominal Uang Pembelian (Rp)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 font-mono">
+                                            Rp
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={modalNominal ? Number(modalNominal).toLocaleString("id-ID") : ""}
+                                            onChange={(e) => {
+                                                const clean = e.target.value.replace(/\D/g, "");
+                                                setModalNominal(clean);
+                                                const num = parseInt(clean, 10) || 0;
+                                                const unitPrice = getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || selectedItemForCart.sell_price || 0;
+                                                if (unitPrice > 0) {
+                                                    setModalQty(Number((num / unitPrice).toFixed(3)));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleAddToCart(
+                                                        selectedItemForCart,
+                                                        modalQty,
+                                                        modalUnitKey,
+                                                        Number(modalDiscount) || 0
+                                                    );
+                                                }
+                                            }}
+                                            placeholder="Contoh: 5.000 atau 19.000"
+                                            className="w-full h-10 pl-10 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-mono font-bold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    {/* Quick Nominal presets */}
+                                    <div className="grid grid-cols-4 gap-1.5 mt-2">
+                                        {[5000, 10000, 20000, 50000].map((amt) => (
+                                            <button
+                                                key={amt}
+                                                type="button"
+                                                onClick={() => {
+                                                    setModalNominal(String(amt));
+                                                    const unitPrice = getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || selectedItemForCart.sell_price || 0;
+                                                    if (unitPrice > 0) {
+                                                        setModalQty(Number((amt / unitPrice).toFixed(3)));
+                                                    }
+                                                }}
+                                                className="py-1.5 text-[11px] font-bold rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                                            >
+                                                +{amt / 1000}rb
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Unit (Satuan) Select */}
                             <div>
@@ -2907,7 +3019,16 @@ export default function Index({
                                 <select
                                     ref={modalUnitSelectRef}
                                     value={modalUnitKey}
-                                    onChange={(e) => setModalUnitKey(e.target.value)}
+                                    onChange={(e) => {
+                                        const newKey = e.target.value;
+                                        setModalUnitKey(newKey);
+                                        if (modalInputMode === "nominal" && modalNominal) {
+                                            const unitPrice = getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === newKey)?.price || selectedItemForCart.sell_price || 0;
+                                            if (unitPrice > 0) {
+                                                setModalQty(Number((Number(modalNominal) / unitPrice).toFixed(3)));
+                                            }
+                                        }
+                                    }}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                             e.preventDefault();
@@ -2963,6 +3084,12 @@ export default function Index({
                                         )}
                                     </span>
                                 </div>
+                                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                                    <span>Volume / Qty:</span>
+                                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                        {Number(modalQty || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 })} {getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.label || "Unit"}
+                                    </span>
+                                </div>
                                 {Number(modalDiscount) > 0 && (
                                     <div className="flex justify-between text-rose-600 dark:text-rose-400">
                                         <span>Diskon per Unit:</span>
@@ -2973,12 +3100,16 @@ export default function Index({
                                 )}
                                 <div className="flex justify-between font-bold text-slate-800 dark:text-slate-200 border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5 mt-1.5">
                                     <span>Subtotal Item:</span>
-                                    <span className="font-mono text-primary-600 dark:text-primary-400">
+                                    <span className="font-mono text-primary-600 dark:text-primary-400 text-sm">
                                         {formatPrice(
-                                            Math.max(
-                                                0,
-                                                ((getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || 0) - Number(modalDiscount)) * modalQty
-                                            )
+                                            modalInputMode === "nominal" && modalNominal
+                                                ? Number(modalNominal)
+                                                : Math.round(
+                                                    Math.max(
+                                                        0,
+                                                        ((getAvailableUnitsForItem(selectedItemForCart).find(u => u.key === modalUnitKey)?.price || 0) - Number(modalDiscount)) * Number(modalQty || 0)
+                                                    )
+                                                )
                                         )}
                                     </span>
                                 </div>
