@@ -264,7 +264,7 @@ function buildReceiptBuffer(data, paperSize) {
   builder.line('=', charWidth);
   builder.align('center');
   builder.text(store.footer || 'Terima Kasih Atas Kunjungan Anda');
-  builder.text('Powered by Antigravity POS');
+  builder.text('Powered by stora.page');
   builder.feed(4);
 
   // Drawer Kick & Cut

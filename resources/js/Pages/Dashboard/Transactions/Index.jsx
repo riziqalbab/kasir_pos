@@ -14,6 +14,7 @@ import CartPanel from "@/Components/POS/CartPanel";
 import PaymentPanel from "@/Components/POS/PaymentPanel";
 import CustomerSelect from "@/Components/POS/CustomerSelect";
 import NumpadModal from "@/Components/POS/NumpadModal";
+import QtyNominalModal from "@/Components/POS/QtyNominalModal";
 import HeldTransactions, {
     HoldButton,
 } from "@/Components/POS/HeldTransactions";
@@ -555,13 +556,15 @@ export default function Index({
 
     // Handle update cart quantity
     const [updatingCartId, setUpdatingCartId] = useState(null);
+    const [editingQtyItem, setEditingQtyItem] = useState(null);
 
     const handleUpdateQty = (cartId, newQty) => {
-        if (newQty < 1) return;
+        const numQty = parseFloat(newQty) || 0;
+        if (numQty <= 0) return;
         setUpdatingCartId(cartId);
 
         axios
-            .patch(route("transactions.updateCart", cartId), { qty: newQty })
+            .patch(route("transactions.updateCart", cartId), { qty: numQty })
             .then((res) => applyCartResponse(res.data))
             .catch((err) => {
                 toast.error(err.response?.data?.message || "Gagal update quantity");
@@ -2039,15 +2042,22 @@ export default function Index({
                                                                 <td className="px-3 py-3">
                                                                     <div className="flex items-center justify-center gap-1.5">
                                                                         <button
-                                                                            onClick={() => handleUpdateQty(item.id, Number(item.qty) - 1)}
-                                                                            disabled={Number(item.qty) <= 1 || updatingCartId === item.id}
+                                                                            onClick={() => handleUpdateQty(item.id, Math.max(0.001, Number((Number(item.qty) - 1).toFixed(3))))}
+                                                                            disabled={Number(item.qty) <= 0.001 || updatingCartId === item.id}
                                                                             className="w-5 h-5 flex items-center justify-center bg-slate-105 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md font-bold disabled:opacity-30 transition-colors cursor-pointer"
                                                                         >
                                                                             -
                                                                         </button>
-                                                                        <span className="w-6 text-center font-bold text-slate-855 dark:text-slate-200">{item.qty}</span>
                                                                         <button
-                                                                            onClick={() => handleUpdateQty(item.id, Number(item.qty) + 1)}
+                                                                            type="button"
+                                                                            onClick={() => setEditingQtyItem(item)}
+                                                                            title="Klik untuk ubah jumlah / beli berdasarkan nominal (Rp)"
+                                                                            className="px-1.5 py-0.5 min-w-6 text-center font-bold text-slate-855 dark:text-slate-200 hover:bg-primary-50 dark:hover:bg-primary-950/40 hover:text-primary-600 rounded transition-colors cursor-pointer"
+                                                                        >
+                                                                            {Number(item.qty || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 })}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleUpdateQty(item.id, Number((Number(item.qty) + 1).toFixed(3)))}
                                                                             disabled={updatingCartId === item.id}
                                                                             className="w-5 h-5 flex items-center justify-center bg-slate-105 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md font-bold transition-colors cursor-pointer"
                                                                         >
@@ -3105,6 +3115,14 @@ export default function Index({
                     </div>
                 </div>
             )}
+
+            {/* Qty & Nominal Curah Modal */}
+            <QtyNominalModal
+                isOpen={Boolean(editingQtyItem)}
+                item={editingQtyItem}
+                onClose={() => setEditingQtyItem(null)}
+                onConfirm={(cartId, qty) => handleUpdateQty(cartId, qty)}
+            />
 
         </>
     );

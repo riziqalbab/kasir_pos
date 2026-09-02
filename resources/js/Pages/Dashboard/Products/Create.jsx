@@ -134,21 +134,21 @@ export default function Create({ categories, units = [] }) {
             // Auto-calculate isi_pcs_dalam_dus
             const pcsPack = field === "isi_pcs_dalam_pack" ? val : Number(prev.isi_pcs_dalam_pack || 0);
             const packDus = field === "isi_pack_dalam_dus" ? val : Number(prev.isi_pack_dalam_dus || 0);
-            updated.isi_pcs_dalam_dus = pcsPack * packDus;
+            updated.isi_pcs_dalam_dus = Number((pcsPack * packDus).toFixed(3));
 
             // Recalculate prices using pcs as the ground truth
             const buyPcs = Number(updated.harga_beli_pcs || 0);
 
-            updated.harga_beli_pack = buyPcs * pcsPack;
-            updated.harga_beli_dus = buyPcs * updated.isi_pcs_dalam_dus;
+            updated.harga_beli_pack = Math.round(buyPcs * pcsPack);
+            updated.harga_beli_dus = Math.round(buyPcs * updated.isi_pcs_dalam_dus);
 
             // Recalculate stock fields to stay in sync using updated.stok_pcs as the ground truth
             const totalPcs = Number(updated.stok_pcs || 0);
             const newPcsPack = pcsPack;
             const newPcsDus = updated.isi_pcs_dalam_dus;
 
-            updated.stok_dus = newPcsDus > 0 ? Math.floor(totalPcs / newPcsDus) : 0;
-            updated.stok_pack = newPcsPack > 0 ? Math.floor(totalPcs / newPcsPack) : 0;
+            updated.stok_dus = newPcsDus > 0 ? Number((totalPcs / newPcsDus).toFixed(3)) : 0;
+            updated.stok_pack = newPcsPack > 0 ? Number((totalPcs / newPcsPack).toFixed(3)) : 0;
             updated.stock = totalPcs;
 
             return updated;
@@ -156,7 +156,7 @@ export default function Create({ categories, units = [] }) {
     };
 
     const handleStockChange = (unitKey, value) => {
-        const val = parseInt(value, 10) || 0;
+        const val = parseFloat(value) || 0;
         
         setData((prev) => {
             const updated = { ...prev };
@@ -165,16 +165,16 @@ export default function Create({ categories, units = [] }) {
 
             if (unitKey === "dus") {
                 updated.stok_dus = val;
-                updated.stok_pack = pcsPack > 0 ? Math.floor((val * pcsDus) / pcsPack) : 0;
-                updated.stok_pcs = val * pcsDus;
+                updated.stok_pack = pcsPack > 0 ? Number(((val * pcsDus) / pcsPack).toFixed(3)) : 0;
+                updated.stok_pcs = Number((val * pcsDus).toFixed(3));
             } else if (unitKey === "pack") {
                 updated.stok_pack = val;
-                updated.stok_dus = pcsDus > 0 ? Math.floor((val * pcsPack) / pcsDus) : 0;
-                updated.stok_pcs = val * pcsPack;
+                updated.stok_dus = pcsDus > 0 ? Number(((val * pcsPack) / pcsDus).toFixed(3)) : 0;
+                updated.stok_pcs = Number((val * pcsPack).toFixed(3));
             } else if (unitKey === "pcs") {
                 updated.stok_pcs = val;
-                updated.stok_dus = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
-                updated.stok_pack = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
+                updated.stok_dus = pcsDus > 0 ? Number((val / pcsDus).toFixed(3)) : 0;
+                updated.stok_pack = pcsPack > 0 ? Number((val / pcsPack).toFixed(3)) : 0;
             }
             updated.stock = updated.stok_pcs;
             return updated;
@@ -340,6 +340,7 @@ export default function Create({ categories, units = [] }) {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                                 <Input
                                     type="number"
+                                    step="any"
                                     label="Isi [Pcs] dalam se-Pack"
                                     value={data.isi_pcs_dalam_pack === 0 ? "" : data.isi_pcs_dalam_pack}
                                     onChange={(e) =>
@@ -352,6 +353,7 @@ export default function Create({ categories, units = [] }) {
                                     <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">×</span>
                                     <Input
                                         type="number"
+                                        step="any"
                                         label="Isi [Pack] dalam se-dus"
                                         value={data.isi_pack_dalam_dus === 0 ? "" : data.isi_pack_dalam_dus}
                                         onChange={(e) =>
@@ -365,6 +367,7 @@ export default function Create({ categories, units = [] }) {
                                     <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">=</span>
                                     <Input
                                         type="number"
+                                        step="any"
                                         label="Isi [Pcs] dalam se-dus"
                                         value={data.isi_pcs_dalam_dus === 0 ? "" : data.isi_pcs_dalam_dus}
                                         errors={errors.isi_pcs_dalam_dus}
@@ -420,6 +423,7 @@ export default function Create({ categories, units = [] }) {
                                     />
                                     <Input
                                         type="number"
+                                        step="any"
                                         label="Stok Awal (DUS)"
                                         value={data.stok_dus === 0 ? "" : data.stok_dus}
                                         onChange={(e) => handleStockChange("dus", e.target.value)}
@@ -458,6 +462,7 @@ export default function Create({ categories, units = [] }) {
                                     />
                                     <Input
                                         type="number"
+                                        step="any"
                                         label="Stok Awal (PACK)"
                                         value={data.stok_pack === 0 ? "" : data.stok_pack}
                                         onChange={(e) => handleStockChange("pack", e.target.value)}
@@ -496,6 +501,7 @@ export default function Create({ categories, units = [] }) {
                                     />
                                     <Input
                                         type="number"
+                                        step="any"
                                         label="Stok Awal (PCS)"
                                         value={data.stok_pcs === 0 ? "" : data.stok_pcs}
                                         onChange={(e) => handleStockChange("pcs", e.target.value)}

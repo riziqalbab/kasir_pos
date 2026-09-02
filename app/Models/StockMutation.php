@@ -25,9 +25,9 @@ class StockMutation extends Model
         'id' => 'integer',
         'product_id' => 'integer',
         'reference_id' => 'integer',
-        'qty' => 'integer',
-        'stock_before' => 'integer',
-        'stock_after' => 'integer',
+        'qty' => 'float',
+        'stock_before' => 'float',
+        'stock_after' => 'float',
         'created_by' => 'integer',
     ];
 

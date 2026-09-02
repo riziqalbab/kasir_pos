@@ -326,20 +326,24 @@ class TransactionController extends Controller
      */
     private function cartResponse(int $status = 200)
     {
-        $carts = Cart::with(['product', 'service.servicePrices.unit'])
-            ->where('cashier_id', auth()->id())
-            ->active()
-            ->latest()
-            ->get();
+        if (request()->wantsJson() || request()->ajax() || request()->is('api/*')) {
+            $carts = Cart::with(['product', 'service.servicePrices.unit'])
+                ->where('cashier_id', auth()->id())
+                ->active()
+                ->latest()
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'carts' => $carts,
-            'carts_total' => $carts->sum('price'),
-            'pricingPreview' => $this->previewCheckout(
-                $this->pricingService->previewCart($carts, null)
-            ),
-        ], $status);
+            return response()->json([
+                'success' => true,
+                'carts' => $carts,
+                'carts_total' => $carts->sum('price'),
+                'pricingPreview' => $this->previewCheckout(
+                    $this->pricingService->previewCart($carts, null)
+                ),
+            ], $status);
+        }
+
+        return redirect()->route('transactions.index');
     }
 
     /**
@@ -379,12 +383,12 @@ class TransactionController extends Controller
                 ->where('cashier_id', auth()->user()->id)
                 ->first();
 
-            $qty = (int) $request->input('qty', 1);
+            $qty = (float) $request->input('qty', 1);
             $discount = (int) $request->input('discount', 0);
 
             if ($cart) {
                 $cart->qty += $qty;
-                $cart->price = $servicePrice->price * $cart->qty;
+                $cart->price = (int) round($servicePrice->price * $cart->qty);
                 $cart->discount = $discount;
                 $cart->save();
             } else {
@@ -392,7 +396,7 @@ class TransactionController extends Controller
                     'cashier_id' => auth()->user()->id,
                     'service_id' => $service->id,
                     'qty' => $qty,
-                    'price' => $servicePrice->price * $qty,
+                    'price' => (int) round($servicePrice->price * $qty),
                     'discount' => $discount,
                     'satuan' => $servicePrice->unit->name,
                     'satuan_key' => (string) $unitId,
@@ -410,7 +414,7 @@ class TransactionController extends Controller
             return response()->json(['success' => false, 'message' => 'Product not found.'], 422);
         }
 
-        $qty = (int) $request->input('qty', 1);
+        $qty = (float) $request->input('qty', 1);
         $discount = (int) $request->input('discount', 0);
         $satuanKey = $request->input('satuan_key', 'pcs');
         $satuan = $product->getUnitNameForKey($satuanKey);
@@ -418,9 +422,9 @@ class TransactionController extends Controller
 
         $conversion = 1;
         if ($satuanKey === 'dus') {
-            $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+            $conversion = (float) ($product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1)));
         } elseif ($satuanKey === 'pack') {
-            $conversion = $product->isi_pcs_dalam_pack ?: 1;
+            $conversion = (float) ($product->isi_pcs_dalam_pack ?: 1);
         }
         $requestedBaseQty = $qty * $conversion;
 
@@ -432,15 +436,15 @@ class TransactionController extends Controller
         foreach ($otherCarts as $otherCart) {
             $otherConversion = 1;
             if ($otherCart->satuan_key === 'dus') {
-                $otherConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+                $otherConversion = (float) ($product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1)));
             } elseif ($otherCart->satuan_key === 'pack') {
-                $otherConversion = $product->isi_pcs_dalam_pack ?: 1;
+                $otherConversion = (float) ($product->isi_pcs_dalam_pack ?: 1);
             }
-            $totalCartBaseQty += $otherCart->qty * $otherConversion;
+            $totalCartBaseQty += (float) $otherCart->qty * $otherConversion;
         }
 
         // Cek stok produk
-        if ($product->stock < $totalCartBaseQty) {
+        if ((float) $product->stock < $totalCartBaseQty) {
             return response()->json(['success' => false, 'message' => 'Stok tidak mencukupi.'], 422);
         }
 
@@ -456,7 +460,7 @@ class TransactionController extends Controller
             $cart->qty += $qty;
 
             // Jumlahkan harga * kuantitas
-            $cart->price = $sellPrice * $cart->qty;
+            $cart->price = (int) round($sellPrice * $cart->qty);
             $cart->discount = $discount;
 
             $cart->save();
@@ -466,7 +470,7 @@ class TransactionController extends Controller
                 'cashier_id' => auth()->user()->id,
                 'product_id' => $request->product_id,
                 'qty' => $qty,
-                'price' => $sellPrice * $qty,
+                'price' => (int) round($sellPrice * $qty),
                 'discount' => $discount,
                 'satuan' => $satuan,
                 'satuan_key' => $satuanKey,
@@ -520,7 +524,7 @@ class TransactionController extends Controller
     public function updateCart(Request $request, $cart_id)
     {
         $request->validate([
-            'qty' => 'sometimes|integer|min:1',
+            'qty' => 'sometimes|numeric|min:0.001',
             'satuan_key' => 'sometimes|string',
         ]);
 
@@ -535,7 +539,7 @@ class TransactionController extends Controller
             ], 404);
         }
 
-        $newQty = $request->input('qty', $cart->qty);
+        $newQty = (float) $request->input('qty', $cart->qty);
 
         if ($cart->service_id) {
             $newSatuanKey = $request->input('satuan_key', $cart->satuan_key);
@@ -565,7 +569,7 @@ class TransactionController extends Controller
             $cart->qty = $newQty;
             $cart->satuan_key = (string) $servicePrice->unit_id;
             $cart->satuan = $servicePrice->unit->name;
-            $cart->price = $servicePrice->price * $newQty;
+            $cart->price = (int) round($servicePrice->price * $newQty);
             $cart->save();
 
             return $this->cartResponse();
@@ -579,9 +583,9 @@ class TransactionController extends Controller
         // Check stock availability
         $newConversion = 1;
         if ($newSatuanKey === 'dus') {
-            $newConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+            $newConversion = (float) ($product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1)));
         } elseif ($newSatuanKey === 'pack') {
-            $newConversion = $product->isi_pcs_dalam_pack ?: 1;
+            $newConversion = (float) ($product->isi_pcs_dalam_pack ?: 1);
         }
         $newBaseQty = $newQty * $newConversion;
 
@@ -594,14 +598,14 @@ class TransactionController extends Controller
         foreach ($otherCarts as $otherCart) {
             $otherConversion = 1;
             if ($otherCart->satuan_key === 'dus') {
-                $otherConversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+                $otherConversion = (float) ($product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1)));
             } elseif ($otherCart->satuan_key === 'pack') {
-                $otherConversion = $product->isi_pcs_dalam_pack ?: 1;
+                $otherConversion = (float) ($product->isi_pcs_dalam_pack ?: 1);
             }
-            $otherCartBaseQty += $otherCart->qty * $otherConversion;
+            $otherCartBaseQty += (float) $otherCart->qty * $otherConversion;
         }
 
-        if ($product->stock < ($newBaseQty + $otherCartBaseQty)) {
+        if ((float) $product->stock < ($newBaseQty + $otherCartBaseQty)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stok tidak mencukupi. Tersedia: '.$product->stock,
@@ -612,7 +616,7 @@ class TransactionController extends Controller
         $cart->qty = $newQty;
         $cart->satuan_key = $newSatuanKey;
         $cart->satuan = $newSatuan;
-        $cart->price = $newSellPrice * $newQty;
+        $cart->price = (int) round($newSellPrice * $newQty);
         $cart->save();
 
         return $this->cartResponse();
@@ -927,7 +931,7 @@ class TransactionController extends Controller
                     $total_buy_price = 0;
                 } else {
                     $buyPriceForUnit = $cart->product->getBuyPriceForUnit($cart->satuan_key);
-                    $total_buy_price = $buyPriceForUnit * $cart->qty;
+                    $total_buy_price = (int) round($buyPriceForUnit * (float) $cart->qty);
                 }
 
                 $lineShare = $subtotalAfterPromo > 0 ? $lineTotal / $subtotalAfterPromo : 0;
@@ -946,13 +950,13 @@ class TransactionController extends Controller
                     $product = Product::find($cart->product_id);
                     $conversion = 1;
                     if ($cart->satuan_key === 'dus') {
-                        $conversion = $product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1));
+                        $conversion = (float) ($product->isi_pcs_dalam_dus ?: (($product->isi_pcs_dalam_pack ?: 1) * ($product->isi_pack_dalam_dus ?: 1)));
                     } elseif ($cart->satuan_key === 'pack') {
-                        $conversion = $product->isi_pcs_dalam_pack ?: 1;
+                        $conversion = (float) ($product->isi_pcs_dalam_pack ?: 1);
                     }
-                    $qtyInBaseUnit = $cart->qty * $conversion;
+                    $qtyInBaseUnit = (float) $cart->qty * (float) $conversion;
 
-                    $product->stock = $product->stock - $qtyInBaseUnit;
+                    $product->stock = (float) $product->stock - $qtyInBaseUnit;
                     $product->save();
                 }
             }

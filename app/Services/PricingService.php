@@ -47,18 +47,18 @@ class PricingService
 
     public function calculateProductPrice(
         Product $product,
-        int $qty = 1,
+        float|int $qty = 1,
         ?Customer $customer = null,
         ?Collection $rules = null
     ): array {
-        $quantity = max(1, $qty);
+        $quantity = max(0.001, (float) $qty);
 
         return [
             'base_unit_price' => (int) $product->sell_price,
             'effective_unit_price' => (int) $product->sell_price,
             'quantity' => $quantity,
-            'line_base_total' => (int) $product->sell_price * $quantity,
-            'line_total' => (int) $product->sell_price * $quantity,
+            'line_base_total' => (int) round((int) $product->sell_price * $quantity),
+            'line_total' => (int) round((int) $product->sell_price * $quantity),
             'line_discount_total' => 0,
             'pricing_rule' => null,
         ];
@@ -67,25 +67,26 @@ class PricingService
     private function buildPreview(Collection $carts, ?Customer $customer, Collection $rules): array
     {
         $items = $carts->map(function (Cart $cart) {
+            $qty = (float) $cart->qty;
             if ($cart->service_id) {
                 $servicePrice = \App\Models\ServicePrice::where('service_id', $cart->service_id)
                     ->where('unit_id', $cart->satuan_key)
                     ->first();
                 $baseUnitPrice = $servicePrice ? (int) $servicePrice->price : 0;
                 $manualDiscount = (int) ($cart->discount ?? 0);
-                $lineDiscountTotal = $manualDiscount * (int) $cart->qty;
-                $lineTotal = max(0, ($baseUnitPrice * (int) $cart->qty) - $lineDiscountTotal);
-                $effectiveUnitPrice = (int) round($lineTotal / max(1, (int) $cart->qty));
+                $lineDiscountTotal = (int) round($manualDiscount * $qty);
+                $lineTotal = max(0, (int) round($baseUnitPrice * $qty) - $lineDiscountTotal);
+                $effectiveUnitPrice = (int) round($lineTotal / max(0.001, $qty));
 
                 return [
                     'cart_id' => $cart->id,
                     'product_id' => null,
                     'service_id' => $cart->service_id,
                     'product_title' => $cart->service?->name,
-                    'qty' => (int) $cart->qty,
+                    'qty' => $qty,
                     'base_unit_price' => $baseUnitPrice,
                     'effective_unit_price' => $effectiveUnitPrice,
-                    'line_base_total' => $baseUnitPrice * (int) $cart->qty,
+                    'line_base_total' => (int) round($baseUnitPrice * $qty),
                     'line_total' => $lineTotal,
                     'line_discount_total' => $lineDiscountTotal,
                     'pricing_rule' => null,
@@ -97,18 +98,18 @@ class PricingService
 
             $baseUnitPrice = (int) $cart->product->getSellPriceForUnit($cart->satuan_key);
             $manualDiscount = (int) ($cart->discount ?? 0);
-            $lineDiscountTotal = $manualDiscount * (int) $cart->qty;
-            $lineTotal = max(0, ($baseUnitPrice * (int) $cart->qty) - $lineDiscountTotal);
-            $effectiveUnitPrice = (int) round($lineTotal / max(1, (int) $cart->qty));
+            $lineDiscountTotal = (int) round($manualDiscount * $qty);
+            $lineTotal = max(0, (int) round($baseUnitPrice * $qty) - $lineDiscountTotal);
+            $effectiveUnitPrice = (int) round($lineTotal / max(0.001, $qty));
 
             return [
                 'cart_id' => $cart->id,
                 'product_id' => $cart->product_id,
                 'product_title' => $cart->product?->title,
-                'qty' => (int) $cart->qty,
+                'qty' => $qty,
                 'base_unit_price' => $baseUnitPrice,
                 'effective_unit_price' => $effectiveUnitPrice,
-                'line_base_total' => $baseUnitPrice * (int) $cart->qty,
+                'line_base_total' => (int) round($baseUnitPrice * $qty),
                 'line_total' => $lineTotal,
                 'line_discount_total' => $lineDiscountTotal,
                 'pricing_rule' => null,

@@ -15,7 +15,7 @@ const formatPrice = (value = 0) =>
     });
 
 // Single Cart Item
-function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
+function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit, onEditQty }) {
     const quantity = Number(item.qty || 0);
     const itemPrice = Number(item.price || 0);
     const subtotal = itemPrice;
@@ -46,7 +46,9 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
     }
 
     const activeUnit = availableUnits.find(u => u.key === (item.satuan_key || "pcs"));
-    const unitPrice = activeUnit ? activeUnit.price : (Number(item.product?.sell_price || item.price / item.qty || 0));
+    const unitPrice = activeUnit ? activeUnit.price : (Number(item.product?.sell_price || (item.qty > 0 ? item.price / item.qty : 0)));
+
+    const formattedQty = Number(item.qty || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 });
 
     return (
         <div
@@ -82,7 +84,7 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
                 </h4>
                 <div className="flex flex-col gap-1 mt-0.5">
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {formatPrice(unitPrice)} × {item.qty}
+                        {formatPrice(unitPrice)} × {formattedQty}
                     </p>
                     {availableUnits.length > 1 ? (
                         <select
@@ -122,18 +124,23 @@ function CartItem({ item, onUpdateQty, onRemove, isRemoving, onUpdateUnit }) {
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() =>
-                            onUpdateQty(item.id, Math.max(1, item.qty - 1))
+                            onUpdateQty(item.id, Math.max(0.001, Number((Number(item.qty) - 1).toFixed(3))))
                         }
-                        disabled={item.qty <= 1}
+                        disabled={Number(item.qty) <= 0.001}
                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <IconMinus size={14} />
                     </button>
-                    <span className="w-8 text-center text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {item.qty}
-                    </span>
                     <button
-                        onClick={() => onUpdateQty(item.id, item.qty + 1)}
+                        type="button"
+                        onClick={() => onEditQty?.(item)}
+                        title="Klik untuk ubah jumlah / input nominal curah"
+                        className="px-1.5 py-0.5 min-w-8 text-center text-xs font-bold rounded bg-slate-100 dark:bg-slate-700/60 hover:bg-primary-50 dark:hover:bg-primary-950/40 hover:text-primary-600 text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                        {formattedQty}
+                    </button>
+                    <button
+                        onClick={() => onUpdateQty(item.id, Number((Number(item.qty) + 1).toFixed(3)))}
                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                     >
                         <IconPlus size={14} />
@@ -172,6 +179,7 @@ export default function CartPanel({
     removingItemId,
     className = "",
     onUpdateUnit,
+    onEditQty,
 }) {
     const totalItems = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
     // Note: item.price from backend is already sell_price * qty
@@ -211,6 +219,7 @@ export default function CartPanel({
                             onRemove={onRemove}
                             isRemoving={removingItemId === item.id}
                             onUpdateUnit={onUpdateUnit}
+                            onEditQty={onEditQty}
                         />
                     ))}
                 </div>

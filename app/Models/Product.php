@@ -15,19 +15,18 @@ class Product extends Model
         'category_id' => 'integer',
         'buy_price' => 'integer',
         'sell_price' => 'integer',
-        'stock' => 'integer',
-        'isi_pcs_dalam_pack' => 'integer',
-        'isi_pack_dalam_dus' => 'integer',
-        'isi_pcs_dalam_dus' => 'integer',
+        'isi_pcs_dalam_pack' => 'float',
+        'isi_pack_dalam_dus' => 'float',
+        'isi_pcs_dalam_dus' => 'float',
         'harga_beli_dus' => 'integer',
         'harga_jual_dus' => 'integer',
-        'stok_dus' => 'integer',
+        'stok_dus' => 'float',
         'harga_beli_pack' => 'integer',
         'harga_jual_pack' => 'integer',
-        'stok_pack' => 'integer',
+        'stok_pack' => 'float',
         'harga_beli_pcs' => 'integer',
         'harga_jual_pcs' => 'integer',
-        'stok_pcs' => 'integer',
+        'stok_pcs' => 'float',
     ];
 
     /**
@@ -103,17 +102,17 @@ class Product extends Model
         return $this->satuan_jual_pcs ?: 'Pcs';
     }
 
-    public function getStockForUnit(?string $unitKey): int
+    public function getStockForUnit(?string $unitKey): float
     {
-        $stock = $this->stock;
-        $pcsInDus = $this->isi_pcs_dalam_dus ?: (($this->isi_pcs_dalam_pack ?: 1) * ($this->isi_pack_dalam_dus ?: 1));
-        $pcsInPack = $this->isi_pcs_dalam_pack ?: 0;
+        $stock = (float) $this->stock;
+        $pcsInDus = (float) ($this->isi_pcs_dalam_dus ?: (($this->isi_pcs_dalam_pack ?: 1) * ($this->isi_pack_dalam_dus ?: 1)));
+        $pcsInPack = (float) ($this->isi_pcs_dalam_pack ?: 0);
 
         if ($unitKey === 'dus' && $pcsInDus > 0) {
-            return (int) floor($stock / $pcsInDus);
+            return round($stock / $pcsInDus, 3);
         }
         if ($unitKey === 'pack' && $pcsInPack > 0) {
-            return (int) floor($stock / $pcsInPack);
+            return round($stock / $pcsInPack, 3);
         }
 
         return $stock;
@@ -121,34 +120,11 @@ class Product extends Model
 
     public function getStockBreakdownAttribute(): string
     {
-        $stock = $this->stock;
-        $parts = [];
+        $stock = (float) $this->stock;
+        $formattedStock = ($stock == (int) $stock) ? (int) $stock : $stock;
+        $pcsUnit = $this->satuan_jual_pcs ?: 'Pcs';
 
-        $pcsInDus = $this->isi_pcs_dalam_dus ?: (($this->isi_pcs_dalam_pack ?: 1) * ($this->isi_pack_dalam_dus ?: 1));
-        $pcsInPack = $this->isi_pcs_dalam_pack ?: 0;
-
-        if ($pcsInDus > 0 && $this->satuan_jual_dus) {
-            $dus = floor($stock / $pcsInDus);
-            if ($dus > 0) {
-                $parts[] = "{$dus} {$this->satuan_jual_dus}";
-                $stock %= $pcsInDus;
-            }
-        }
-
-        if ($pcsInPack > 0 && $this->satuan_jual_pack) {
-            $pack = floor($stock / $pcsInPack);
-            if ($pack > 0) {
-                $parts[] = "{$pack} {$this->satuan_jual_pack}";
-                $stock %= $pcsInPack;
-            }
-        }
-
-        if ($stock > 0 || empty($parts)) {
-            $pcsUnit = $this->satuan_jual_pcs ?: 'Pcs';
-            $parts[] = "{$stock} {$pcsUnit}";
-        }
-
-        return implode(', ', $parts);
+        return "{$formattedStock} {$pcsUnit}";
     }
 
     /**
@@ -174,6 +150,17 @@ class Product extends Model
     public function salesReturnItems()
     {
         return $this->hasMany(SalesReturnItem::class);
+    }
+
+    /**
+     * stock accessor & mutator
+     */
+    protected function stock(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => is_null($value) ? 0 : ((float) $value == (int) (float) $value ? (int) (float) $value : (float) $value),
+            set: fn ($value) => (float) $value,
+        );
     }
 
     /**

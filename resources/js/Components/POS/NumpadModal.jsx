@@ -22,6 +22,7 @@ export default function NumpadModal({
     minValue = 0,
     maxValue = 999999999,
     isCurrency = false,
+    allowDecimal = false,
 }) {
     const [value, setValue] = useState(String(initialValue || ""));
 
@@ -39,6 +40,8 @@ export default function NumpadModal({
         const handleKeyDown = (e) => {
             if (e.key >= "0" && e.key <= "9") {
                 handleDigit(e.key);
+            } else if ((e.key === "." || e.key === ",") && allowDecimal) {
+                handleDot();
             } else if (e.key === "Backspace") {
                 handleBackspace();
             } else if (e.key === "Enter") {
@@ -52,19 +55,27 @@ export default function NumpadModal({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen, value]);
+    }, [isOpen, value, allowDecimal]);
 
     const handleDigit = useCallback(
         (digit) => {
             setValue((prev) => {
                 const newValue = prev === "0" ? digit : prev + digit;
-                const numValue = parseInt(newValue, 10);
+                const numValue = allowDecimal ? parseFloat(newValue) : parseInt(newValue, 10);
                 if (numValue > maxValue) return prev;
                 return newValue;
             });
         },
-        [maxValue]
+        [maxValue, allowDecimal]
     );
+
+    const handleDot = useCallback(() => {
+        setValue((prev) => {
+            if (!prev || prev === "") return "0.";
+            if (prev.includes(".")) return prev;
+            return prev + ".";
+        });
+    }, []);
 
     const handleBackspace = useCallback(() => {
         setValue((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0"));
@@ -75,26 +86,27 @@ export default function NumpadModal({
     }, []);
 
     const handleConfirm = useCallback(() => {
-        const numValue = parseInt(value, 10) || 0;
+        const numValue = allowDecimal ? (parseFloat(value) || 0) : (parseInt(value, 10) || 0);
         if (numValue >= minValue && numValue <= maxValue) {
             onConfirm(numValue);
             onClose();
         }
-    }, [value, minValue, maxValue, onConfirm, onClose]);
+    }, [value, minValue, maxValue, allowDecimal, onConfirm, onClose]);
 
     const handleQuickAmount = useCallback(
         (amount) => {
-            const current = parseInt(value, 10) || 0;
+            const current = (allowDecimal ? parseFloat(value) : parseInt(value, 10)) || 0;
             const newValue = current + amount;
             if (newValue <= maxValue) {
                 setValue(String(newValue));
             }
         },
-        [value, maxValue]
+        [value, maxValue, allowDecimal]
     );
 
     const formatDisplay = (val) => {
-        const num = parseInt(val, 10) || 0;
+        if (val.endsWith(".")) return val;
+        const num = allowDecimal ? (parseFloat(val) || 0) : (parseInt(val, 10) || 0);
         if (isCurrency) {
             return new Intl.NumberFormat("id-ID", {
                 style: "currency",
@@ -102,12 +114,12 @@ export default function NumpadModal({
                 minimumFractionDigits: 0,
             }).format(num);
         }
-        return num.toLocaleString("id-ID");
+        return allowDecimal ? String(val) : num.toLocaleString("id-ID");
     };
 
     if (!isOpen) return null;
 
-    const numValue = parseInt(value, 10) || 0;
+    const numValue = (allowDecimal ? parseFloat(value) : parseInt(value, 10)) || 0;
     const isValid = numValue >= minValue && numValue <= maxValue;
 
     return (
@@ -170,13 +182,22 @@ export default function NumpadModal({
                         </button>
                     ))}
 
-                    {/* Clear */}
-                    <button
-                        onClick={handleClear}
-                        className="h-14 text-sm font-semibold rounded-2xl bg-warning-100 dark:bg-warning-900/50 text-warning-700 dark:text-warning-400 hover:bg-warning-200 dark:hover:bg-warning-900 active:scale-95 transition-all"
-                    >
-                        C
-                    </button>
+                    {/* Dot or Clear */}
+                    {allowDecimal ? (
+                        <button
+                            onClick={handleDot}
+                            className="h-14 text-2xl font-bold rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                        >
+                            .
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleClear}
+                            className="h-14 text-sm font-semibold rounded-2xl bg-warning-100 dark:bg-warning-900/50 text-warning-700 dark:text-warning-400 hover:bg-warning-200 dark:hover:bg-warning-900 active:scale-95 transition-all"
+                        >
+                            C
+                        </button>
+                    )}
 
                     {/* 0 */}
                     <button

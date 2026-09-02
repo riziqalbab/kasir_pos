@@ -24,6 +24,7 @@ class Cart extends Model
      * @var array
      */
     protected $casts = [
+        'qty' => 'float',
         'held_at' => 'datetime',
     ];
 

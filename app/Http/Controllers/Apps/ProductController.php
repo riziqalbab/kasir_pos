@@ -105,29 +105,29 @@ class ProductController extends Controller
             'category_id' => 'required',
             'image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
             'satuan_beli' => 'nullable|string',
-            'isi_pcs_dalam_pack' => 'nullable|integer|min:0',
-            'isi_pack_dalam_dus' => 'nullable|integer|min:1',
-            'isi_pcs_dalam_dus' => 'nullable|integer|min:0',
+            'isi_pcs_dalam_pack' => 'nullable|numeric|min:0',
+            'isi_pack_dalam_dus' => 'nullable|numeric|min:0',
+            'isi_pcs_dalam_dus' => 'nullable|numeric|min:0',
 
             'satuan_jual_dus' => 'nullable|string',
             'harga_beli_dus' => 'nullable|integer|min:0',
             'harga_jual_dus' => 'nullable|integer|min:0',
-            'stok_dus' => 'nullable|integer|min:0',
+            'stok_dus' => 'nullable|numeric|min:0',
 
             'satuan_jual_pack' => 'nullable|string',
             'harga_beli_pack' => 'nullable|integer|min:0',
             'harga_jual_pack' => 'nullable|integer|min:0',
-            'stok_pack' => 'nullable|integer|min:0',
+            'stok_pack' => 'nullable|numeric|min:0',
 
             'satuan_jual_pcs' => 'nullable|string',
             'harga_beli_pcs' => 'nullable|integer|min:0',
             'harga_jual_pcs' => 'nullable|integer|min:0',
-            'stok_pcs' => 'nullable|integer|min:0',
+            'stok_pcs' => 'nullable|numeric|min:0',
 
             // Fallback inputs for backward compatibility
             'buy_price' => 'nullable|integer|min:0',
             'sell_price' => 'nullable|integer|min:0',
-            'stock' => 'nullable|integer|min:0',
+            'stock' => 'nullable|numeric|min:0',
             'is_stock_synced' => 'nullable|boolean',
         ]);
 
@@ -139,10 +139,10 @@ class ProductController extends Controller
             $imageName = $image->hashName();
         }
 
-        $isiPcsDalamPack = (int) $request->input('isi_pcs_dalam_pack', 0);
-        $isiPackDalamDus = (int) $request->input('isi_pack_dalam_dus', 1);
-        $isiPcsDalamDus = (int) $request->input('isi_pcs_dalam_dus', 0);
-        if ($isiPcsDalamDus === 0 && $isiPcsDalamPack > 0) {
+        $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
+        $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
+        $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
+        if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
             $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
         }
 
@@ -152,13 +152,13 @@ class ProductController extends Controller
         $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', 0));
         $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', 0));
 
-        $stokPcs = (int) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', 0));
+        $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', 0));
 
-        $stokDus = (int) $request->input('stok_dus', 0);
-        $stokPack = (int) $request->input('stok_pack', 0);
+        $stokDus = (float) $request->input('stok_dus', 0);
+        $stokPack = (float) $request->input('stok_pack', 0);
 
         if ($request->input('is_stock_synced')) {
-            $computedStock = (int) $request->input('stock', $stokPcs);
+            $computedStock = (float) $request->input('stock', $stokPcs);
         } else {
             $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
         }
@@ -257,36 +257,36 @@ class ProductController extends Controller
             'title' => 'required',
             'category_id' => 'required',
             'satuan_beli' => 'nullable|string',
-            'isi_pcs_dalam_pack' => 'nullable|integer|min:0',
-            'isi_pack_dalam_dus' => 'nullable|integer|min:1',
-            'isi_pcs_dalam_dus' => 'nullable|integer|min:0',
+            'isi_pcs_dalam_pack' => 'nullable|numeric|min:0',
+            'isi_pack_dalam_dus' => 'nullable|numeric|min:0',
+            'isi_pcs_dalam_dus' => 'nullable|numeric|min:0',
 
             'satuan_jual_dus' => 'nullable|string',
             'harga_beli_dus' => 'nullable|integer|min:0',
             'harga_jual_dus' => 'nullable|integer|min:0',
-            'stok_dus' => 'nullable|integer|min:0',
+            'stok_dus' => 'nullable|numeric|min:0',
 
             'satuan_jual_pack' => 'nullable|string',
             'harga_beli_pack' => 'nullable|integer|min:0',
             'harga_jual_pack' => 'nullable|integer|min:0',
-            'stok_pack' => 'nullable|integer|min:0',
+            'stok_pack' => 'nullable|numeric|min:0',
 
             'satuan_jual_pcs' => 'nullable|string',
             'harga_beli_pcs' => 'nullable|integer|min:0',
             'harga_jual_pcs' => 'nullable|integer|min:0',
-            'stok_pcs' => 'nullable|integer|min:0',
+            'stok_pcs' => 'nullable|numeric|min:0',
 
             // Fallback inputs for backward compatibility
             'buy_price' => 'nullable|integer|min:0',
             'sell_price' => 'nullable|integer|min:0',
-            'stock' => 'nullable|integer|min:0',
+            'stock' => 'nullable|numeric|min:0',
             'is_stock_synced' => 'nullable|boolean',
         ]);
 
-        $isiPcsDalamPack = (int) $request->input('isi_pcs_dalam_pack', 0);
-        $isiPackDalamDus = (int) $request->input('isi_pack_dalam_dus', 1);
-        $isiPcsDalamDus = (int) $request->input('isi_pcs_dalam_dus', 0);
-        if ($isiPcsDalamDus === 0 && $isiPcsDalamPack > 0) {
+        $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
+        $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
+        $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
+        if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
             $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
         }
 
@@ -296,23 +296,23 @@ class ProductController extends Controller
         $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
         $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
 
-        $stokPcs = (int) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
-        $stokDus = (int) $request->input('stok_dus', $product->stok_dus);
-        $stokPack = (int) $request->input('stok_pack', $product->stok_pack);
+        $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
+        $stokDus = (float) $request->input('stok_dus', $product->stok_dus);
+        $stokPack = (float) $request->input('stok_pack', $product->stok_pack);
 
         if ($request->input('is_stock_synced')) {
-            $computedStock = (int) $request->input('stock', $stokPcs);
+            $computedStock = (float) $request->input('stock', $stokPcs);
         } else {
             $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
         }
 
-        if ($computedStock !== (int) $product->stock) {
+        if ($computedStock !== (float) $product->stock) {
             \App\Models\StockMutation::create([
                 'product_id' => $product->id,
                 'reference_type' => 'product_update',
                 'reference_id' => $product->id,
                 'mutation_type' => $computedStock > $product->stock ? 'in' : 'out',
-                'qty' => abs($computedStock - $product->stock),
+                'qty' => abs($computedStock - (float) $product->stock),
                 'stock_before' => $product->stock,
                 'stock_after' => $computedStock,
                 'notes' => 'Penyesuaian stok saat update produk.',

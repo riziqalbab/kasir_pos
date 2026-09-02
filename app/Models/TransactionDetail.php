@@ -33,7 +33,7 @@ class TransactionDetail extends Model
     ];
 
     protected $casts = [
-        'qty' => 'integer',
+        'qty' => 'float',
         'base_unit_price' => 'integer',
         'unit_price' => 'integer',
         'price' => 'integer',
