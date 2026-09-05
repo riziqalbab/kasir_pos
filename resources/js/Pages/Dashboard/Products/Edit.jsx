@@ -44,6 +44,7 @@ export default function Edit({ categories, product, units = [] }) {
         harga_jual_pcs: product.harga_jual_pcs || 0,
         stok_pcs: product.stok_pcs || 0,
         stock: product.stock || 0,
+        is_eceran: Boolean(product.is_eceran),
         _method: "PUT",
     });
 
@@ -333,268 +334,424 @@ export default function Edit({ categories, product, units = [] }) {
                                     errors={errors.title}
                                     placeholder="Nama produk"
                                 />
-                                <UnitSelect
-                                     label="Satuan Beli"
-                                     value={data.satuan_beli}
-                                     onChange={(e) =>
-                                         setData((prev) => ({
-                                             ...prev,
-                                             satuan_beli: e.target.value,
-                                             satuan_jual_dus: e.target.value,
-                                         }))
-                                     }
-                                     units={units}
-                                     errors={errors.satuan_beli}
-                                     placeholder="Dus / Box / Pcs"
-                                     onAddClick={() => openQuickAddModal("satuan_beli")}
-                                 />
-                            </div>
-                        </div>
-
-                        {/* Conversion Section */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                                <IconScale size={18} />
-                                Keterangan Isi Barang (Konversi Satuan)
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                <Input
-                                    type="number"
-                                    step="any"
-                                    label="Isi [Pcs] dalam se-Pack"
-                                    value={data.isi_pcs_dalam_pack === 0 ? "" : data.isi_pcs_dalam_pack}
-                                    onChange={(e) =>
-                                        handleConversionChange("isi_pcs_dalam_pack", e.target.value)
-                                    }
-                                    errors={errors.isi_pcs_dalam_pack}
-                                    placeholder="0"
-                                />
-                                <div className="relative">
-                                    <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">×</span>
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        label="Isi [Pack] dalam se-dus"
-                                        value={data.isi_pack_dalam_dus === 0 ? "" : data.isi_pack_dalam_dus}
+                                {!data.is_eceran && (
+                                    <UnitSelect
+                                        label="Satuan Beli"
+                                        value={data.satuan_beli}
                                         onChange={(e) =>
-                                            handleConversionChange("isi_pack_dalam_dus", e.target.value)
+                                            setData((prev) => ({
+                                                ...prev,
+                                                satuan_beli: e.target.value,
+                                                satuan_jual_dus: e.target.value,
+                                            }))
                                         }
-                                        errors={errors.isi_pack_dalam_dus}
-                                        placeholder="1"
+                                        units={units}
+                                        errors={errors.satuan_beli}
+                                        placeholder="Dus / Box / Pcs"
+                                        onAddClick={() => openQuickAddModal("satuan_beli")}
                                     />
-                                </div>
-                                <div className="relative">
-                                    <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">=</span>
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        label="Isi [Pcs] dalam se-dus"
-                                        value={data.isi_pcs_dalam_dus === 0 ? "" : data.isi_pcs_dalam_dus}
-                                        errors={errors.isi_pcs_dalam_dus}
-                                        disabled={true}
-                                        placeholder="0"
-                                        className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold"
-                                    />
+                                )}
+                                <div className="md:col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(data.is_eceran)}
+                                            onChange={(e) => {
+                                                const isChecked = e.target.checked;
+                                                setData((prev) => ({
+                                                    ...prev,
+                                                    is_eceran: isChecked,
+                                                    ...(isChecked
+                                                        ? {
+                                                              satuan_jual_pcs:
+                                                                  prev.satuan_jual_pcs ||
+                                                                  prev.satuan_beli ||
+                                                                  "Pcs",
+                                                              satuan_beli:
+                                                                  prev.satuan_jual_pcs ||
+                                                                  prev.satuan_beli ||
+                                                                  "Pcs",
+                                                              isi_pcs_dalam_pack: 0,
+                                                              isi_pack_dalam_dus: 1,
+                                                              isi_pcs_dalam_dus: 0,
+                                                              stok_dus: 0,
+                                                              stok_pack: 0,
+                                                          }
+                                                        : {}),
+                                                }));
+                                                if (isChecked) {
+                                                    setActiveTab("pcs");
+                                                }
+                                            }}
+                                            className="mt-0.5 w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 dark:bg-slate-800 dark:border-slate-700"
+                                        />
+                                        <div>
+                                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                Barang Eceran / Curah / Timbangan
+                                            </span>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                Tandai jika barang ini dijual eceran (hanya 1 satuan ukuran: liter, kg, gram, potong, curah) dan akan tampil di tab Barang Eceran di kasir.
+                                            </p>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Pricing & Stock Tabbed Layout */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
-                            <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <IconCurrencyDollar size={18} />
-                                    Harga & Stok per Satuan Jual
+                        {/* Conversion Section - Multi Unit Only */}
+                        {!data.is_eceran && (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                    <IconScale size={18} />
+                                    Keterangan Isi Barang (Konversi Satuan)
                                 </h3>
-                                {/* Tabs Selector */}
-                                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                                    {["dus", "pack", "pcs"].map((tab) => (
-                                        <button
-                                            key={tab}
-                                            type="button"
-                                            onClick={() => setActiveTab(tab)}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all duration-200 ${
-                                                activeTab === tab
-                                                    ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
-                                                     : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
-                                            }`}
-                                        >
-                                            {tab === "pcs"
-                                                ? data.satuan_jual_pcs || "PCS"
-                                                : tab === "pack"
-                                                ? data.satuan_jual_pack || "PAK"
-                                                : data.satuan_jual_dus || "DUS"}
-                                        </button>
-                                    ))}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                    <Input
+                                        type="number"
+                                        step="any"
+                                        label="Isi [Pcs] dalam se-Pack"
+                                        value={data.isi_pcs_dalam_pack === 0 ? "" : data.isi_pcs_dalam_pack}
+                                        onChange={(e) =>
+                                            handleConversionChange("isi_pcs_dalam_pack", e.target.value)
+                                        }
+                                        errors={errors.isi_pcs_dalam_pack}
+                                        placeholder="0"
+                                    />
+                                    <div className="relative">
+                                        <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">×</span>
+                                        <Input
+                                            type="number"
+                                            step="any"
+                                            label="Isi [Pack] dalam se-dus"
+                                            value={data.isi_pack_dalam_dus === 0 ? "" : data.isi_pack_dalam_dus}
+                                            onChange={(e) =>
+                                                handleConversionChange("isi_pack_dalam_dus", e.target.value)
+                                            }
+                                            errors={errors.isi_pack_dalam_dus}
+                                            placeholder="1"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <span className="absolute -left-2 top-[38px] text-lg font-bold text-slate-400">=</span>
+                                        <Input
+                                            type="number"
+                                            step="any"
+                                            label="Isi [Pcs] dalam se-dus"
+                                            value={data.isi_pcs_dalam_dus === 0 ? "" : data.isi_pcs_dalam_dus}
+                                            errors={errors.isi_pcs_dalam_dus}
+                                            disabled={true}
+                                            placeholder="0"
+                                            className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold"
+                                        />
+                                    </div>
                                 </div>
                             </div>
+                        )}
 
-                            {/* Tab Content */}
-                            {activeTab === "dus" && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <UnitSelect
-                                        label="Nama Satuan Jual (DUS)"
-                                        value={data.satuan_jual_dus}
-                                        onChange={(e) => setData("satuan_jual_dus", e.target.value)}
-                                        units={units}
-                                        errors={errors.satuan_jual_dus}
-                                        placeholder="Dus"
-                                        onAddClick={() => openQuickAddModal("satuan_jual_dus")}
-                                    />
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        label="Stok Saat Ini (DUS)"
-                                        value={data.stok_dus === 0 ? "" : data.stok_dus}
-                                        onChange={(e) => handleStockChange("dus", e.target.value)}
-                                        errors={errors.stok_dus}
-                                        placeholder="0"
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="Harga Beli (DUS)"
-                                        value={data.harga_beli_dus === 0 ? "" : data.harga_beli_dus}
-                                        onChange={(e) => handleHargaBeliChange("dus", e.target.value)}
-                                        errors={errors.harga_beli_dus}
-                                        placeholder="0"
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="Harga Jual (DUS)"
-                                        value={data.harga_jual_dus === 0 ? "" : data.harga_jual_dus}
-                                        onChange={(e) => handleHargaJualChange("dus", e.target.value)}
-                                        errors={errors.harga_jual_dus}
-                                        placeholder="0"
-                                    />
+                        {/* Pricing & Stock Section */}
+                        {data.is_eceran ? (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                                <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                            <IconScale size={18} className="text-primary-500" />
+                                            Harga & Stok Barang Eceran
+                                        </h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                            Barang eceran hanya menggunakan 1 satuan ukuran (misal: Liter, Kg, Gram, Pcs).
+                                        </p>
+                                    </div>
+                                    <span className="px-2.5 py-1 text-xs font-semibold bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 rounded-lg">
+                                        1 Satuan Eceran
+                                    </span>
                                 </div>
-                            )}
 
-                            {activeTab === "pack" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <UnitSelect
-                                        label="Nama Satuan Jual (PACK)"
-                                        value={data.satuan_jual_pack}
-                                        onChange={(e) => setData("satuan_jual_pack", e.target.value)}
-                                        units={units}
-                                        errors={errors.satuan_jual_pack}
-                                        placeholder="Pak"
-                                        onAddClick={() => openQuickAddModal("satuan_jual_pack")}
-                                    />
-                                    <Input
-                                        type="number"
-                                        step="any"
-                                        label="Stok Saat Ini (PACK)"
-                                        value={data.stok_pack === 0 ? "" : data.stok_pack}
-                                        onChange={(e) => handleStockChange("pack", e.target.value)}
-                                        errors={errors.stok_pack}
-                                        placeholder="0"
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="Harga Beli (PACK)"
-                                        value={data.harga_beli_pack === 0 ? "" : data.harga_beli_pack}
-                                        onChange={(e) => handleHargaBeliChange("pack", e.target.value)}
-                                        errors={errors.harga_beli_pack}
-                                        placeholder="0"
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="Harga Jual (PACK)"
-                                        value={data.harga_jual_pack === 0 ? "" : data.harga_jual_pack}
-                                        onChange={(e) => handleHargaJualChange("pack", e.target.value)}
-                                        errors={errors.harga_jual_pack}
-                                        placeholder="0"
-                                    />
-                                </div>
-                            )}
-
-                            {activeTab === "pcs" && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <UnitSelect
-                                        label="Nama Satuan Jual (PCS)"
+                                        label="Satuan Barang"
                                         value={data.satuan_jual_pcs}
-                                        onChange={(e) => setData("satuan_jual_pcs", e.target.value)}
+                                        onChange={(e) => {
+                                            const unitVal = e.target.value;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                satuan_jual_pcs: unitVal,
+                                                satuan_beli: unitVal,
+                                            }));
+                                        }}
                                         units={units}
                                         errors={errors.satuan_jual_pcs}
-                                        placeholder="Pcs"
+                                        placeholder="Liter / Kg / Gram / Pcs"
                                         onAddClick={() => openQuickAddModal("satuan_jual_pcs")}
                                     />
                                     <Input
                                         type="number"
                                         step="any"
-                                        label="Stok Saat Ini (PCS)"
+                                        label={`Stok Saat Ini (${data.satuan_jual_pcs || "Satuan"})`}
                                         value={data.stok_pcs === 0 ? "" : data.stok_pcs}
-                                        onChange={(e) => handleStockChange("pcs", e.target.value)}
+                                        onChange={(e) => {
+                                            const val = parseFloat(e.target.value) || 0;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                stok_pcs: val,
+                                                stock: val,
+                                            }));
+                                        }}
                                         errors={errors.stok_pcs}
                                         placeholder="0"
                                     />
                                     <Input
                                         type="number"
-                                        label="Harga Beli (PCS)"
+                                        label={`Harga Beli per ${data.satuan_jual_pcs || "Satuan"}`}
                                         value={data.harga_beli_pcs === 0 ? "" : data.harga_beli_pcs}
-                                        onChange={(e) => handleHargaBeliChange("pcs", e.target.value)}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10) || 0;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                harga_beli_pcs: val,
+                                                buy_price: val,
+                                            }));
+                                        }}
                                         errors={errors.harga_beli_pcs}
                                         placeholder="0"
                                     />
                                     <Input
                                         type="number"
-                                        label="Harga Jual (PCS)"
+                                        label={`Harga Jual per ${data.satuan_jual_pcs || "Satuan"}`}
                                         value={data.harga_jual_pcs === 0 ? "" : data.harga_jual_pcs}
-                                        onChange={(e) => handleHargaJualChange("pcs", e.target.value)}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10) || 0;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                harga_jual_pcs: val,
+                                                sell_price: val,
+                                            }));
+                                        }}
                                         errors={errors.harga_jual_pcs}
                                         placeholder="0"
                                     />
                                 </div>
-                            )}
 
-                            {/* Stock warning/info footer */}
-                            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                    Stok Saat Ini (Keseluruhan)
-                                </p>
-                                <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {activeTab === "dus" && (
-                                        <>
-                                            {data.stok_dus} {data.satuan_jual_dus || "Dus"} ({data.stock} Pcs)
-                                        </>
-                                    )}
-                                    {activeTab === "pack" && (
-                                        <>
-                                            {data.stok_pack} {data.satuan_jual_pack || "Pak"} ({data.stock} Pcs)
-                                        </>
-                                    )}
-                                    {activeTab === "pcs" && (
-                                        <>
-                                            {data.stock} {data.satuan_jual_pcs || "Pcs"}
-                                        </>
-                                    )}
-                                </p>
-                            </div>
-
-                            {/* Profit Estimation */}
-                            {showProfit && (
-                                <div className="mt-4 p-4 rounded-xl bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-900">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-success-700 dark:text-success-400 font-medium">
-                                                Estimasi Profit per {activeTabPricing.name}
-                                            </p>
-                                            <p className="text-2xl font-bold text-success-600 dark:text-success-500 mt-1">
-                                                + Rp {profitAmount.toLocaleString("id-ID")}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-sm text-success-700 dark:text-success-400 font-medium">
-                                                Margin
-                                            </p>
-                                            <p className="text-xl font-bold text-success-600 dark:text-success-500 mt-1">
-                                                {profitMargin}%
-                                            </p>
+                                {/* Profit Estimation */}
+                                {showProfit && (
+                                    <div className="mt-4 p-4 rounded-xl bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-900">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm text-success-700 dark:text-success-400 font-medium">
+                                                    Estimasi Profit per {data.satuan_jual_pcs || "Satuan"}
+                                                </p>
+                                                <p className="text-2xl font-bold text-success-600 dark:text-success-500 mt-1">
+                                                    + Rp {profitAmount.toLocaleString("id-ID")}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm text-success-700 dark:text-success-400 font-medium">
+                                                    Margin
+                                                </p>
+                                                <p className="text-xl font-bold text-success-600 dark:text-success-500 mt-1">
+                                                    {profitMargin}%
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                                <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                        <IconCurrencyDollar size={18} />
+                                        Harga & Stok per Satuan Jual
+                                    </h3>
+                                    {/* Tabs Selector */}
+                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                                        {["dus", "pack", "pcs"].map((tab) => (
+                                            <button
+                                                key={tab}
+                                                type="button"
+                                                onClick={() => setActiveTab(tab)}
+                                                className={`px-4 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all duration-200 ${
+                                                    activeTab === tab
+                                                        ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                                                        : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                                                }`}
+                                            >
+                                                {tab === "pcs"
+                                                    ? data.satuan_jual_pcs || "PCS"
+                                                    : tab === "pack"
+                                                    ? data.satuan_jual_pack || "PAK"
+                                                    : data.satuan_jual_dus || "DUS"}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Tab Content */}
+                                {activeTab === "dus" && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <UnitSelect
+                                            label="Nama Satuan Jual (DUS)"
+                                            value={data.satuan_jual_dus}
+                                            onChange={(e) => setData("satuan_jual_dus", e.target.value)}
+                                            units={units}
+                                            errors={errors.satuan_jual_dus}
+                                            placeholder="Dus"
+                                            onAddClick={() => openQuickAddModal("satuan_jual_dus")}
+                                        />
+                                        <Input
+                                            type="number"
+                                            step="any"
+                                            label="Stok Saat Ini (DUS)"
+                                            value={data.stok_dus === 0 ? "" : data.stok_dus}
+                                            onChange={(e) => handleStockChange("dus", e.target.value)}
+                                            errors={errors.stok_dus}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Beli (DUS)"
+                                            value={data.harga_beli_dus === 0 ? "" : data.harga_beli_dus}
+                                            onChange={(e) => handleHargaBeliChange("dus", e.target.value)}
+                                            errors={errors.harga_beli_dus}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Jual (DUS)"
+                                            value={data.harga_jual_dus === 0 ? "" : data.harga_jual_dus}
+                                            onChange={(e) => handleHargaJualChange("dus", e.target.value)}
+                                            errors={errors.harga_jual_dus}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                )}
+
+                                {activeTab === "pack" && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <UnitSelect
+                                            label="Nama Satuan Jual (PACK)"
+                                            value={data.satuan_jual_pack}
+                                            onChange={(e) => setData("satuan_jual_pack", e.target.value)}
+                                            units={units}
+                                            errors={errors.satuan_jual_pack}
+                                            placeholder="Pak"
+                                            onAddClick={() => openQuickAddModal("satuan_jual_pack")}
+                                        />
+                                        <Input
+                                            type="number"
+                                            step="any"
+                                            label="Stok Saat Ini (PACK)"
+                                            value={data.stok_pack === 0 ? "" : data.stok_pack}
+                                            onChange={(e) => handleStockChange("pack", e.target.value)}
+                                            errors={errors.stok_pack}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Beli (PACK)"
+                                            value={data.harga_beli_pack === 0 ? "" : data.harga_beli_pack}
+                                            onChange={(e) => handleHargaBeliChange("pack", e.target.value)}
+                                            errors={errors.harga_beli_pack}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Jual (PACK)"
+                                            value={data.harga_jual_pack === 0 ? "" : data.harga_jual_pack}
+                                            onChange={(e) => handleHargaJualChange("pack", e.target.value)}
+                                            errors={errors.harga_jual_pack}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                )}
+
+                                {activeTab === "pcs" && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <UnitSelect
+                                            label="Nama Satuan Jual (PCS)"
+                                            value={data.satuan_jual_pcs}
+                                            onChange={(e) => setData("satuan_jual_pcs", e.target.value)}
+                                            units={units}
+                                            errors={errors.satuan_jual_pcs}
+                                            placeholder="Pcs"
+                                            onAddClick={() => openQuickAddModal("satuan_jual_pcs")}
+                                        />
+                                        <Input
+                                            type="number"
+                                            step="any"
+                                            label="Stok Saat Ini (PCS)"
+                                            value={data.stok_pcs === 0 ? "" : data.stok_pcs}
+                                            onChange={(e) => handleStockChange("pcs", e.target.value)}
+                                            errors={errors.stok_pcs}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Beli (PCS)"
+                                            value={data.harga_beli_pcs === 0 ? "" : data.harga_beli_pcs}
+                                            onChange={(e) => handleHargaBeliChange("pcs", e.target.value)}
+                                            errors={errors.harga_beli_pcs}
+                                            placeholder="0"
+                                        />
+                                        <Input
+                                            type="number"
+                                            label="Harga Jual (PCS)"
+                                            value={data.harga_jual_pcs === 0 ? "" : data.harga_jual_pcs}
+                                            onChange={(e) => handleHargaJualChange("pcs", e.target.value)}
+                                            errors={errors.harga_jual_pcs}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Stock warning/info footer */}
+                                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        Stok Saat Ini (Keseluruhan)
+                                    </p>
+                                    <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
+                                        {activeTab === "dus" && (
+                                            <>
+                                                {data.stok_dus} {data.satuan_jual_dus || "Dus"} ({data.stock} Pcs)
+                                            </>
+                                        )}
+                                        {activeTab === "pack" && (
+                                            <>
+                                                {data.stok_pack} {data.satuan_jual_pack || "Pak"} ({data.stock} Pcs)
+                                            </>
+                                        )}
+                                        {activeTab === "pcs" && (
+                                            <>
+                                                {data.stock} {data.satuan_jual_pcs || "Pcs"}
+                                            </>
+                                        )}
+                                    </p>
+                                </div>
+
+                                {/* Profit Estimation */}
+                                {showProfit && (
+                                    <div className="mt-4 p-4 rounded-xl bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-900">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm text-success-700 dark:text-success-400 font-medium">
+                                                    Estimasi Profit per {activeTabPricing.name}
+                                                </p>
+                                                <p className="text-2xl font-bold text-success-600 dark:text-success-500 mt-1">
+                                                    + Rp {profitAmount.toLocaleString("id-ID")}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm text-success-700 dark:text-success-400 font-medium">
+                                                    Margin
+                                                </p>
+                                                <p className="text-xl font-bold text-success-600 dark:text-success-500 mt-1">
+                                                    {profitMargin}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex justify-end gap-3">
                             <Link

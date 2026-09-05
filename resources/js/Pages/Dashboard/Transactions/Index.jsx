@@ -48,6 +48,7 @@ import {
     IconRefresh,
     IconGift,
     IconDatabaseOff,
+    IconScale,
 } from "@tabler/icons-react";
 
 const formatPrice = (value = 0) =>
@@ -94,6 +95,7 @@ export default function Index({
     const urlParams = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
     const getInitialMode = () => {
         const mode = urlParams.get("mode");
+        if (mode === "eceran") return "eceran";
         if (mode === "jasa") return "jasa";
         if (mode === "agen_link") return "agen_link";
         if (mode === "tukar_poin") return "tukar_poin";
@@ -680,6 +682,13 @@ export default function Index({
         }
 
         return products.filter((product) => {
+            if (transactionMode === "eceran" && !product.is_eceran) {
+                return false;
+            }
+            if (transactionMode === "produk" && Boolean(product.is_eceran)) {
+                return false;
+            }
+
             const matchesCategory =
                 normalizedSelectedCategory === null ||
                 Number(product.category_id) === normalizedSelectedCategory;
@@ -773,7 +782,7 @@ export default function Index({
                 setNumpadOpen(true);
             } else if (e.key === "F2") {
                 e.preventDefault();
-                if (transactionMode === "produk" || transactionMode === "jasa") {
+                if (transactionMode === "produk" || transactionMode === "eceran" || transactionMode === "jasa") {
                     if (carts.length > 0) {
                         handleSubmitTransaction();
                     } else {
@@ -796,13 +805,17 @@ export default function Index({
                 toast.success("Mode POS Kasir Aktif");
             } else if (e.key === "F7" || (e.altKey && e.key === "2")) {
                 e.preventDefault();
+                setTransactionMode("eceran");
+                toast.success("Mode Barang Eceran Aktif");
+            } else if (e.key === "F8" || (e.altKey && e.key === "3")) {
+                e.preventDefault();
                 setTransactionMode("jasa");
                 toast.success("Mode Jasa Aktif");
-            } else if (e.key === "F8" || (e.altKey && e.key === "3")) {
+            } else if (e.key === "F9" || (e.altKey && e.key === "4")) {
                 e.preventDefault();
                 setTransactionMode("agen_link");
                 toast.success("Mode Agen Link Aktif");
-            } else if (e.key === "F9" || (e.altKey && e.key === "4")) {
+            } else if (e.key === "F10" || (e.altKey && e.key === "5")) {
                 e.preventDefault();
                 setTransactionMode("tukar_poin");
                 toast.success("Mode Tukar Poin Aktif");
@@ -813,7 +826,7 @@ export default function Index({
                 }
             } else if (e.altKey && e.key.toLowerCase() === "h") {
                 e.preventDefault();
-                if (transactionMode === "produk" || transactionMode === "jasa") {
+                if (transactionMode === "produk" || transactionMode === "eceran" || transactionMode === "jasa") {
                     if (carts.length > 0) {
                         handleHoldCart();
                     } else {
@@ -1363,7 +1376,7 @@ export default function Index({
                 {/* Left Panel - Cart & Payments (Standard POS) or Agent Link History */}
                 <div
                     className={`flex-1 bg-slate-100 dark:bg-slate-950 overflow-hidden ${
-                        (transactionMode === "produk" || transactionMode === "jasa")
+                        (transactionMode === "produk" || transactionMode === "eceran" || transactionMode === "jasa")
                             ? "flex flex-col"
                             : mobileView !== "cart"
                             ? "hidden lg:flex lg:flex-col"
@@ -1384,6 +1397,18 @@ export default function Index({
                             >
                                 <IconShoppingCart size={16} />
                                 <span>POS Kasir</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransactionMode("eceran")}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    transactionMode === "eceran"
+                                        ? "bg-white dark:bg-slate-950/20 dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm"
+                                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                                }`}
+                            >
+                                <IconScale size={16} />
+                                <span>Barang Eceran</span>
                             </button>
                             <button
                                 type="button"
@@ -1423,7 +1448,7 @@ export default function Index({
                             </button>
                         </div>
                         <div className="flex items-center gap-2 self-start sm:self-auto ml-auto">
-                            {(transactionMode === "produk" || transactionMode === "jasa") && (
+                            {(transactionMode === "produk" || transactionMode === "eceran" || transactionMode === "jasa") && (
                                 <div className="relative w-full sm:w-80 md:w-96">
                                     <div className="relative">
                                         <input
@@ -1436,6 +1461,8 @@ export default function Index({
                                             placeholder={
                                                 transactionMode === "produk"
                                                     ? "Cari produk atau scan barcode... (tekan / untuk fokus)"
+                                                    : transactionMode === "eceran"
+                                                    ? "Cari barang eceran / curah... (tekan / untuk fokus)"
                                                     : "Cari jasa / layanan... (tekan / untuk fokus)"
                                             }
                                             className="w-full h-10 pl-3 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-550 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-xs"
@@ -3185,9 +3212,10 @@ export default function Index({
                                 <div className="space-y-1.5">
                                     {[
                                         ["F6 / Alt+1", "Mode POS Kasir"],
-                                        ["F7 / Alt+2", "Mode Jasa"],
-                                        ["F8 / Alt+3", "Mode Agen Link"],
-                                        ["F9 / Alt+4", "Mode Tukar Poin"],
+                                        ["F7 / Alt+2", "Mode Barang Eceran"],
+                                        ["F8 / Alt+3", "Mode Jasa"],
+                                        ["F9 / Alt+4", "Mode Agen Link"],
+                                        ["F10 / Alt+5", "Mode Tukar Poin"],
                                     ].map(([key, desc]) => (
                                         <div key={key} className="flex items-center justify-between text-xs">
                                             <span className="text-slate-600 dark:text-slate-400">{desc}</span>

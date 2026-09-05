@@ -13,6 +13,7 @@ class Product extends Model
     protected $casts = [
         'id' => 'integer',
         'category_id' => 'integer',
+        'is_eceran' => 'boolean',
         'buy_price' => 'integer',
         'sell_price' => 'integer',
         'isi_pcs_dalam_pack' => 'float',
@@ -39,6 +40,7 @@ class Product extends Model
         'barcode',
         'sku',
         'title',
+        'is_eceran',
         'description',
         'buy_price',
         'sell_price',

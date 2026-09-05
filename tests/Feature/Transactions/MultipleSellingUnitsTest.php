@@ -405,4 +405,134 @@ class MultipleSellingUnitsTest extends TestCase
         $this->assertEquals(1500, $preview['summary']['promo_discount_total']);
         $this->assertEquals(8100, $preview['summary']['subtotal_after_promo']);
     }
+
+    public function test_multi_unit_stock_sync_1_pack_equals_12_pcs_4_packs_calculates_48_pcs(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo([
+            Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']),
+            Permission::firstOrCreate(['name' => 'products-create', 'guard_name' => 'web']),
+        ]);
+
+        $category = Category::create([
+            'name' => 'Minuman',
+            'description' => 'Kategori minuman',
+            'image' => 'category.png',
+        ]);
+
+        // Create product: 1 Dus = 4 Pack, 1 Pack = 12 Pcs => 1 Dus = 48 Pcs
+        // User inputs: 4 packs => stock in pcs is 4 * 12 = 48 pcs
+        $response = $this
+            ->actingAs($admin)
+            ->post(route('products.store'), [
+                'title' => 'Teh Botol 12s',
+                'barcode' => 'BARCODE-TEH-12',
+                'category_id' => $category->id,
+                'isi_pcs_dalam_pack' => 12,
+                'isi_pack_dalam_dus' => 4,
+                'isi_pcs_dalam_dus' => 48,
+
+                'satuan_jual_dus' => 'Dus',
+                'harga_beli_dus' => 120000,
+                'harga_jual_dus' => 140000,
+                'stok_dus' => 0,
+
+                'satuan_jual_pack' => 'Pak',
+                'harga_beli_pack' => 30000,
+                'harga_jual_pack' => 35000,
+                'stok_pack' => 4, // 4 packs
+
+                'satuan_jual_pcs' => 'Pcs',
+                'harga_beli_pcs' => 2500,
+                'harga_jual_pcs' => 3000,
+                'stok_pcs' => 0,
+
+                'is_stock_synced' => false,
+            ]);
+
+        $response->assertRedirect(route('products.index'));
+
+        $product = Product::where('barcode', 'BARCODE-TEH-12')->firstOrFail();
+        // 4 packs * 12 pcs = 48 pcs
+        $this->assertEquals(48, $product->stock);
+        $this->assertEquals(4, $product->stok_pack);
+    }
+
+    public function test_selling_1_pack_deducts_12_pcs_from_unified_stock(): void
+    {
+        $cashier = $this->createCashier();
+        $this->openShiftFor($cashier);
+
+        $category = Category::create([
+            'name' => 'Snack',
+            'description' => 'Kategori snack',
+            'image' => 'category.png',
+        ]);
+
+        // Product with 1 Pack = 12 Pcs, initial stock = 100 Pcs
+        $product = Product::create([
+            'category_id' => $category->id,
+            'image' => 'product.png',
+            'barcode' => 'SNACK-12PCS',
+            'title' => 'Biskuit Roma 12s',
+            'satuan_beli' => 'Pak',
+            'isi_pcs_dalam_pack' => 12,
+            'isi_pack_dalam_dus' => 1,
+            'isi_pcs_dalam_dus' => 12,
+
+            'satuan_jual_pack' => 'Pak',
+            'harga_beli_pack' => 24000,
+            'harga_jual_pack' => 30000,
+            'stok_pack' => 8,
+
+            'satuan_jual_pcs' => 'Pcs',
+            'harga_beli_pcs' => 2000,
+            'harga_jual_pcs' => 2500,
+            'stok_pcs' => 4,
+
+            'stock' => 100, // 100 pcs total
+            'buy_price' => 2000,
+            'sell_price' => 2500,
+        ]);
+
+        // 1. Cashier adds 1 Pack to cart
+        $this->actingAs($cashier)->post(route('transactions.addToCart'), [
+            'product_id' => $product->id,
+            'qty' => 1,
+            'satuan_key' => 'pack',
+            'sell_price' => $product->harga_jual_pack,
+        ]);
+
+        // 2. Checkout
+        $response = $this->actingAs($cashier)->post(route('transactions.store'), [
+            'grand_total' => 30000,
+            'cash' => 50000,
+            'change' => 20000,
+        ]);
+
+        $transaction = Transaction::latest('id')->first();
+        $this->assertNotNull($transaction);
+
+        // Deducted stock check: Initial 100 Pcs - (1 Pack * 12 Pcs) = 88 Pcs
+        $product->refresh();
+        $this->assertEquals(88, $product->stock);
+
+        // 3. Sell 2 more Packs: (2 * 12 = 24 Pcs)
+        $this->actingAs($cashier)->post(route('transactions.addToCart'), [
+            'product_id' => $product->id,
+            'qty' => 2,
+            'satuan_key' => 'pack',
+            'sell_price' => $product->harga_jual_pack,
+        ]);
+
+        $this->actingAs($cashier)->post(route('transactions.store'), [
+            'grand_total' => 60000,
+            'cash' => 60000,
+            'change' => 0,
+        ]);
+
+        // Deducted stock check: 88 Pcs - 24 Pcs = 64 Pcs
+        $product->refresh();
+        $this->assertEquals(64, $product->stock);
+    }
 }

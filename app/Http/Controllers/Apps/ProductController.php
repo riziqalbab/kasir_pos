@@ -129,6 +129,7 @@ class ProductController extends Controller
             'sell_price' => 'nullable|integer|min:0',
             'stock' => 'nullable|numeric|min:0',
             'is_stock_synced' => 'nullable|boolean',
+            'is_eceran' => 'nullable|boolean',
         ]);
 
         // upload image
@@ -139,28 +140,53 @@ class ProductController extends Controller
             $imageName = $image->hashName();
         }
 
-        $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
-        $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
-        $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
-        if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
-            $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
-        }
-
-        $satuanBeli = $request->input('satuan_beli') ?: 'Pcs';
-        $satuanJualPcs = $request->input('satuan_jual_pcs') ?: 'Pcs';
-
-        $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', 0));
-        $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', 0));
-
-        $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', 0));
-
-        $stokDus = (float) $request->input('stok_dus', 0);
-        $stokPack = (float) $request->input('stok_pack', 0);
-
-        if ($request->input('is_stock_synced')) {
-            $computedStock = (float) $request->input('stock', $stokPcs);
+        if ($request->boolean('is_eceran')) {
+            $satuanEceran = $request->input('satuan_jual_pcs') ?: ($request->input('satuan_beli') ?: 'Pcs');
+            $isiPcsDalamPack = 0;
+            $isiPackDalamDus = 1;
+            $isiPcsDalamDus = 0;
+            $satuanBeli = $satuanEceran;
+            $satuanJualPcs = $satuanEceran;
+            $satuanJualDus = null;
+            $satuanJualPack = null;
+            $hargaBeliDus = 0;
+            $hargaJualDus = 0;
+            $stokDus = 0;
+            $hargaBeliPack = 0;
+            $hargaJualPack = 0;
+            $stokPack = 0;
+            $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', 0));
+            $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', 0));
+            $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', 0));
+            $computedStock = $stokPcs;
         } else {
-            $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+            $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
+            $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
+            $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
+            if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
+                $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
+            }
+
+            $satuanBeli = $request->input('satuan_beli') ?: 'Pcs';
+            $satuanJualPcs = $request->input('satuan_jual_pcs') ?: 'Pcs';
+            $satuanJualDus = $request->satuan_jual_dus;
+            $satuanJualPack = $request->satuan_jual_pack;
+            $hargaBeliDus = (int) $request->input('harga_beli_dus', 0);
+            $hargaJualDus = (int) $request->input('harga_jual_dus', 0);
+            $stokDus = (float) $request->input('stok_dus', 0);
+            $hargaBeliPack = (int) $request->input('harga_beli_pack', 0);
+            $hargaJualPack = (int) $request->input('harga_jual_pack', 0);
+            $stokPack = (float) $request->input('stok_pack', 0);
+
+            $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', 0));
+            $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', 0));
+            $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', 0));
+
+            if ($request->input('is_stock_synced')) {
+                $computedStock = (float) $request->input('stock', $stokPcs);
+            } else {
+                $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+            }
         }
 
         $sku = $request->input('sku');
@@ -185,14 +211,15 @@ class ProductController extends Controller
             'isi_pcs_dalam_pack' => $isiPcsDalamPack,
             'isi_pack_dalam_dus' => $isiPackDalamDus,
             'isi_pcs_dalam_dus' => $isiPcsDalamDus,
-            'satuan_jual_dus' => $request->satuan_jual_dus,
-            'harga_beli_dus' => (int) $request->input('harga_beli_dus', 0),
-            'harga_jual_dus' => (int) $request->input('harga_jual_dus', 0),
+            'satuan_jual_dus' => $satuanJualDus,
+            'harga_beli_dus' => $hargaBeliDus,
+            'harga_jual_dus' => $hargaJualDus,
             'stok_dus' => $stokDus,
-            'satuan_jual_pack' => $request->satuan_jual_pack,
-            'harga_beli_pack' => (int) $request->input('harga_beli_pack', 0),
-            'harga_jual_pack' => (int) $request->input('harga_jual_pack', 0),
+            'satuan_jual_pack' => $satuanJualPack,
+            'harga_beli_pack' => $hargaBeliPack,
+            'harga_jual_pack' => $hargaJualPack,
             'stok_pack' => $stokPack,
+            'is_eceran' => $request->boolean('is_eceran'),
             'satuan_jual_pcs' => $satuanJualPcs,
             'harga_beli_pcs' => $buyPricePcs,
             'harga_jual_pcs' => $sellPricePcs,
@@ -281,29 +308,56 @@ class ProductController extends Controller
             'sell_price' => 'nullable|integer|min:0',
             'stock' => 'nullable|numeric|min:0',
             'is_stock_synced' => 'nullable|boolean',
+            'is_eceran' => 'nullable|boolean',
         ]);
 
-        $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
-        $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
-        $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
-        if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
-            $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
-        }
-
-        $satuanBeli = $request->input('satuan_beli') ?: ($product->satuan_beli ?: 'Pcs');
-        $satuanJualPcs = $request->input('satuan_jual_pcs') ?: ($product->satuan_jual_pcs ?: 'Pcs');
-
-        $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
-        $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
-
-        $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
-        $stokDus = (float) $request->input('stok_dus', $product->stok_dus);
-        $stokPack = (float) $request->input('stok_pack', $product->stok_pack);
-
-        if ($request->input('is_stock_synced')) {
-            $computedStock = (float) $request->input('stock', $stokPcs);
+        if ($request->boolean('is_eceran')) {
+            $satuanEceran = $request->input('satuan_jual_pcs') ?: ($request->input('satuan_beli') ?: ($product->satuan_jual_pcs ?: 'Pcs'));
+            $isiPcsDalamPack = 0;
+            $isiPackDalamDus = 1;
+            $isiPcsDalamDus = 0;
+            $satuanBeli = $satuanEceran;
+            $satuanJualPcs = $satuanEceran;
+            $satuanJualDus = null;
+            $satuanJualPack = null;
+            $hargaBeliDus = 0;
+            $hargaJualDus = 0;
+            $stokDus = 0;
+            $hargaBeliPack = 0;
+            $hargaJualPack = 0;
+            $stokPack = 0;
+            $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
+            $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
+            $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
+            $computedStock = $stokPcs;
         } else {
-            $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+            $isiPcsDalamPack = (float) $request->input('isi_pcs_dalam_pack', 0);
+            $isiPackDalamDus = (float) $request->input('isi_pack_dalam_dus', 1);
+            $isiPcsDalamDus = (float) $request->input('isi_pcs_dalam_dus', 0);
+            if ($isiPcsDalamDus == 0 && $isiPcsDalamPack > 0) {
+                $isiPcsDalamDus = $isiPcsDalamPack * $isiPackDalamDus;
+            }
+
+            $satuanBeli = $request->input('satuan_beli') ?: ($product->satuan_beli ?: 'Pcs');
+            $satuanJualPcs = $request->input('satuan_jual_pcs') ?: ($product->satuan_jual_pcs ?: 'Pcs');
+            $satuanJualDus = $request->satuan_jual_dus;
+            $satuanJualPack = $request->satuan_jual_pack;
+            $hargaBeliDus = (int) $request->input('harga_beli_dus', 0);
+            $hargaJualDus = (int) $request->input('harga_jual_dus', 0);
+            $stokDus = (float) $request->input('stok_dus', $product->stok_dus);
+            $hargaBeliPack = (int) $request->input('harga_beli_pack', 0);
+            $hargaJualPack = (int) $request->input('harga_jual_pack', 0);
+            $stokPack = (float) $request->input('stok_pack', $product->stok_pack);
+
+            $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
+            $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
+            $stokPcs = (float) ($request->filled('stok_pcs') ? $request->stok_pcs : $request->input('stock', $product->stok_pcs));
+
+            if ($request->input('is_stock_synced')) {
+                $computedStock = (float) $request->input('stock', $stokPcs);
+            } else {
+                $computedStock = ($stokDus * $isiPcsDalamDus) + ($stokPack * $isiPcsDalamPack) + $stokPcs;
+            }
         }
 
         if ($computedStock !== (float) $product->stock) {
@@ -340,15 +394,16 @@ class ProductController extends Controller
             'isi_pcs_dalam_pack' => $isiPcsDalamPack,
             'isi_pack_dalam_dus' => $isiPackDalamDus,
             'isi_pcs_dalam_dus' => $isiPcsDalamDus,
-            'satuan_jual_dus' => $request->satuan_jual_dus,
-            'harga_beli_dus' => (int) $request->input('harga_beli_dus', 0),
-            'harga_jual_dus' => (int) $request->input('harga_jual_dus', 0),
+            'satuan_jual_dus' => $satuanJualDus,
+            'harga_beli_dus' => $hargaBeliDus,
+            'harga_jual_dus' => $hargaJualDus,
             'stok_dus' => $stokDus,
-            'satuan_jual_pack' => $request->satuan_jual_pack,
-            'harga_beli_pack' => (int) $request->input('harga_beli_pack', 0),
-            'harga_jual_pack' => (int) $request->input('harga_jual_pack', 0),
+            'satuan_jual_pack' => $satuanJualPack,
+            'harga_beli_pack' => $hargaBeliPack,
+            'harga_jual_pack' => $hargaJualPack,
             'stok_pack' => $stokPack,
             'satuan_jual_pcs' => $satuanJualPcs,
+            'is_eceran' => $request->boolean('is_eceran'),
             'harga_beli_pcs' => $buyPricePcs,
             'harga_jual_pcs' => $sellPricePcs,
             'stok_pcs' => $stokPcs,
@@ -460,6 +515,7 @@ class ProductController extends Controller
             'satuan_jual_pcs',
             'harga_beli_pcs',
             'harga_jual_pcs',
+            'is_eceran',
         ]);
     }
 
