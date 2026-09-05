@@ -7,6 +7,7 @@ import {
     IconReceipt,
     IconFileInvoice,
     IconTruck,
+    
     IconBuildingBank,
     IconCheck,
     IconAlertCircle,
@@ -137,13 +138,13 @@ export default function Print({ transaction }) {
                 setPrintMode(preferredFormat);
             }
 
-            // Trigger silent print
-            handleSilentPrint(bridgeUrl, preferredFormat);
+            // Trigger silent print with auto redirect
+            handleSilentPrint(bridgeUrl, preferredFormat, true);
         }
     }, [transaction]);
 
-    const handleSilentPrint = async (url = "http://localhost:3001", format = "thermal80") => {
-        if (!transaction) return;
+    const handleSilentPrint = async (url = "http://localhost:3001", format = "thermal80", isAutoRedirect = false) => {
+        if (!transaction) return false;
         setIsPrintingSilent(true);
 
         const cleanUrl = url.replace(/\/$/, "");
@@ -166,7 +167,7 @@ export default function Print({ transaction }) {
                 cashier: transaction.cashier?.name || "Kasir",
                 customer: transaction.customer?.name || null,
                 items: (transaction.details || []).map(d => ({
-                    name: d.product?.name || d.service?.name || "Item",
+                    name: d.product?.title || d.product?.name || d.service?.name || "Item",
                     qty: d.qty,
                     price: d.price,
                     unit_price: d.unit_price,
@@ -184,7 +185,7 @@ export default function Print({ transaction }) {
 
         try {
             const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), 4000); // 4 sec timeout
+            const id = setTimeout(() => controller.abort(), 3500); // 3.5 sec timeout
             
             const response = await fetch(`${cleanUrl}/print`, {
                 method: "POST",
@@ -199,33 +200,39 @@ export default function Print({ transaction }) {
             const result = await response.json();
             if (result.success) {
                 toast.success("Silent Print Berhasil!");
-                
-                // Automatically redirect back to POS or previous page after 2 seconds
-                setTimeout(() => {
-                    if (window.history.length > 1) {
-                        window.history.back();
-                    } else {
-                        router.visit(route("transactions.index"));
-                    }
-                }, 2000);
-            } else {
-                toast.error("Gagal mencetak: " + (result.error || "Kesalahan internal bridge"));
                 setIsPrintingSilent(false);
+                
+                // Automatically redirect back to POS or previous page if auto-print
+                if (isAutoRedirect) {
+                    setTimeout(() => {
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        } else {
+                            router.visit(route("transactions.index"));
+                        }
+                    }, 2000);
+                }
+                return true;
+            } else {
+                console.warn("Silent print error from bridge:", result.error);
+                setIsPrintingSilent(false);
+                return false;
             }
         } catch (err) {
-            console.error("Silent printing request failed:", err);
-            toast.error("Printer Bridge tidak aktif atau salah konfigurasi.");
+            console.warn("Silent printing bridge unreachable/offline:", err);
             setIsPrintingSilent(false);
+            return false;
         }
     };
 
-    const handlePrint = () => {
-        const isSilentEnabled = localStorage.getItem("silent_print_enabled") === "true";
+    const handlePrint = async () => {
         const bridgeUrl = localStorage.getItem("printer_bridge_url") || "http://localhost:3001";
         
-        if (isSilentEnabled) {
-            handleSilentPrint(bridgeUrl, printMode);
-        } else {
+        // Always attempt silent print via printer bridge first
+        const success = await handleSilentPrint(bridgeUrl, printMode, false);
+        
+        // If silent printer is offline or failed, fallback to native browser print dialog
+        if (!success) {
             window.print();
         }
     };

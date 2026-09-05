@@ -156,27 +156,32 @@ export default function PrinterBridgeSettingsModal({ isOpen, onClose, onSave }) 
 
                 {/* Body */}
                 <form onSubmit={handleSave} className="p-6 space-y-5">
-                    {/* Enable Silent Print */}
-                    <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer" htmlFor="silent_print_enabled">
-                                Aktifkan Silent Print
+                    {/* Enable Auto-Print */}
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200 cursor-pointer" htmlFor="silent_print_enabled">
+                                    Cetak Otomatis (Auto-Print)
+                                </label>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    Otomatis cetak struk tanpa dialog setelah transaksi selesai
+                                </span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="silent_print_enabled"
+                                    name="silent_print_enabled"
+                                    checked={settings.silent_print_enabled}
+                                    onChange={handleChange}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
                             </label>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                                Cetak otomatis tanpa dialog browser
-                            </span>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                id="silent_print_enabled"
-                                name="silent_print_enabled"
-                                checked={settings.silent_print_enabled}
-                                onChange={handleChange}
-                                className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
-                        </label>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-200/50 dark:border-slate-700/50 pt-2">
+                            💡 <em>Tombol <strong>"Cetak Ulang Struk"</strong> akan selalu memprioritaskan silent printer terlebih dahulu jika bridge terhubung.</em>
+                        </p>
                     </div>
 
                     {/* Bridge URL */}
