@@ -99,22 +99,12 @@ export default function Edit({ categories, product, units = [] }) {
         const val = parseInt(value, 10) || 0;
         setData((prev) => {
             const updated = { ...prev };
-            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
-            const packDus = Number(prev.isi_pack_dalam_dus) || 0;
-            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
-
             if (unitKey === "dus") {
                 updated.harga_beli_dus = val;
-                updated.harga_beli_pack = packDus > 0 ? Math.floor(val / packDus) : 0;
-                updated.harga_beli_pcs = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
             } else if (unitKey === "pack") {
                 updated.harga_beli_pack = val;
-                updated.harga_beli_pcs = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
-                updated.harga_beli_dus = val * packDus;
             } else if (unitKey === "pcs") {
                 updated.harga_beli_pcs = val;
-                updated.harga_beli_pack = val * pcsPack;
-                updated.harga_beli_dus = val * pcsDus;
             }
             return updated;
         });
@@ -140,23 +130,22 @@ export default function Edit({ categories, product, units = [] }) {
         
         setData((prev) => {
             const updated = { ...prev };
-            const pcsPack = Number(prev.isi_pcs_dalam_pack) || 0;
-            const pcsDus = Number(prev.isi_pcs_dalam_dus) || 0;
-
             if (unitKey === "dus") {
                 updated.stok_dus = val;
-                updated.stok_pack = pcsPack > 0 ? Number(((val * pcsDus) / pcsPack).toFixed(3)) : 0;
-                updated.stok_pcs = Number((val * pcsDus).toFixed(3));
             } else if (unitKey === "pack") {
                 updated.stok_pack = val;
-                updated.stok_dus = pcsDus > 0 ? Number(((val * pcsPack) / pcsDus).toFixed(3)) : 0;
-                updated.stok_pcs = Number((val * pcsPack).toFixed(3));
             } else if (unitKey === "pcs") {
                 updated.stok_pcs = val;
-                updated.stok_dus = pcsDus > 0 ? Number((val / pcsDus).toFixed(3)) : 0;
-                updated.stok_pack = pcsPack > 0 ? Number((val / pcsPack).toFixed(3)) : 0;
             }
-            updated.stock = updated.stok_pcs;
+
+            const pcsPack = Number(updated.isi_pcs_dalam_pack) || 0;
+            const pcsDus = Number(updated.isi_pcs_dalam_dus) || (pcsPack * (Number(updated.isi_pack_dalam_dus) || 1));
+
+            const totalPcs = (Number(updated.stok_dus || 0) * (pcsDus > 0 ? pcsDus : 1))
+                + (Number(updated.stok_pack || 0) * (pcsPack > 0 ? pcsPack : 1))
+                + Number(updated.stok_pcs || 0);
+
+            updated.stock = totalPcs;
             return updated;
         });
     };
@@ -172,19 +161,11 @@ export default function Edit({ categories, product, units = [] }) {
             const packDus = field === "isi_pack_dalam_dus" ? val : Number(prev.isi_pack_dalam_dus || 0);
             updated.isi_pcs_dalam_dus = Number((pcsPack * packDus).toFixed(3));
 
-            // Recalculate prices using pcs as the ground truth
-            const buyPcs = Number(updated.harga_beli_pcs || 0);
+            const pcsDus = updated.isi_pcs_dalam_dus;
+            const totalPcs = (Number(updated.stok_dus || 0) * (pcsDus > 0 ? pcsDus : 1))
+                + (Number(updated.stok_pack || 0) * (pcsPack > 0 ? pcsPack : 1))
+                + Number(updated.stok_pcs || 0);
 
-            updated.harga_beli_pack = Math.round(buyPcs * pcsPack);
-            updated.harga_beli_dus = Math.round(buyPcs * updated.isi_pcs_dalam_dus);
-
-            // Recalculate stock fields to stay in sync using updated.stok_pcs as the ground truth
-            const totalPcs = Number(updated.stok_pcs || 0);
-            const newPcsPack = pcsPack;
-            const newPcsDus = updated.isi_pcs_dalam_dus;
-
-            updated.stok_dus = newPcsDus > 0 ? Number((totalPcs / newPcsDus).toFixed(3)) : 0;
-            updated.stok_pack = newPcsPack > 0 ? Number((totalPcs / newPcsPack).toFixed(3)) : 0;
             updated.stock = totalPcs;
 
             return updated;
@@ -553,20 +534,15 @@ export default function Edit({ categories, product, units = [] }) {
                                     Stok Saat Ini (Keseluruhan)
                                 </p>
                                 <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {activeTab === "dus" && (
-                                        <>
-                                            {data.stok_dus} {data.satuan_jual_dus || "Dus"} ({data.stock} Pcs)
-                                        </>
-                                    )}
-                                    {activeTab === "pack" && (
-                                        <>
-                                            {data.stok_pack} {data.satuan_jual_pack || "Pak"} ({data.stock} Pcs)
-                                        </>
-                                    )}
-                                    {activeTab === "pcs" && (
-                                        <>
-                                            {data.stock} {data.satuan_jual_pcs || "Pcs"}
-                                        </>
+                                    {data.stock} {data.satuan_jual_pcs || "Pcs"}
+                                    {(Number(data.stok_dus) > 0 || Number(data.stok_pack) > 0) && (
+                                        <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
+                                            ({[
+                                                Number(data.stok_dus) > 0 ? `${data.stok_dus} ${data.satuan_jual_dus || "Dus"}` : null,
+                                                Number(data.stok_pack) > 0 ? `${data.stok_pack} ${data.satuan_jual_pack || "Pak"}` : null,
+                                                Number(data.stok_pcs) > 0 ? `${data.stok_pcs} ${data.satuan_jual_pcs || "Pcs"}` : null,
+                                            ].filter(Boolean).join(" + ")})
+                                        </span>
                                     )}
                                 </p>
                             </div>
