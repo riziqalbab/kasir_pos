@@ -78,4 +78,54 @@ class ProductImportTest extends TestCase
         // Supplier auto-created
         $this->assertDatabaseHas('suppliers', ['name' => 'PT Viva Indonesia']);
     }
+
+    public function test_can_import_products_from_windows_encoded_csv()
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['products-access', 'products-create']);
+
+        $csvHeader = "Kode;Nama;Kategori;Satuan1;Satuan2;Satuan3;HargaBeli1;HargaBeli2;HargaBeli3;HargaJual1;HargaJual2;HargaJual3;stok1;stok2;stok3;isi1;isi2;isi3;Diskon1;Diskon2;Diskon3;PPN1;PPN2;PPN3;HargaBeliPPN1;HargaBeliPPN2;HargaBeliPPN3;KodeSupp;NamaSupp;AlamatSupp;TelponSupp;Expired;TempatRak;Foto;FotoSize\n";
+
+        // Non-UTF8 Windows-1252 characters (e.g. smart quotes \x93\x94, em-dash \x96, degree \xB0)
+        $rawWin1252 = "WIN-001;Obat Flu & Batuk \x93Cap Kaki Tiga\x94 100\xB0;Farmasi;botol;;;5000;;;7500;;;10;;;1;;1;0;0;0;0;0;0;5000;;;;;;;;;;\n";
+
+        $csvContent = $csvHeader.$rawWin1252;
+        $file = UploadedFile::fake()->createWithContent('windows_import.csv', $csvContent);
+
+        $response = $this->actingAs($user)->post(route('products.import'), [
+            'csv_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $product = Product::where('barcode', 'WIN-001')->first();
+        $this->assertNotNull($product);
+        // Assert valid UTF-8 string
+        $this->assertTrue(mb_check_encoding($product->title, 'UTF-8'));
+    }
+
+    public function test_can_import_products_from_template_import_produk_2_file()
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['products-access', 'products-create']);
+
+        $filePath = base_path('template_import_produk (2).csv');
+        $this->assertFileExists($filePath);
+
+        $file = new UploadedFile($filePath, 'template_import_produk (2).csv', 'text/csv', null, true);
+
+        $response = $this->actingAs($user)->post(route('products.import'), [
+            'csv_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $product = Product::where('barcode', '8999901')->first();
+        $this->assertNotNull($product);
+        $this->assertEquals('Viva Foundation Kuning Pengantin 30ml', $product->title);
+        $this->assertEquals(1728, $product->stock);
+        $this->assertTrue(mb_check_encoding($product->title, 'UTF-8'));
+    }
 }

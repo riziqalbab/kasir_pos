@@ -27,8 +27,26 @@ class ProductImportService
             throw new Exception('File CSV kosong.');
         }
 
-        // Remove UTF-8 BOM if present
-        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+        // 1. Detect and handle UTF-16 / UTF-8 BOM
+        if (str_starts_with($content, "\xFF\xFE")) {
+            // UTF-16LE
+            $content = mb_convert_encoding(substr($content, 2), 'UTF-8', 'UTF-16LE');
+        } elseif (str_starts_with($content, "\xFE\xFF")) {
+            // UTF-16BE
+            $content = mb_convert_encoding(substr($content, 2), 'UTF-8', 'UTF-16BE');
+        } elseif (str_starts_with($content, "\xEF\xBB\xBF")) {
+            // UTF-8 with BOM
+            $content = substr($content, 3);
+        }
+
+        // 2. Ensure valid UTF-8 encoding (handle Windows-1252 / ISO-8859-1)
+        if (! mb_check_encoding($content, 'UTF-8')) {
+            $detectedEncoding = mb_detect_encoding($content, ['UTF-8', 'Windows-1252', 'ISO-8859-1', 'ASCII', 'SJIS'], true);
+            $content = mb_convert_encoding($content, 'UTF-8', $detectedEncoding ?: 'Windows-1252');
+        }
+
+        // 3. Clean any corrupted/invalid byte sequences so JSON serialization never fails
+        $content = mb_convert_encoding($content, 'UTF-8', 'UTF-8');
 
         // Detect delimiter (; or , or \t)
         $firstLine = strtok($content, "\r\n");
@@ -118,18 +136,18 @@ class ProductImportService
                 $hargaJual2 = $this->cleanNumber($data['hargajual2'] ?? 0);
                 $hargaJual3 = $this->cleanNumber($data['hargajual3'] ?? 0);
 
-                $stok1 = $this->cleanNumber($data['stok1'] ?? 0);
-                $stok2 = $this->cleanNumber($data['stok2'] ?? 0);
-                $stok3 = $this->cleanNumber($data['stok3'] ?? 0);
+                $stok1 = $this->cleanDecimalNumber($data['stok1'] ?? 0);
+                $stok2 = $this->cleanDecimalNumber($data['stok2'] ?? 0);
+                $stok3 = $this->cleanDecimalNumber($data['stok3'] ?? 0);
 
-                $isi1 = $this->cleanNumber($data['isi1'] ?? 0);
-                $isi2 = $this->cleanNumber($data['isi2'] ?? 0);
-                $isi3 = $this->cleanNumber($data['isi3'] ?? 1);
+                $isi1 = $this->cleanDecimalNumber($data['isi1'] ?? 0);
+                $isi2 = $this->cleanDecimalNumber($data['isi2'] ?? 0);
+                $isi3 = $this->cleanDecimalNumber($data['isi3'] ?? 1, 1);
 
                 $isiPcsDalamPack = $isi2 > 0 ? $isi2 : 0;
                 $isiPcsDalamDus = $isi1 > 0 ? $isi1 : 0;
                 $isiPackDalamDus = ($isiPcsDalamDus > 0 && $isiPcsDalamPack > 0)
-                    ? (int) floor($isiPcsDalamDus / $isiPcsDalamPack)
+                    ? (float) round($isiPcsDalamDus / $isiPcsDalamPack, 3)
                     : 0;
 
                 // Total stock calculation in base unit (pcs)
@@ -251,10 +269,67 @@ class ProductImportService
     {
         $data = [];
         foreach ($columnMap as $cleanKey => $index) {
-            $data[$cleanKey] = isset($row[$index]) ? trim($row[$index]) : '';
+            $val = isset($row[$index]) ? trim((string) $row[$index]) : '';
+
+            // Ensure valid UTF-8 string encoding
+            if (! mb_check_encoding($val, 'UTF-8')) {
+                $val = mb_convert_encoding($val, 'UTF-8', 'Windows-1252');
+            }
+
+            // Remove non-printable control characters except standard whitespace
+            $val = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $val);
+
+            $data[$cleanKey] = $val;
         }
 
         return $data;
+    }
+
+    /**
+     * Parse decimal numbers (supporting fractional stocks / conversions)
+     */
+    protected function cleanDecimalNumber(mixed $value, float $default = 0): float
+    {
+        if (is_null($value) || $value === '') {
+            return $default;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $valStr = trim((string) $value);
+        $valStr = preg_replace('/[^\d.,]/', '', $valStr);
+
+        if (empty($valStr)) {
+            return $default;
+        }
+
+        // Check if there are both dots and commas (e.g. "1.533.600,50" or "1,533,600.50")
+        if (strpos($valStr, '.') !== false && strpos($valStr, ',') !== false) {
+            $lastDotPos = strrpos($valStr, '.');
+            $lastCommaPos = strrpos($valStr, ',');
+
+            if ($lastCommaPos > $lastDotPos) {
+                $valStr = str_replace('.', '', $valStr);
+                $valStr = str_replace(',', '.', $valStr);
+            } else {
+                $valStr = str_replace(',', '', $valStr);
+            }
+        } elseif (substr_count($valStr, '.') > 1) {
+            $valStr = str_replace('.', '', $valStr);
+        } elseif (substr_count($valStr, ',') > 1) {
+            $valStr = str_replace(',', '', $valStr);
+        } elseif (strpos($valStr, ',') !== false) {
+            $parts = explode(',', $valStr);
+            if (isset($parts[1]) && strlen($parts[1]) === 3 && (int) $parts[0] > 0) {
+                $valStr = str_replace(',', '', $valStr);
+            } else {
+                $valStr = str_replace(',', '.', $valStr);
+            }
+        }
+
+        return (float) $valStr;
     }
 
     /**

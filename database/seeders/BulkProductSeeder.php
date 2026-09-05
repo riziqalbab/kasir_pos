@@ -111,4 +111,3 @@ class BulkProductSeeder extends Seeder
         $this->command?->info('Bulk & fuel products seeded successfully!');
     }
 }
-
