@@ -173,10 +173,10 @@ class ProductController extends Controller
             $satuanJualPack = $request->satuan_jual_pack;
             $hargaBeliDus = (int) $request->input('harga_beli_dus', 0);
             $hargaJualDus = (int) $request->input('harga_jual_dus', 0);
-            $stokDus = (float) $request->input('stok_dus', 0);
+            $stokDus = (float) floor((float) $request->input('stok_dus', 0));
             $hargaBeliPack = (int) $request->input('harga_beli_pack', 0);
             $hargaJualPack = (int) $request->input('harga_jual_pack', 0);
-            $stokPack = (float) $request->input('stok_pack', 0);
+            $stokPack = (float) floor((float) $request->input('stok_pack', 0));
 
             $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', 0));
             $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', 0));
@@ -344,10 +344,10 @@ class ProductController extends Controller
             $satuanJualPack = $request->satuan_jual_pack;
             $hargaBeliDus = (int) $request->input('harga_beli_dus', 0);
             $hargaJualDus = (int) $request->input('harga_jual_dus', 0);
-            $stokDus = (float) $request->input('stok_dus', $product->stok_dus);
+            $stokDus = (float) floor((float) $request->input('stok_dus', $product->stok_dus));
             $hargaBeliPack = (int) $request->input('harga_beli_pack', 0);
             $hargaJualPack = (int) $request->input('harga_jual_pack', 0);
-            $stokPack = (float) $request->input('stok_pack', $product->stok_pack);
+            $stokPack = (float) floor((float) $request->input('stok_pack', $product->stok_pack));
 
             $buyPricePcs = (int) ($request->filled('harga_beli_pcs') ? $request->harga_beli_pcs : $request->input('buy_price', $product->buy_price));
             $sellPricePcs = (int) ($request->filled('harga_jual_pcs') ? $request->harga_jual_pcs : $request->input('sell_price', $product->sell_price));
@@ -425,7 +425,9 @@ class ProductController extends Controller
 
         $this->logProductUpdate($product, $before);
 
-        return to_route('products.index');
+        return to_route('products.index', [
+            'category_id' => $product->category_id,
+        ]);
     }
 
     /**

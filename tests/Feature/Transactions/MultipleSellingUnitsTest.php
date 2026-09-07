@@ -303,7 +303,7 @@ class MultipleSellingUnitsTest extends TestCase
                 'sku' => '', // empty SKU to trigger auto-generation
             ]);
 
-        $response2->assertRedirect(route('products.index'));
+        $response2->assertRedirect(route('products.index', ['category_id' => $category->id]));
 
         $product->refresh();
         $this->assertNotEmpty($product->sku);
@@ -616,13 +616,162 @@ class MultipleSellingUnitsTest extends TestCase
                 'is_stock_synced' => true,
             ]);
 
-        $response->assertRedirect(route('products.index'));
+        $response->assertRedirect(route('products.index', ['category_id' => $category->id]));
 
         $product->refresh();
-        // Stock should be 10, NOT 30
+        // Stock should be 10, NOT 30. And stok_dus (0.25) is rounded to 0 because it is less than 1.
         $this->assertEquals(10, $product->stock);
         $this->assertEquals(10, $product->stok_pcs);
         $this->assertEquals(1, $product->stok_pack);
-        $this->assertEquals(0.25, $product->stok_dus);
+        $this->assertEquals(0, $product->stok_dus);
+    }
+
+    public function test_synced_stock_less_than_one_is_rounded_to_zero(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo([
+            Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']),
+            Permission::firstOrCreate(['name' => 'products-create', 'guard_name' => 'web']),
+        ]);
+
+        $category = Category::create([
+            'name' => 'Snack',
+            'description' => 'Snack Kategori',
+            'image' => 'category.png',
+        ]);
+
+        // Product with 1 Dus = 40 Pcs, 1 Pack = 10 Pcs
+        // 5 Pcs total stock -> 5/40 = 0.125 Dus (should round to 0), 5/10 = 0.5 Pack (should round to 0)
+        $response = $this
+            ->actingAs($admin)
+            ->post(route('products.store'), [
+                'barcode' => 'BARCODE-ZERO-COMMA',
+                'title' => 'Permen Lolipop',
+                'category_id' => $category->id,
+                'isi_pcs_dalam_pack' => 10,
+                'isi_pack_dalam_dus' => 4,
+                'isi_pcs_dalam_dus' => 40,
+
+                'satuan_jual_dus' => 'Dus',
+                'harga_beli_dus' => 40000,
+                'harga_jual_dus' => 50000,
+                'stok_dus' => 0.125, // less than 1
+
+                'satuan_jual_pack' => 'Pak',
+                'harga_beli_pack' => 10000,
+                'harga_jual_pack' => 12500,
+                'stok_pack' => 0.5, // less than 1
+
+                'satuan_jual_pcs' => 'Pcs',
+                'harga_beli_pcs' => 1000,
+                'harga_jual_pcs' => 1500,
+                'stok_pcs' => 5,
+
+                'stock' => 5,
+                'is_stock_synced' => true,
+            ]);
+
+        $response->assertRedirect(route('products.index'));
+
+        $product = Product::where('barcode', 'BARCODE-ZERO-COMMA')->firstOrFail();
+        $this->assertEquals(5, $product->stock);
+        $this->assertEquals(5, $product->stok_pcs);
+        $this->assertEquals(0, $product->stok_pack);
+        $this->assertEquals(0, $product->stok_dus);
+        $this->assertEquals(0, $product->getStockForUnit('dus'));
+        $this->assertEquals(0, $product->getStockForUnit('pack'));
+        $this->assertEquals(5, $product->getStockForUnit('pcs'));
+    }
+
+    public function test_synced_stock_floors_decimals_for_discrete_units_like_70_pcs(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo([
+            Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']),
+            Permission::firstOrCreate(['name' => 'products-edit', 'guard_name' => 'web']),
+        ]);
+
+        $category = Category::create([
+            'name' => 'ATK',
+            'description' => 'Alat Tulis Kantor',
+            'image' => 'category.png',
+        ]);
+
+        // 1 Dus = 4 Pack, 1 Pack = 10 Pcs => 1 Dus = 40 Pcs
+        $product = Product::create([
+            'category_id' => $category->id,
+            'image' => 'product.png',
+            'barcode' => 'BRCD-PENCIL-70',
+            'sku' => 'ATK70',
+            'title' => 'Pencil Karakter 70',
+            'satuan_beli' => 'Dus',
+            'isi_pcs_dalam_pack' => 10,
+            'isi_pack_dalam_dus' => 4,
+            'isi_pcs_dalam_dus' => 40,
+
+            'satuan_jual_dus' => 'Dus',
+            'harga_beli_dus' => 40000,
+            'harga_jual_dus' => 50000,
+            'stok_dus' => 0,
+
+            'satuan_jual_pack' => 'Pak',
+            'harga_beli_pack' => 10000,
+            'harga_jual_pack' => 12500,
+            'stok_pack' => 0,
+
+            'satuan_jual_pcs' => 'Pcs',
+            'harga_beli_pcs' => 1000,
+            'harga_jual_pcs' => 1500,
+            'stok_pcs' => 0,
+
+            'stock' => 0,
+            'buy_price' => 1000,
+            'sell_price' => 1500,
+        ]);
+
+        // When user edits and sets 70 pcs:
+        // 70 / 40 = 1.75 -> floored to 1 Dus
+        // 70 / 10 = 7.0 -> 7 Pack
+        $response = $this
+            ->actingAs($admin)
+            ->put(route('products.update', $product->id), [
+                'barcode' => 'BRCD-PENCIL-70',
+                'sku' => 'ATK70',
+                'title' => 'Pencil Karakter 70',
+                'category_id' => $category->id,
+                'satuan_beli' => 'Dus',
+                'isi_pcs_dalam_pack' => 10,
+                'isi_pack_dalam_dus' => 4,
+                'isi_pcs_dalam_dus' => 40,
+
+                'satuan_jual_dus' => 'Dus',
+                'harga_beli_dus' => 40000,
+                'harga_jual_dus' => 50000,
+                'stok_dus' => 1.75, // before floor: 1.75
+
+                'satuan_jual_pack' => 'Pak',
+                'harga_beli_pack' => 10000,
+                'harga_jual_pack' => 12500,
+                'stok_pack' => 7,
+
+                'satuan_jual_pcs' => 'Pcs',
+                'harga_beli_pcs' => 1000,
+                'harga_jual_pcs' => 1500,
+                'stok_pcs' => 70,
+
+                'stock' => 70,
+                'is_stock_synced' => true,
+            ]);
+
+        $response->assertRedirect(route('products.index', ['category_id' => $category->id]));
+
+        $product->refresh();
+        $this->assertEquals(70, $product->stock);
+        $this->assertEquals(70, $product->stok_pcs);
+        $this->assertEquals(7, $product->stok_pack);
+        $this->assertEquals(1, $product->stok_dus); // 1.75 is floored to 1
+        $this->assertEquals(1, $product->getStockForUnit('dus'));
+        $this->assertEquals(7, $product->getStockForUnit('pack'));
+        $this->assertEquals(70, $product->getStockForUnit('pcs'));
     }
 }

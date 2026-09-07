@@ -150,6 +150,11 @@ export default function Create({ categories, units = [] }) {
 
             updated.stok_dus = newPcsDus > 0 ? Number((totalPcs / newPcsDus).toFixed(3)) : 0;
             updated.stok_pack = newPcsPack > 0 ? Number((totalPcs / newPcsPack).toFixed(3)) : 0;
+            const calcDus = newPcsDus > 0 ? totalPcs / newPcsDus : 0;
+            const calcPack = newPcsPack > 0 ? totalPcs / newPcsPack : 0;
+
+            updated.stok_dus = calcDus > 0 && calcDus < 1 ? 0 : Number(calcDus.toFixed(3));
+            updated.stok_pack = calcPack > 0 && calcPack < 1 ? 0 : Number(calcPack.toFixed(3));
             updated.stock = totalPcs;
 
             return updated;
@@ -167,15 +172,23 @@ export default function Create({ categories, units = [] }) {
             if (unitKey === "dus") {
                 updated.stok_dus = val;
                 updated.stok_pack = pcsPack > 0 ? Number(((val * pcsDus) / pcsPack).toFixed(3)) : 0;
+                const packVal = pcsPack > 0 ? (val * pcsDus) / pcsPack : 0;
+                updated.stok_pack = packVal > 0 && packVal < 1 ? 0 : Number(packVal.toFixed(3));
                 updated.stok_pcs = Number((val * pcsDus).toFixed(3));
             } else if (unitKey === "pack") {
                 updated.stok_pack = val;
                 updated.stok_dus = pcsDus > 0 ? Number(((val * pcsPack) / pcsDus).toFixed(3)) : 0;
+                const dusVal = pcsDus > 0 ? (val * pcsPack) / pcsDus : 0;
+                updated.stok_dus = dusVal > 0 && dusVal < 1 ? 0 : Number(dusVal.toFixed(3));
                 updated.stok_pcs = Number((val * pcsPack).toFixed(3));
             } else if (unitKey === "pcs") {
                 updated.stok_pcs = val;
                 updated.stok_dus = pcsDus > 0 ? Number((val / pcsDus).toFixed(3)) : 0;
                 updated.stok_pack = pcsPack > 0 ? Number((val / pcsPack).toFixed(3)) : 0;
+                const dusVal = pcsDus > 0 ? val / pcsDus : 0;
+                const packVal = pcsPack > 0 ? val / pcsPack : 0;
+                updated.stok_dus = dusVal > 0 && dusVal < 1 ? 0 : Number(dusVal.toFixed(3));
+                updated.stok_pack = packVal > 0 && packVal < 1 ? 0 : Number(packVal.toFixed(3));
             }
             updated.stock = updated.stok_pcs;
             return updated;

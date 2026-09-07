@@ -123,7 +123,7 @@ class AuditLogTest extends TestCase
             'category_id' => $category->id,
             'buy_price' => 12000,
             'sell_price' => 18000,
-        ])->assertRedirect(route('products.index'));
+        ])->assertRedirect(route('products.index', ['category_id' => $category->id]));
 
         $this->actingAs($user)
             ->delete(route('products.destroy', $product->id))

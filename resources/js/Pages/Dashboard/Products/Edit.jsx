@@ -34,11 +34,11 @@ export default function Edit({ categories, product, units = [] }) {
         satuan_jual_dus: product.satuan_jual_dus || "Dus",
         harga_beli_dus: product.harga_beli_dus || 0,
         harga_jual_dus: product.harga_jual_dus || 0,
-        stok_dus: product.stok_dus || 0,
+        stok_dus: Math.floor(Number(product.stok_dus) || 0),
         satuan_jual_pack: product.satuan_jual_pack || "Pak",
         harga_beli_pack: product.harga_beli_pack || 0,
         harga_jual_pack: product.harga_jual_pack || 0,
-        stok_pack: product.stok_pack || 0,
+        stok_pack: Math.floor(Number(product.stok_pack) || 0),
         satuan_jual_pcs: product.satuan_jual_pcs || "Pcs",
         harga_beli_pcs: product.harga_beli_pcs || 0,
         harga_jual_pcs: product.harga_jual_pcs || 0,
@@ -147,16 +147,18 @@ export default function Edit({ categories, product, units = [] }) {
 
             if (unitKey === "dus") {
                 updated.stok_dus = val;
-                updated.stok_pack = pcsPack > 0 ? Number(((val * pcsDus) / pcsPack).toFixed(3)) : 0;
-                updated.stok_pcs = Number((val * pcsDus).toFixed(3));
+                const totalFromDus = val * pcsDus;
+                updated.stok_pack = pcsPack > 0 ? Math.floor(totalFromDus / pcsPack) : 0;
+                updated.stok_pcs = Math.round(totalFromDus);
             } else if (unitKey === "pack") {
                 updated.stok_pack = val;
-                updated.stok_dus = pcsDus > 0 ? Number(((val * pcsPack) / pcsDus).toFixed(3)) : 0;
-                updated.stok_pcs = Number((val * pcsPack).toFixed(3));
+                const totalFromPack = val * pcsPack;
+                updated.stok_dus = pcsDus > 0 ? Math.floor(totalFromPack / pcsDus) : 0;
+                updated.stok_pcs = Math.round(totalFromPack);
             } else if (unitKey === "pcs") {
                 updated.stok_pcs = val;
-                updated.stok_dus = pcsDus > 0 ? Number((val / pcsDus).toFixed(3)) : 0;
-                updated.stok_pack = pcsPack > 0 ? Number((val / pcsPack).toFixed(3)) : 0;
+                updated.stok_dus = pcsDus > 0 ? Math.floor(val / pcsDus) : 0;
+                updated.stok_pack = pcsPack > 0 ? Math.floor(val / pcsPack) : 0;
             }
             updated.stock = updated.stok_pcs;
             return updated;
@@ -185,8 +187,8 @@ export default function Edit({ categories, product, units = [] }) {
             const newPcsPack = pcsPack;
             const newPcsDus = updated.isi_pcs_dalam_dus;
 
-            updated.stok_dus = newPcsDus > 0 ? Number((totalPcs / newPcsDus).toFixed(3)) : 0;
-            updated.stok_pack = newPcsPack > 0 ? Number((totalPcs / newPcsPack).toFixed(3)) : 0;
+            updated.stok_dus = newPcsDus > 0 ? Math.floor(totalPcs / newPcsDus) : 0;
+            updated.stok_pack = newPcsPack > 0 ? Math.floor(totalPcs / newPcsPack) : 0;
             updated.stock = totalPcs;
 
             return updated;
@@ -230,10 +232,10 @@ export default function Edit({ categories, product, units = [] }) {
         const pcsInPack = Number(data.isi_pcs_dalam_pack || 0);
 
         if (unit === "dus" && pcsInDus > 0) {
-            return Number((stock / pcsInDus).toFixed(3));
+            return data.is_eceran ? Number((stock / pcsInDus).toFixed(3)) : Math.floor(stock / pcsInDus);
         }
         if (unit === "pack" && pcsInPack > 0) {
-            return Number((stock / pcsInPack).toFixed(3));
+            return data.is_eceran ? Number((stock / pcsInPack).toFixed(3)) : Math.floor(stock / pcsInPack);
         }
         return stock;
     };
@@ -244,7 +246,7 @@ export default function Edit({ categories, product, units = [] }) {
 
             <div className="mb-6">
                 <Link
-                    href={route("products.index")}
+                    href={route("products.index", product.category_id ? { category_id: product.category_id } : {})}
                     className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3"
                 >
                     <IconArrowLeft size={16} />
@@ -756,7 +758,7 @@ export default function Edit({ categories, product, units = [] }) {
 
                         <div className="flex justify-end gap-3">
                             <Link
-                                href={route("products.index")}
+                                href={route("products.index", product.category_id ? { category_id: product.category_id } : {})}
                                 className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors"
                             >
                                 Batal

@@ -254,7 +254,7 @@ class StockOpnameTest extends TestCase
                 'is_stock_synced' => true,
             ]);
 
-        $response->assertRedirect(route('products.index'));
+        $response->assertRedirect(route('products.index', ['category_id' => $product->category_id]));
         $product->refresh();
 
         $this->assertSame('Produk Revisi', $product->title);

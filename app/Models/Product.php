@@ -111,10 +111,10 @@ class Product extends Model
         $pcsInPack = (float) ($this->isi_pcs_dalam_pack ?: 0);
 
         if ($unitKey === 'dus' && $pcsInDus > 0) {
-            return round($stock / $pcsInDus, 3);
+            return $this->is_eceran ? round($stock / $pcsInDus, 3) : (float) floor($stock / $pcsInDus);
         }
         if ($unitKey === 'pack' && $pcsInPack > 0) {
-            return round($stock / $pcsInPack, 3);
+            return $this->is_eceran ? round($stock / $pcsInPack, 3) : (float) floor($stock / $pcsInPack);
         }
 
         return $stock;

@@ -67,7 +67,7 @@ class EceranProductTest extends TestCase
             'is_eceran' => 0,
         ]);
 
-        $updateResponse->assertRedirect(route('products.index'));
+        $updateResponse->assertRedirect(route('products.index', ['category_id' => $category->id]));
 
         $product->refresh();
         $this->assertFalse($product->is_eceran);
