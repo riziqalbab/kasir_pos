@@ -44,6 +44,7 @@ export default function Edit({ categories, product, units = [] }) {
         harga_jual_pcs: product.harga_jual_pcs || 0,
         stok_pcs: product.stok_pcs || 0,
         stock: product.stock || 0,
+        is_stock_synced: true,
         is_eceran: Boolean(product.is_eceran),
         _method: "PUT",
     });

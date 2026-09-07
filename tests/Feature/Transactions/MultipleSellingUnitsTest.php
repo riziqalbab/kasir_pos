@@ -535,4 +535,94 @@ class MultipleSellingUnitsTest extends TestCase
         $product->refresh();
         $this->assertEquals(64, $product->stock);
     }
+
+    public function test_updating_product_stock_pcs_with_multi_units_does_not_triple_stock(): void
+    {
+        $admin = User::factory()->create();
+        $admin->givePermissionTo([
+            Permission::firstOrCreate(['name' => 'products-access', 'guard_name' => 'web']),
+            Permission::firstOrCreate(['name' => 'products-edit', 'guard_name' => 'web']),
+        ]);
+
+        $category = Category::create([
+            'name' => 'ATK',
+            'description' => 'Alat Tulis Kantor',
+            'image' => 'category.png',
+        ]);
+
+        // Create product: Pencil Karakter (ATK105)
+        // 1 Dus = 4 Pack, 1 Pack = 10 Pcs => 1 Dus = 40 Pcs. Initial stock = 0.
+        $product = Product::create([
+            'category_id' => $category->id,
+            'image' => 'product.png',
+            'barcode' => 'BRCD-ATK105',
+            'sku' => 'ATK105',
+            'title' => 'Pencil Karakter',
+            'satuan_beli' => 'Dus',
+            'isi_pcs_dalam_pack' => 10,
+            'isi_pack_dalam_dus' => 4,
+            'isi_pcs_dalam_dus' => 40,
+
+            'satuan_jual_dus' => 'Dus',
+            'harga_beli_dus' => 40000,
+            'harga_jual_dus' => 50000,
+            'stok_dus' => 0,
+
+            'satuan_jual_pack' => 'Pak',
+            'harga_beli_pack' => 10000,
+            'harga_jual_pack' => 12500,
+            'stok_pack' => 0,
+
+            'satuan_jual_pcs' => 'Pcs',
+            'harga_beli_pcs' => 1000,
+            'harga_jual_pcs' => 1500,
+            'stok_pcs' => 0,
+
+            'stock' => 0,
+            'buy_price' => 1000,
+            'sell_price' => 1500,
+        ]);
+
+        // User edits product and inputs 10 in stok_pcs:
+        // In frontend Edit.jsx, stok_pcs = 10, stok_pack = 1, stok_dus = 0.25, stock = 10, is_stock_synced = true
+        $response = $this
+            ->actingAs($admin)
+            ->put(route('products.update', $product->id), [
+                'barcode' => 'BRCD-ATK105',
+                'sku' => 'ATK105',
+                'title' => 'Pencil Karakter',
+                'category_id' => $category->id,
+                'satuan_beli' => 'Dus',
+                'isi_pcs_dalam_pack' => 10,
+                'isi_pack_dalam_dus' => 4,
+                'isi_pcs_dalam_dus' => 40,
+
+                'satuan_jual_dus' => 'Dus',
+                'harga_beli_dus' => 40000,
+                'harga_jual_dus' => 50000,
+                'stok_dus' => 0.25,
+
+                'satuan_jual_pack' => 'Pak',
+                'harga_beli_pack' => 10000,
+                'harga_jual_pack' => 12500,
+                'stok_pack' => 1,
+
+                'satuan_jual_pcs' => 'Pcs',
+                'harga_beli_pcs' => 1000,
+                'harga_jual_pcs' => 1500,
+                'stok_pcs' => 10,
+
+                'stock' => 10,
+                'is_stock_synced' => true,
+            ]);
+
+        $response->assertRedirect(route('products.index'));
+
+        $product->refresh();
+        // Stock should be 10, NOT 30
+        $this->assertEquals(10, $product->stock);
+        $this->assertEquals(10, $product->stok_pcs);
+        $this->assertEquals(1, $product->stok_pack);
+        $this->assertEquals(0.25, $product->stok_dus);
+    }
 }
